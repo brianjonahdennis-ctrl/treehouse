@@ -14,6 +14,7 @@ import { openSheet, confirmSheet, toast } from './overlay';
 import { BellButton } from './Home';
 import { applyTheme } from './App';
 import { PushRow, InstallRow } from './PushInstall';
+import { openAvatarPicker } from './AvatarEditor';
 import * as push from '@/lib/push';
 
 const LIVE = process.env.NEXT_PUBLIC_LIVE_APP || 'https://treehouse.ng';
@@ -38,7 +39,7 @@ export default function Profile() {
   const c = completion();
   const blocked = s.convos.filter((x) => x.i_blocked);
   const facts = [profile.age ? `${profile.age}` : null, GENDER_LABEL[profile.gender], profile.state ? stateLabel(profile.state) : profile.location].filter(Boolean);
-  const openAvatar = () => { location.href = `${LIVE}/home/profile`; };
+  const openAvatar = () => openAvatarPicker();
   return (
     <div className="stack-lg profile">
       <Hero cls="profile-hero" me={false} actions={<BellButton />}>
@@ -65,7 +66,7 @@ export default function Profile() {
       ) : null}
 
       <Group title="Your profile">
-        <Row ico="sparkles" title="Customize avatar" sub="Skin tone, hair, outfit, accessories and background (opens the current app)" onClick={openAvatar} />
+        <Row ico="sparkles" title="Customize avatar" sub="Skin tone, hair, outfit, accessories and background" onClick={openAvatar} />
         <Row ico="edit" title="Edit dating profile" sub={'Age, gender, state' + (api.features.matching ? ', bio' : '')} onClick={editDating} />
         {api.features.matching ? <Row ico="heart" title="Interests & intentions" sub={`${INTENT_LABEL[profile.intent]}${(profile.interests || []).length ? ` · ${(profile.interests || []).slice(0, 3).join(', ')}` : ''}`} onClick={editDating} /> : null}
         {api.features.matching ? <Row ico="sliders" title="Discovery preferences" sub={prefsSummary(profile)} onClick={editPrefs} /> : null}
