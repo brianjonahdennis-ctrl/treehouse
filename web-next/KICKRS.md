@@ -1,7 +1,7 @@
 # Games on treehouse (Kickrs)
 
 The **Games** tab (bottom bar, next to Discover in the raised centre) shows games made by Kickrs (kickrs.app). Kickrs is
-the only game provider: Penalties is live, and Ludo, 8 Ball Pool, Chess, Quick Dice, Cards and Trivia
+the only game provider: Penalties is live, and Ludo, Chess, Quick Dice, Crosswords and Trivia
 show as "Coming soon". When Kickrs opens a new game it appears here on its own, no treehouse change.
 Profile moved from the bottom bar to your avatar at the top right of each screen (it replaces the
 Settings gear, which opened the same page) and stays in the desktop sidebar.

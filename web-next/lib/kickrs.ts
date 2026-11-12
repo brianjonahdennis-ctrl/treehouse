@@ -19,13 +19,18 @@ export type KickrsEvent =
   | { type: 'kickrs:signed-in'; name: string }
   | { type: 'kickrs:match-start'; matchId: string; mode: string; opponent: string }
   | { type: 'kickrs:match-end'; matchId: string; mode: string; won: boolean | null; score: [number, number]; opponent: string }
+  | { type: 'kickrs:match-left'; matchId: string }
   | { type: 'kickrs:add-friend'; treehouseId: string; name: string }
+  | { type: 'kickrs:friend-status'; treehouseId: string; handle: string }
   | { type: 'kickrs:invite'; code: string; url: string };
+
+export type FriendStatus = 'none' | 'friends' | 'pending' | 'chat';
 
 type Reply =
   | { type: 'treehouse:ticket'; ticket: string }
   | { type: 'treehouse:ticket-error'; message: string }
-  | { type: 'treehouse:friend-result'; treehouseId: string; ok: boolean; message: string };
+  | { type: 'treehouse:friend-result'; treehouseId: string; ok: boolean; message: string }
+  | { type: 'treehouse:friend-status'; treehouseId: string; status: FriendStatus };
 
 let gamesCache: { at: number; games: KickrsGame[] } | null = null;
 export async function kickrsGames(): Promise<KickrsGame[]> {
@@ -57,7 +62,7 @@ export async function kickrsTicket(nonce: string): Promise<string> {
 }
 
 // Listen to one Kickrs frame. Only messages from Kickrs, from that frame, are handled.
-export function connectKickrs(frame: HTMLIFrameElement, handlers: { addFriend: (id: string, name: string) => Promise<string>; onEvent?: (e: KickrsEvent) => void }) {
+export function connectKickrs(frame: HTMLIFrameElement, handlers: { addFriend: (id: string, name: string) => Promise<string>; friendStatus: (handle: string) => FriendStatus; onEvent?: (e: KickrsEvent) => void }) {
   const reply = (m: Reply) => frame.contentWindow?.postMessage(m, KICKRS_ORIGIN);
   const onMessage = async (event: MessageEvent) => {
     if (event.origin !== KICKRS_ORIGIN || event.source !== frame.contentWindow) return;
@@ -67,6 +72,9 @@ export function connectKickrs(frame: HTMLIFrameElement, handlers: { addFriend: (
     if (data.type === 'kickrs:ready' && NONCE.test(String(data.nonce))) {
       try { reply({ type: 'treehouse:ticket', ticket: await kickrsTicket(data.nonce) }); }
       catch (e: any) { reply({ type: 'treehouse:ticket-error', message: e?.message || 'treehouse couldn’t sign you in.' }); }
+    }
+    if (data.type === 'kickrs:friend-status' && typeof data.treehouseId === 'string' && typeof data.handle === 'string') {
+      reply({ type: 'treehouse:friend-status', treehouseId: data.treehouseId, status: handlers.friendStatus(data.handle) });
     }
     if (data.type === 'kickrs:add-friend' && typeof data.treehouseId === 'string') {
       try { reply({ type: 'treehouse:friend-result', treehouseId: data.treehouseId, ok: true, message: await handlers.addFriend(data.treehouseId, String(data.name || '')) }); }

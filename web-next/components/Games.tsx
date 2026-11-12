@@ -4,14 +4,14 @@
 // Allow step, and the page kickrs.app sends people to for "Continue with treehouse".
 import { useEffect, useRef, useState } from 'react';
 import * as api from '@/lib/api';
-import { state, useAppState, loadDating } from '@/lib/state';
+import { state, useAppState, loadDating, statusOf, type Convo } from '@/lib/state';
 import { go, openChat } from '@/lib/nav';
 import { challengeText, clearConnect, connectKickrs, gameUrl, isInviteCode, kickrsGames, kickrsTicket, KICKRS_ORIGIN, pendingConnect, type KickrsGame } from '@/lib/kickrs';
 import { Avatar, EmptyState, Hero, Icon, SkeletonList } from './ui';
 import { BellButton } from './Home';
-import { openSheet, toast } from './overlay';
+import { confirmSheet, openSheet, toast } from './overlay';
 
-const ART: Record<string, string> = { penalties: '⚽', ludo: '🎲', pool: '🎱', chess: '♟️', dice: '🎯', cards: '🃏', trivia: '❓' };
+const ART: Record<string, string> = { penalties: '⚽', ludo: '🎲', chess: '♟️', dice: '🎯', crosswords: '🔠', trivia: '❓' };
 const FILTERS = [['all', 'All Games'], ['multi', 'Multiplayer'], ['quick', 'Quick Play']] as const;
 const playing = (n: number | null) => (!n ? '' : n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K playing` : `${n} playing`);
 const BLOCKED: Record<string, string> = {
@@ -157,17 +157,50 @@ function Stage({ game, join, challenge, back }: { game: KickrsGame } & Opening) 
   const sent = useRef(false);
   const base = gameUrl(game);
   const src = join ? `${KICKRS_ORIGIN}/f/${join}?embed=treehouse` : challenge && base ? `${base}&challenge=1` : base;
-  const leave = () => (back ? openChat(back) : go('games'));
+  const playingNow = useRef(false);
+  const okToLeave = async () => !playingNow.current || await confirmSheet({ title: 'Leave the match?', text: 'The match is still going. If you leave now, you lose it.', yes: 'Leave match', danger: true });
+  const leave = async () => {
+    if (!(await okToLeave())) return;
+    playingNow.current = false;
+    if (back) openChat(back); else go('games');
+  };
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!playingNow.current || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      const link = (e.target as Element | null)?.closest?.('.bottom-nav a[href], .sidebar a[href]') as HTMLAnchorElement | null;
+      if (!link) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const to = new URL(link.href).pathname.replace(/^\/home\/?/, '');
+      void okToLeave().then((yes) => { if (yes) { playingNow.current = false; go(to || 'home'); } });
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, []);
   useEffect(() => {
     if (!frame.current) return;
     return connectKickrs(frame.current, {
       addFriend: async (kickrsId) => {
-        await api.kickrsFriendRequest(kickrsId);
+        const known = new Set(state.convos.map((c: Convo) => c.conversation_id));
+        const id = await api.kickrsFriendRequest(kickrsId);
+        const had: Convo | undefined = state.convos.find((c: Convo) => c.conversation_id === id);
         loadDating({ force: true });
+        if (id && known.has(id) && had) {
+          if (statusOf(had) !== 'chat') return 'There’s already a request between you. It’s in your treehouse Inbox.';
+          return had.kind === 'friend' ? 'You’re already friends on treehouse.' : 'You already have a chat with them on treehouse.';
+        }
         toast('Friend request sent. It’s in your Inbox.', 'check');
         return 'Friend request sent. It’s in your treehouse Inbox.';
       },
+      friendStatus: (handle) => {
+        const c: Convo | undefined = state.convos.find((x: Convo) => x.other_handle === handle);
+        if (!c) return 'none';
+        if (c.blocked || c.kind !== 'friend') return 'chat';
+        return statusOf(c) === 'chat' ? 'friends' : 'pending';
+      },
       onEvent: (e) => {
+        if (e.type === 'kickrs:match-start') playingNow.current = true;
+        if (e.type === 'kickrs:match-end' || e.type === 'kickrs:match-left') playingNow.current = false;
         if (e.type !== 'kickrs:invite' || !challenge || sent.current || !isInviteCode(e.code)) return;
         sent.current = true;
         api.sendMessage(challenge, challengeText(game.id, e.code))
