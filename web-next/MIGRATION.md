@@ -13,8 +13,9 @@ and keeps running exactly as before. Nothing here talks to Railway, Cloudflare o
   use the same class names, so the new app looks the same as the live one.
 - **Same security.** Every page gets a strict Content Security Policy (only our own scripts run,
   each page view gets a fresh random "nonce"). No secret keys exist in this app.
-- **Not finished.** The everyday screens are ported (below). A few big ones still open the current
-  app instead (chatroom conversations, Nearby, Speed Dating, avatar editor, push notifications).
+- **Everything is ported** (13 Nov 2026): every screen of the member app now exists here, including
+  chatrooms, Nearby, Speed Dating, the avatar editor and push notifications. What's left is testing
+  with real accounts on real phones before any switch-over (see the end of this file).
 
 ## How to run it
 
@@ -37,26 +38,26 @@ npm run dev                      # http://localhost:4020/home
 |---|---|---|---|
 | `home.html` | page shell, fonts, theme-before-paint | `app/layout.tsx`, `public/hy-theme.js` | ✅ |
 | `hy.css` (1,678 lines) | design system, light/dark | `app/hy.css` (copied as-is) | ✅ |
-| `hy-api.js` | **every** Supabase call | `lib/api.ts` (same function names, same RPCs) | ✅ all calls except Nearby/Speed details |
+| `hy-api.js` | **every** Supabase call | `lib/api.ts` (same function names, same RPCs) | ✅ |
 | `hy-state.js` | shared state, option lists, notifications | `lib/state.ts` (+ `useAppState()` hook), `lib/options.ts` | ✅ |
 | `hy-ui.js` | element builder, icons, sheets, toasts, pickers | `components/ui.tsx`, `components/overlay.tsx`, `lib/icons.ts`, `lib/util.ts` | ✅ |
-| `hy-app.js` | start-up, routing, nav, live nudges, Terms check | `components/App.tsx` + Next.js routes | ✅ (see "left to do") |
+| `hy-app.js` | start-up, routing, nav, live nudges, Terms check, "new version" reload | `components/App.tsx` + Next.js routes, `app/home-build/route.ts` | ✅ |
 | `hy-onboard.js` | landing, sign up/in (email + Google), verify, reset, onboarding, under-18 | `components/Auth.tsx`, `components/Onboarding.tsx` | ✅ |
-| `hy-home.js` | Home hub, status, friends strip, activity, people | `components/Home.tsx` | ✅ (no install/push/beta cards yet) |
+| `hy-home.js` | Home hub, status, friends strip, activity, people, install/push card | `components/Home.tsx`, `components/PushInstall.tsx` | ✅ (the Android beta card is switched off in the live app too) |
 | `hy-dating.js` → Inbox | chats, requests, friends, matches, likes | `components/Inbox.tsx`, `components/convo.tsx` | ✅ |
-| `hy-dating.js` → chat | private chat | `components/Chat.tsx` | ✅ text, reply, edit, unsend, delete, receipts, typing, online, accept/decline/block, reveal, add friend, report, view and send photos (+ menu), Kickrs challenges. ⏳ swipe-to-reply |
-| `hy-dating.js` → Discover | card deck, filters, match moment, message request | `components/Discover.tsx` | ✅ buttons + ← → keys. ⏳ drag-to-swipe, Speed Dating banner |
-| `hy-profile.js` | profile, edit card, preferences, theme, blocked, account | `components/Profile.tsx` | ✅ (avatar editor, Nearby settings and push open the current app) |
+| `hy-dating.js` → chat | private chat | `components/Chat.tsx`, `components/photos.tsx`, `components/swipe.ts` | ✅ text, reply, edit, unsend, delete, receipts, typing, online, accept/decline/block, reveal, add friend, report, photos (+ menu: blur until tapped, viewer, report photo), Kickrs challenges, swipe-to-reply |
+| `hy-dating.js` → Discover | card deck, filters, match moment, message request, Speed Dating banner | `components/Discover.tsx`, `components/SpeedBanner.tsx` | ✅ buttons + ← → keys (the live app has no drag-to-swipe either) |
+| `hy-profile.js` | profile, edit card, preferences, theme, notifications, Nearby settings, blocked, account | `components/Profile.tsx` | ✅ |
 | (in `hy-app.js`) | Notifications screen | `components/Notifications.tsx` | ✅ |
 | `hy-rooms.js` | chatroom list | `components/Rooms.tsx` | ✅ list, kicked-out notice, age-room lock |
-| `hy-rooms.js` | inside a chatroom (live messages, reactions, members, profile cards) | `app/home/rooms/[room]` | ⏳ shows "open in current app" |
-| `hy-nearby.js` | Nearby list + map (Leaflet) | `app/home/discover/nearby` | ⏳ |
-| `hy-speed.js` | Speed Dating video dates (WebRTC) | – | ⏳ |
+| `hy-rooms.js` | inside a chatroom (live messages, reactions, replies, members, profile cards, kicks) | `components/Room.tsx` | ✅ |
+| `hy-nearby.js` | Nearby list + map (Leaflet), filters, location privacy | `components/Nearby.tsx` | ✅ (Leaflet files come from the existing server at `/vendor/leaflet/`) |
+| `hy-speed.js` | Speed Dating video dates (WebRTC) | `components/speed.js` (+ `SpeedReport.tsx`, `lib/dom.js`) | ✅ kept as plain browser code, almost line for line, because the call setup is timing-sensitive |
 | `hy-avatar.js` | custom avatars on nicknames | `lib/avatars.ts`, `lib/avatar-core.js` | ✅ showing avatars |
-| `hy-avatar-ui.js` | avatar picker/editor | – | ⏳ |
-| `hy-photos.js` | pick, shrink, send chat photos; viewer | `lib/photos.ts`, `PhotoBox` and the + menu in `Chat.tsx` | ✅ |
-| `hy-push.js`, `home-sw.js` | push notifications + service worker | – | ⏳ |
-| `hy-install.js`, `home.webmanifest` | "Add to Home Screen" | – | ⏳ |
+| `hy-avatar-ui.js` | avatar picker/editor | `components/AvatarEditor.tsx` | ✅ |
+| `hy-photos.js` | pick, shrink, send chat photos; viewer | `lib/photos.ts`, `components/photos.tsx` | ✅ |
+| `hy-push.js`, `home-sw.js` | push notifications + service worker | `lib/push.ts`, `public/home-sw.js` (copy), Profile row, Home card | ✅ |
+| `hy-install.js`, `home.webmanifest` | "Add to Home Screen" | `lib/install.ts`, `components/PushInstall.tsx`, `public/home.webmanifest` (copy) | ✅ |
 | (new) | Games tab, Home games card, Kickrs games, Profile avatar top left | `components/Games.tsx`, `lib/kickrs.ts`, `app/api/kickrs/ticket`, `app/home/games`, `app/home/connect/kickrs` | ✅ new feature, see `KICKRS.md` |
 | `server.js` routes | `/api/*`, `/terms`, `/privacy`, `/u/<name>`, landing `/` | passed through to the existing server (`next.config.ts` fallback rewrite, `LEGACY_ORIGIN`) | ✅ no change needed |
 
@@ -87,39 +88,49 @@ a per-request nonce for Next.js's own scripts). Production builds use no inline 
 `X-Frame-Options: DENY`. Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 are needed, both already public.
 
-## Order to port the rest
+## Before switching: test on real phones
 
-1. **Push notifications + service worker** (`hy-push.js`, `home-sw.js`): needed before any switch-over,
-   or people stop getting notified. Serve `home-sw.js` from the Next app at the same address.
-2. **Chatroom conversations** (`hy-rooms.js` `openRoom`): the biggest screen (live messages, reactions,
-   replies, members, kicks, block/report).
-3. Swipe-to-reply.
-4. **Avatar picker/editor**, **Install card**, **Android beta card**.
-5. **Nearby** (list + Leaflet map, served locally for the CSP).
-6. **Speed Dating** (WebRTC, `/api/speed-ice` stays on the existing server).
-7. "New version? reload" check (`/api/app-build`) and the app badge polish.
-8. Side-by-side testing on real phones (Android app, iPhone web app) against the real database.
+Nothing below has been tried with real accounts yet (the preview uses sample data). Test each on the
+preview address from step 1 of the switch-over, with two real accounts and two phones (Android app,
+iPhone home-screen app, a computer browser):
+
+1. Sign up, verify email, sign in with Google (including the Android app's Chrome hand-off), reset password.
+2. Push notifications: turn on in Profile, then get a message from the other account with the app closed.
+3. Private chat both ways: messages, replies, edits, unsend, receipts, typing, photos (after unlocking).
+4. Chatroom: join, chat, react, reply, members, block/report, inactivity kick.
+5. Nearby: turn on (location permission), list, map, turn off.
+6. Speed Dating: a full date between the two phones (camera, call, timer, like/like → match).
+7. Games: Kickrs from the Games tab and a penalty challenge from a chat.
+8. Leave a phone on the app for an hour, deploy a change, come back: it should reload by itself.
 
 ## Switching over later, with no downtime
 
+The Next.js app already passes every address it doesn't own (`/api/*` except its own
+`/api/kickrs/ticket`, `/terms`, `/privacy`, `/u/…`, `/vendor/…`, the landing page) to the existing
+server, so the simplest switch is to put it **in front** of the existing server rather than splitting
+addresses between the two.
+
 1. **Run it separately first.** Deploy `web-next` as a *second* Railway service (e.g. `treehouse-next`)
-   from the `nextjs` branch, with its own preview address (e.g. `next.treehouse.ng` or the Railway URL).
-   Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and
-   `LEGACY_ORIGIN=https://treehouse.ng`. The live service is not touched.
-2. **Add the preview address to Supabase's allowed redirect URLs** (Auth settings) so email links and
-   Google sign-in can return there. This is a config change: confirm with Hydra first.
-3. **Test with real accounts** on the preview address (both apps share the database, so chats show up
-   in both). Fix what's different.
-4. **Switch traffic gradually:** point only `/home` at the new service (Cloudflare rule or the existing
-   server proxying `/home` to it) while everything else (`/`, `/api/*`, `/u/…`) stays on `server.js`.
-   Switching back is one setting.
+   from the `nextjs` branch. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+   `LEGACY_ORIGIN=https://treehouse.ng` (plus the Kickrs settings in `KICKRS.md`). Give it a preview
+   address (e.g. `next.treehouse.ng`). The live service is not touched. *(A deploy: confirm with Hydra first.)*
+2. **Allow the preview address in Supabase** (Auth → URL configuration → redirect URLs) so email links
+   and Google sign-in can return there. *(A config change: confirm with Hydra first.)*
+3. **Test with real accounts** on the preview address (the list above). Both apps share the database,
+   so chats show up in both. Fix what's different.
+4. **Switch:** give the old service its own address (its Railway URL) and set `LEGACY_ORIGIN` on the
+   new service to that address. **Never** leave `LEGACY_ORIGIN` as `https://treehouse.ng` once
+   treehouse.ng points at the new service: it would send requests to itself. Then point `treehouse.ng`
+   at the new service (Railway custom domain or the Cloudflare DNS record). Switching back = point the
+   domain at the old service again; nothing else changes.
 5. **Phone apps need no rebuild:** they load `https://treehouse.ng/home`, so they follow the switch.
-6. Once everything is ported and stable, decide whether to move `/api/*` into Next.js too or keep
-   `server.js` for them.
+   Push subscriptions keep working: the worker lives at the same address (`/home-sw.js`) and the
+   existing server still sends the notifications.
+6. **Later:** decide whether to move the rest of `/api/*` into Next.js too, or keep `server.js` behind it.
 
 ## Notes for developers
 
-- Keep `lib/options.ts`, `lib/icons.ts`, `lib/avatar-core.js` and `app/hy.css` in step with the live
-  files while both apps run (they're copies). `dev/mock-supabase.js` is a copy of `anon-inbox/dev/mock-supabase.js`.
+- Keep `lib/options.ts`, `lib/icons.ts`, `lib/avatar-core.js`, `app/hy.css`, `public/home-sw.js` and
+  `components/speed.js` in step with the live files while both apps run (they're copies). `dev/mock-supabase.js` is a copy of `anon-inbox/dev/mock-supabase.js`.
 - Screens keep their data in module-level caches (like the live app) so leaving and coming back is instant.
 - Sheets: `openSheet((close) => <Form close={close} />)`. Put form state inside a component, not in the closure.
