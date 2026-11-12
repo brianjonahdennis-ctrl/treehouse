@@ -5,8 +5,8 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '@/lib/api';
 import { state, useAppState, loadDating } from '@/lib/state';
-import { go } from '@/lib/nav';
-import { clearConnect, connectKickrs, gameUrl, kickrsGames, kickrsTicket, pendingConnect, type KickrsGame } from '@/lib/kickrs';
+import { go, openChat } from '@/lib/nav';
+import { challengeText, clearConnect, connectKickrs, gameUrl, isInviteCode, kickrsGames, kickrsTicket, KICKRS_ORIGIN, pendingConnect, type KickrsGame } from '@/lib/kickrs';
 import { Avatar, EmptyState, Hero, Icon, SkeletonList } from './ui';
 import { BellButton } from './Home';
 import { openSheet, toast } from './overlay';
@@ -107,8 +107,13 @@ function Allow({ onAllow, onCancel, busy, error }: { onAllow: () => void; onCanc
 
 // ---- One game -------------------------------------------------------------------------------------
 type Phase = { k: 'loading' } | { k: 'missing' } | { k: 'blocked'; why: string } | { k: 'allow' } | { k: 'play'; game: KickrsGame };
+// join: a challenge code from a chat message. challenge: the chat to send a new challenge to.
+// back: the chat to return to with the back button.
+type Opening = { join?: string; challenge?: string; back?: string };
+const chatId = (v?: string) => (v && /^[\w-]{1,64}$/.test(v) ? v : undefined);
 
-export function GameScreen({ id }: { id: string }) {
+export function GameScreen({ id, join, challenge, back }: { id: string } & Opening) {
+  const [opening] = useState<Opening>(() => ({ join: isInviteCode(join) ? join : undefined, challenge: isInviteCode(join) ? undefined : chatId(challenge), back: chatId(back) }));
   useAppState();
   const [phase, setPhase] = useState<Phase>({ k: 'loading' });
   const [busy, setBusy] = useState(false);
@@ -128,7 +133,7 @@ export function GameScreen({ id }: { id: string }) {
     return () => { live = false; };
   }, [id]);
 
-  if (phase.k === 'play') return <Stage game={phase.game} />;
+  if (phase.k === 'play') return <Stage game={phase.game} {...opening} />;
   return (
     <div className="stack-lg games">
       <Hero title={game.current?.name || 'Games'} actions={<BellButton />} />
@@ -136,7 +141,7 @@ export function GameScreen({ id }: { id: string }) {
       {phase.k === 'missing' ? <EmptyState emoji="🎮" title="That game isn’t open yet" text="It’s coming soon. Try one of the games that are live now."><button className="btn btn-primary" onClick={() => go('games')}>See all games</button></EmptyState> : null}
       {phase.k === 'blocked' ? <EmptyState emoji="🔒" title="Games aren’t available" text={phase.why} /> : null}
       {phase.k === 'allow' ? (
-        <Allow busy={busy} error={error} onCancel={() => go('games')} onAllow={async () => {
+        <Allow busy={busy} error={error} onCancel={() => (opening.back ? openChat(opening.back) : go('games'))} onAllow={async () => {
           setBusy(true); setError('');
           try { await api.kickrsConnect(); if (game.current) setPhase({ k: 'play', game: game.current }); }
           catch (e) { setError(api.friendly(e)); }
@@ -147,9 +152,12 @@ export function GameScreen({ id }: { id: string }) {
   );
 }
 
-function Stage({ game }: { game: KickrsGame }) {
+function Stage({ game, join, challenge, back }: { game: KickrsGame } & Opening) {
   const frame = useRef<HTMLIFrameElement>(null);
-  const src = gameUrl(game);
+  const sent = useRef(false);
+  const base = gameUrl(game);
+  const src = join ? `${KICKRS_ORIGIN}/f/${join}?embed=treehouse` : challenge && base ? `${base}&challenge=1` : base;
+  const leave = () => (back ? openChat(back) : go('games'));
   useEffect(() => {
     document.body.classList.add('game-open');
     return () => document.body.classList.remove('game-open');
@@ -163,8 +171,15 @@ function Stage({ game }: { game: KickrsGame }) {
         toast('Friend request sent. It’s in your Inbox.', 'check');
         return 'Friend request sent. It’s in your treehouse Inbox.';
       },
+      onEvent: (e) => {
+        if (e.type !== 'kickrs:invite' || !challenge || sent.current || !isInviteCode(e.code)) return;
+        sent.current = true;
+        api.sendMessage(challenge, challengeText(game.id, e.code))
+          .then(() => { loadDating({ force: true }); toast('Challenge sent. Stay here until they join.', 'check'); })
+          .catch((err: unknown) => { sent.current = false; toast(api.friendly(err), 'x'); });
+      },
     });
-  }, []);
+  }, [challenge, game.id]);
   const menu = () => openSheet((close) => (
     <>
       <h2>{game.name}</h2>
@@ -181,7 +196,7 @@ function Stage({ game }: { game: KickrsGame }) {
   return (
     <div className="game-stage">
       <header className="gs-head">
-        <button className="hero-btn" aria-label="Back to games" onClick={() => go('games')}><Icon name="back" /></button>
+        <button className="hero-btn" aria-label={back ? 'Back to the chat' : 'Back to games'} onClick={leave}><Icon name="back" /></button>
         <b className="ellipsis">{game.name}</b>
         <button className="hero-btn" aria-label="Game options" onClick={menu}><Icon name="more" /></button>
       </header>

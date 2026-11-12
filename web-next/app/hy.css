@@ -1738,3 +1738,16 @@ body.game-open .bottom-nav { display: none; }
 .gs-head b { flex: 1; text-align: center; font-size: 15px; }
 .gs-frame { flex: 1; width: 100%; max-width: 520px; margin: 0 auto; border: 0; display: block; background: #0b1220; }
 @media (min-width: 960px) { .game-stage { left: 260px; } }
+
+/* Penalty challenges in chat */
+.composer-plus { width: 46px; height: 46px; border-radius: 50%; border: 0; flex: none; display: grid; place-items: center; cursor: pointer; background: var(--surface-2); color: var(--ink); transition: transform .2s var(--spring); }
+.composer-plus:active { transform: scale(.9); }
+.kick-item .grow { display: grid; gap: 2px; }
+.kick-item small { font-weight: 500; font-size: 13px; }
+.kc-art { width: 44px; height: 44px; flex: none; border-radius: 14px; display: grid; place-items: center; font-size: 26px; background: var(--games); }
+.kick-card { display: flex; align-items: center; gap: 10px; min-width: 230px; }
+.kc-text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.kc-text b { font-size: 15px; }
+.kc-text span { font-size: 12.5px; opacity: .8; }
+.kc-play { flex: none; background: var(--games); color: #fff; border: 0; }
+.msg-row.me .kick-card .kc-play { background: rgba(255, 255, 255, .22); }

@@ -19,6 +19,12 @@ the desktop sidebar.
 5. **On kickrs.app:** Sign in › **Continue with treehouse** opens `/home/connect/kickrs`, which signs the
    member in if needed (Google or email, as usual), shows the same Allow step, then goes back to Kickrs.
 
+6. **Challenge from a chat:** in any accepted chat (matches, friends), the **+** next to the message box →
+   **Penalty challenge**. The game opens, Kickrs makes a 10-minute challenge, and treehouse sends a chat
+   message with the link. The other person sees it as a card with **Play**, which opens Penalties and
+   starts the match. After 10 minutes the card says it expired and offers **Challenge back** / **Send
+   again**. Back in the game returns to the chat. (In the old app the message shows as text with a link.)
+
 Who can play: anyone with a dating profile (all 18+). Suspended profiles and anyone marked under 18
 can't. Kickrs never gets a treehouse sign-in token.
 

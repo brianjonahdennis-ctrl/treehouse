@@ -13,6 +13,7 @@ import { clock, dayLabel } from '@/lib/util';
 import { Icon, Avatar } from './ui';
 import { openSheet, confirmSheet, toast } from './overlay';
 import { setOpenChatHandler } from './chatBus';
+import { CHALLENGE_MS, parseChallenge } from '@/lib/kickrs';
 import { meta, activeText, shortName, acceptRequest, declineRequest, blockConvo, cancelSent, askFriend, doReveal, chatMenu, partnerProfile } from './convo';
 
 type Msg = { id: string; sender_id: string; body: string; created_at: string; reply_to: string | null; edited_at: string | null; deleted_at: string | null; photo?: string | null; photo_w?: number; photo_h?: number; pending?: boolean };
@@ -297,7 +298,7 @@ function ChatView({ convo }: { convo: Convo }) {
                 <div className={`bubble ${m.photo && !gone ? 'photo-bubble' : ''}`} onClick={() => !m.pending && messageActions(m)}>
                   {m.reply_to && !gone ? <span className={`bubble-quote ${q && q.sender_id === me ? 'mine' : ''}`}><b>{q ? who(q.sender_id) : 'Message'}</b><span>{q ? preview(q) : 'Earlier message'}</span></span> : null}
                   {gone ? <span className="gone-text"><Icon name="ban" cls="sm" />{mine ? 'You unsent a message' : 'This message was deleted'}</span>
-                    : m.photo ? <PhotoBox m={m} mine={mine} /> : m.body}
+                    : m.photo ? <PhotoBox m={m} mine={mine} /> : <Body m={m} mine={mine} chatId={id} />}
                 </div>
                 <time dateTime={m.created_at}>{m.edited_at && !gone ? `Edited · ${clock(m.created_at)}` : clock(m.created_at)}</time>
               </div>
@@ -333,6 +334,7 @@ function ChatView({ convo }: { convo: Convo }) {
               </div>
             ) : null}
             <form className="composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
+              {st === 'chat' ? <button type="button" className="composer-plus" aria-label="Games and more" onMouseDown={(e) => e.preventDefault()} onClick={() => plusMenu(id, shortName(convo.other_handle))}><Icon name="plus" /></button> : null}
               <textarea ref={input} className="input" rows={1} maxLength={1000} placeholder="Type a message…" aria-label="Message" value={text}
                 onChange={(e) => { setText(e.target.value); const el = e.target; el.style.height = 'auto'; el.style.height = `${Math.min(120, el.scrollHeight)}px`; channel.current?.typing(); }}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !coarse()) { e.preventDefault(); send(); } }} />
@@ -393,6 +395,39 @@ function FriendButton({ convo }: { convo: Convo }) {
 
 // Photo messages: blurred until tapped (the photo is fetched with a short-lived private link only
 // then). Photos expire after 30 days, like the live app.
+// The + in the composer: things to send besides text. For now, a Kickrs penalty challenge.
+function plusMenu(chatId: string, name: string) {
+  openSheet((close) => (
+    <>
+      <h2>Send</h2>
+      <div className="menu-list" style={{ marginTop: '10px' }}>
+        <button className="menu-item kick-item" onClick={() => { close(); go(`games/penalties?challenge=${encodeURIComponent(chatId)}&back=${encodeURIComponent(chatId)}`); }}>
+          <span className="kc-art" aria-hidden="true">⚽</span>
+          <span className="grow"><b>Penalty challenge</b><small className="muted">Play {name} on Kickrs. They get a Play button here.</small></span>
+        </button>
+      </div>
+      <div className="sheet-actions"><button className="btn btn-soft btn-block" onClick={close}>Close</button></div>
+    </>
+  ), { label: 'Send' });
+}
+
+// A message with a Kickrs challenge link shows as a card with a Play button (open for 10 minutes).
+function Body({ m, mine, chatId }: { m: Msg; mine: boolean; chatId: string }) {
+  const c = parseChallenge(m.body);
+  if (!c) return <>{m.body}</>;
+  const open = Date.now() - new Date(m.created_at).getTime() < CHALLENGE_MS;
+  const play = (e: React.MouseEvent) => { e.stopPropagation(); go(`games/${c.game}?join=${c.code}&back=${encodeURIComponent(chatId)}`); };
+  const again = (e: React.MouseEvent) => { e.stopPropagation(); go(`games/${c.game}?challenge=${encodeURIComponent(chatId)}&back=${encodeURIComponent(chatId)}`); };
+  return (
+    <span className="kick-card">
+      <span className="kc-art" aria-hidden="true">⚽</span>
+      <span className="kc-text"><b>Penalty shootout</b><span>{mine ? (open ? 'Challenge sent · waiting for them' : 'Your challenge expired') : open ? 'You’ve been challenged on Kickrs' : 'This challenge expired'}</span></span>
+      {!mine && open ? <button type="button" className="btn btn-sm kc-play" onClick={play}>Play</button> : null}
+      {!open ? <button type="button" className="btn btn-sm kc-play" onClick={again}>{mine ? 'Send again' : 'Challenge back'}</button> : null}
+    </span>
+  );
+}
+
 function PhotoBox({ m, mine }: { m: Msg; mine: boolean }) {
   const [url, setUrl] = useState<string | null>(null);
   const expired = Date.now() - new Date(m.created_at).getTime() > 30 * 864e5;

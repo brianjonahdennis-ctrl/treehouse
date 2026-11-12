@@ -19,7 +19,8 @@ export type KickrsEvent =
   | { type: 'kickrs:signed-in'; name: string }
   | { type: 'kickrs:match-start'; matchId: string; mode: string; opponent: string }
   | { type: 'kickrs:match-end'; matchId: string; mode: string; won: boolean | null; score: [number, number]; opponent: string }
-  | { type: 'kickrs:add-friend'; treehouseId: string; name: string };
+  | { type: 'kickrs:add-friend'; treehouseId: string; name: string }
+  | { type: 'kickrs:invite'; code: string; url: string };
 
 type Reply =
   | { type: 'treehouse:ticket'; ticket: string }
@@ -104,3 +105,15 @@ export function pendingConnect(): { nonce: string; back: string } | null {
 // For the app shell: someone came from kickrs.app, signed in, and hasn't reached the connect page yet.
 export const connectWaiting = () => { const v = readConnect(); return Boolean(v && !v.seen); };
 export function clearConnect() { try { sessionStorage.removeItem(CONNECT_KEY); } catch {} }
+
+// Penalty challenges in a chat: the message carries a treehouse link that opens the game and joins.
+// Kickrs keeps a challenge open for 10 minutes while the person who sent it waits.
+export const CHALLENGE_MS = 10 * 60 * 1000;
+const CHALLENGE_LINK = /\/home\/games\/([a-z0-9-]{2,30})\?join=([A-Z0-9]{4,10})\b/;
+export const isInviteCode = (v: unknown): v is string => typeof v === 'string' && /^[A-Z0-9]{4,10}$/.test(v);
+export const challengeText = (gameId: string, code: string) =>
+  `⚽ Penalty shootout! I challenge you on Kickrs. Tap to play: ${location.origin}/home/games/${gameId}?join=${code}`;
+export function parseChallenge(body: string): { game: string; code: string } | null {
+  const m = CHALLENGE_LINK.exec(body || '');
+  return m ? { game: m[1], code: m[2] } : null;
+}
