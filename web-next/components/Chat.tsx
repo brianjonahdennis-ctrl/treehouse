@@ -3,7 +3,8 @@
 // A private chat (port of openChat in anon-inbox/public/hy-dating.js). Text messages, replies,
 // edits (15 minutes), unsend, delete for me, Sent/Delivered/Seen, typing and "online" over the
 // chat's private live channel, the request accept bar, reveal and add-friend buttons.
-// Not yet here: sending photos (viewing them works) and swipe-to-reply.
+// The + next to the message box sends photos (camera or gallery, once unlocked) and Kickrs challenges.
+// Not yet here: swipe-to-reply.
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as api from '@/lib/api';
@@ -14,6 +15,7 @@ import { Icon, Avatar } from './ui';
 import { openSheet, confirmSheet, toast } from './overlay';
 import { setOpenChatHandler } from './chatBus';
 import { CHALLENGE_MS, parseChallenge } from '@/lib/kickrs';
+import { MAX_PHOTOS, pickFiles, preparePhoto, type Prepared } from '@/lib/photos';
 import { meta, activeText, shortName, acceptRequest, declineRequest, blockConvo, cancelSent, askFriend, doReveal, chatMenu, partnerProfile } from './convo';
 
 type Msg = { id: string; sender_id: string; body: string; created_at: string; reply_to: string | null; edited_at: string | null; deleted_at: string | null; photo?: string | null; photo_w?: number; photo_h?: number; pending?: boolean };
@@ -97,6 +99,12 @@ function ChatView({ convo }: { convo: Convo }) {
     if (!lastMsg.current || new Date(m.created_at) >= new Date(lastMsg.current.created_at)) lastMsg.current = m;
   }, [me]);
   const update = useCallback((m: Partial<Msg> & { id: string }) => setMsgs((list) => list.map((x) => (x.id === m.id ? { ...x, ...m } : x))), []);
+  const [photoOk, setPhotoOk] = useState(false);
+  const checkPhotos = useCallback(async () => {
+    if (statusOf(convo) !== 'chat') return false;
+    try { const ok = await api.photosUnlocked(id); setPhotoOk(ok); return ok; } catch { return false; }
+  }, [convo, id]);
+  useEffect(() => { checkPhotos(); }, [checkPhotos]);
 
   // A request becomes a chat when someone replies, etc.: refresh this chat's state from the list.
   const refreshChatState = useCallback(async () => {
@@ -205,6 +213,55 @@ function ChatView({ convo }: { convo: Convo }) {
       toast(/row-level|policy/i.test(e.message || '') ? 'You can’t send messages in this chat.' : api.friendly(e), 'x');
     }
     setSending(false); input.current?.focus();
+  }
+
+  // The + next to the message box: photos (camera or gallery) and games.
+  function plusMenu() {
+    const talking = statusOf(convo) === 'chat';
+    openSheet((close) => (
+      <>
+        <h2>Send</h2>
+        <div className="ph-sources">
+          <button className="ph-source cam" onClick={() => { close(); sendPhotos(true); }}><Icon name={photoOk ? 'camera' : 'lock'} /><span>Camera</span></button>
+          <button className="ph-source lib" onClick={() => { close(); sendPhotos(false); }}><Icon name={photoOk ? 'image' : 'lock'} /><span>Photos</span></button>
+        </div>
+        {talking ? (
+          <div className="menu-list" style={{ marginTop: '12px' }}>
+            <button className="menu-item kick-item" onClick={() => { close(); go(`games/penalties?challenge=${encodeURIComponent(id)}&back=${encodeURIComponent(id)}`); }}>
+              <span className="kc-art" aria-hidden="true">⚽</span>
+              <span className="grow"><b>Penalty challenge</b><small className="muted">Play {shortName(convo.other_handle)} on Kickrs. They get a Play button here.</small></span>
+            </button>
+          </div>
+        ) : null}
+        {!photoOk ? <p className="tiny muted" style={{ marginTop: '10px' }}>Photos unlock once you two have chatted enough.</p> : null}
+      </>
+    ), { label: 'Send' });
+  }
+
+  async function sendPhotos(camera: boolean) {
+    if (!photoOk && !(await checkPhotos())) { photosLocked(statusOf(convo) === 'chat' ? 'chat' : 'request'); return; }
+    let files = await pickFiles(camera);
+    if (files.length > MAX_PHOTOS) { toast(`Up to ${MAX_PHOTOS} photos at a time`, 'image'); files = files.slice(0, MAX_PHOTOS); }
+    const ready: Prepared[] = [];
+    for (const f of files) {
+      try { ready.push(await preparePhoto(f)); } catch (e: any) { toast(e?.message || 'That photo can’t be used', 'x'); }
+    }
+    if (!ready.length) return;
+    const chosen = await reviewPhotos(ready);
+    for (const p of chosen) {
+      const quoted = bar && bar.kind === 'reply' ? bar.m : null;
+      setBar(null);
+      const temp: Msg = { id: `pending-photo-${Date.now()}-${Math.random()}`, sender_id: me, body: '📷 Photo', created_at: new Date().toISOString(), reply_to: quoted ? quoted.id : null, edited_at: null, deleted_at: null, photo: 'sending', photo_w: p.w, photo_h: p.h, pending: true };
+      setMsgs((list) => [...list, temp]); scroll();
+      try {
+        const m = await api.sendPhoto(id, p.blob, p.w, p.h, quoted ? quoted.id : null);
+        setMsgs((list) => list.filter((x) => x.id !== temp.id));
+        add(m); scroll(); loadDating();
+      } catch (e) {
+        setMsgs((list) => list.filter((x) => x.id !== temp.id));
+        toast(api.friendly(e), 'x');
+      }
+    }
   }
 
   function messageActions(m: Msg) {
@@ -334,7 +391,7 @@ function ChatView({ convo }: { convo: Convo }) {
               </div>
             ) : null}
             <form className="composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
-              {st === 'chat' ? <button type="button" className="composer-plus" aria-label="Games and more" onMouseDown={(e) => e.preventDefault()} onClick={() => plusMenu(id, shortName(convo.other_handle))}><Icon name="plus" /></button> : null}
+              <button type="button" className="composer-plus" aria-label="Photos and games" onMouseDown={(e) => e.preventDefault()} onClick={plusMenu}><Icon name="plus" /></button>
               <textarea ref={input} className="input" rows={1} maxLength={1000} placeholder="Type a message…" aria-label="Message" value={text}
                 onChange={(e) => { setText(e.target.value); const el = e.target; el.style.height = 'auto'; el.style.height = `${Math.min(120, el.scrollHeight)}px`; channel.current?.typing(); }}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !coarse()) { e.preventDefault(); send(); } }} />
@@ -395,22 +452,6 @@ function FriendButton({ convo }: { convo: Convo }) {
 
 // Photo messages: blurred until tapped (the photo is fetched with a short-lived private link only
 // then). Photos expire after 30 days, like the live app.
-// The + in the composer: things to send besides text. For now, a Kickrs penalty challenge.
-function plusMenu(chatId: string, name: string) {
-  openSheet((close) => (
-    <>
-      <h2>Send</h2>
-      <div className="menu-list" style={{ marginTop: '10px' }}>
-        <button className="menu-item kick-item" onClick={() => { close(); go(`games/penalties?challenge=${encodeURIComponent(chatId)}&back=${encodeURIComponent(chatId)}`); }}>
-          <span className="kc-art" aria-hidden="true">⚽</span>
-          <span className="grow"><b>Penalty challenge</b><small className="muted">Play {name} on Kickrs. They get a Play button here.</small></span>
-        </button>
-      </div>
-      <div className="sheet-actions"><button className="btn btn-soft btn-block" onClick={close}>Close</button></div>
-    </>
-  ), { label: 'Send' });
-}
-
 // A message with a Kickrs challenge link shows as a card with a Play button (open for 10 minutes).
 function Body({ m, mine, chatId }: { m: Msg; mine: boolean; chatId: string }) {
   const c = parseChallenge(m.body);
@@ -428,10 +469,53 @@ function Body({ m, mine, chatId }: { m: Msg; mine: boolean; chatId: string }) {
   );
 }
 
+// Before sending: remove any, then Send (n). Resolves with the photos to send, or [] if cancelled.
+function reviewPhotos(list: Prepared[]): Promise<Prepared[]> {
+  return new Promise((resolve) => {
+    let result: Prepared[] = [];
+    openSheet((close) => <Review initial={list} onSend={(l) => { result = l; close(); }} onCancel={close} />, { label: 'Review photos', onClose: () => resolve(result) });
+  });
+}
+function Review({ initial, onSend, onCancel }: { initial: Prepared[]; onSend: (l: Prepared[]) => void; onCancel: () => void }) {
+  const [list, setList] = useState(initial);
+  useEffect(() => { if (!list.length) onCancel(); }, [list, onCancel]);
+  return (
+    <>
+      <div className="ph-review-head"><h2>Photos</h2><span className="tiny muted">They’ll be blurred until they tap to view.</span></div>
+      <div className="ph-review">
+        {list.map((p, i) => (
+          <div key={p.url} className="ph-thumb">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={p.url} alt={`Photo ${i + 1}`} />
+            <button className="ph-remove" aria-label="Remove this photo" onClick={() => setList((l) => l.filter((x) => x !== p))}><Icon name="x" cls="sm" /></button>
+          </div>
+        ))}
+      </div>
+      <div className="sheet-actions row">
+        <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>
+        <button className="btn btn-primary grow" onClick={() => onSend(list)}><Icon name="send" cls="sm" />Send ({list.length})</button>
+      </div>
+    </>
+  );
+}
+function photosLocked(reason: 'chat' | 'request') {
+  openSheet((close) => (
+    <>
+      <div className="ph-locked">
+        <span className="ph-lock-ico"><Icon name="lock" /></span>
+        <h2>Keep chatting first</h2>
+        <p>{reason === 'request' ? 'Photos unlock after your chat is accepted and you two have chatted enough.' : 'You two haven’t chatted enough to exchange pictures yet. Keep the conversation going and photos will unlock.'}</p>
+      </div>
+      <div className="sheet-actions"><button className="btn btn-primary btn-block" onClick={close}>Okay</button></div>
+    </>
+  ), { label: 'Photos are locked' });
+}
+
 function PhotoBox({ m, mine }: { m: Msg; mine: boolean }) {
   const [url, setUrl] = useState<string | null>(null);
   const expired = Date.now() - new Date(m.created_at).getTime() > 30 * 864e5;
   const ratio = m.photo_w && m.photo_h ? `${m.photo_w} / ${m.photo_h}` : '4 / 3';
+  if (m.pending) return <span className="ph blur" style={{ aspectRatio: ratio, display: 'grid', placeItems: 'center', minWidth: '160px' }}><span className="ph-veil">Sending…</span></span>;
   if (expired) return <span className="ph ph-gone">📷 Photo expired</span>;
   if (!url) {
     return (
