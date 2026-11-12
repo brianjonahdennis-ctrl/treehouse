@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Chatrooms list (port of renderRooms/roomRows in anon-inbox/public/hy-rooms.js): your state's room,
 // university rooms, rooms open to everyone, age rooms (blurred until a date of birth is saved) and
-// "just for you" rooms. Inside a room (live messages) is not ported yet: it opens the current app.
+// "just for you" rooms. Inside a room: components/Room.tsx.
 import { useEffect, useState } from 'react';
 import * as api from '@/lib/api';
 import { state } from '@/lib/state';
@@ -10,7 +10,7 @@ import { GENERAL_ROOMS, UNI_ROOMS, LANDMARKS, roomName, stateLabel, ageRoomBlock
 import { go } from '@/lib/nav';
 import { hash } from '@/lib/util';
 import { Icon, Hero, EmptyState, vars } from './ui';
-import { toast } from './overlay';
+import { toast, confirmSheet } from './overlay';
 import { BellButton } from './Home';
 
 const CAPACITY = 200;
@@ -25,6 +25,24 @@ const stateCode = (s: string) => (s === NATIONAL ? 'NG' : s === 'FCT' ? 'FCT' : 
 // Remembered between visits, like the live app.
 let roomsCache: any[] | null = null;
 let kickCache: any = null;
+
+// Kept in step by the room screen (components/Room.tsx).
+export const myRoomState = (): string | null => (roomsCache || []).find((r) => r.mine)?.state || null;
+export function roomJoined(target: string, people: number) {
+  roomsCache = (roomsCache || []).map((r) => ({ ...r, mine: r.state === target, unread: 0, people: r.state === target ? people : r.people }));
+  kickCache = null;
+}
+export function roomLeft() { roomsCache = (roomsCache || []).map((r) => ({ ...r, mine: false })); }
+export function roomKicked(target: string) { roomLeft(); kickCache = { state: target, kicked_at: new Date().toISOString() }; }
+// One room at a time: moving to another one leaves the room you're in.
+async function enter(target: string) {
+  const mine = myRoomState();
+  if (mine && mine !== target) {
+    const ok = await confirmSheet({ title: `Move to ${roomName(target)}?`, text: `You’ll leave ${roomName(mine)}. You can be in one chatroom at a time.`, yes: 'Move' });
+    if (!ok) return;
+  }
+  go(roomPath(target));
+}
 
 const UNI_PALETTES = [['#1e3a8a', '#f5b301'], ['#065f46', '#fcd34d'], ['#7f1d1d', '#fbbf24'], ['#4c1d95', '#f9a8d4'], ['#0e7490', '#fde68a'],
   ['#14532d', '#bef264'], ['#1d4ed8', '#e0f2fe'], ['#9a3412', '#fed7aa'], ['#0f172a', '#7dd3fc'], ['#831843', '#fde047'], ['#134e4a', '#99f6e4'], ['#3f3f46', '#fbbf24']];
@@ -145,7 +163,7 @@ function Row({ r, myAge }: { r: any; myAge: number | null }) {
   const blocked = !r.mine && state.profile && state.profile.birth_date ? ageRoomBlock(r.state, myAge) : null;
   return (
     <button className={`cr-row ${r.mine ? 'mine' : ''} ${blocked ? 'locked' : ''}`} disabled={full} aria-disabled={blocked ? 'true' : undefined}
-      onClick={() => (blocked ? toast(blocked, 'lock') : go(roomPath(r.state)))}>
+      onClick={() => (blocked ? toast(blocked, 'lock') : enter(r.state))}>
       <StateBadge st={r.state} />
       <span className="grow">
         <b>{shortTitle(r.state)}

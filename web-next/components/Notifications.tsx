@@ -6,6 +6,7 @@ import { useAppState, notifications, notifSeenAt, markNotifsSeen } from '@/lib/s
 import { go, openChat } from '@/lib/nav';
 import { ago } from '@/lib/util';
 import { Hero, EmptyState } from './ui';
+import * as push from '@/lib/push';
 
 export default function Notifications() {
   useAppState();
@@ -22,7 +23,7 @@ export default function Notifications() {
           <span className="grow"><p>{n.text}</p><span className="when">{ago(n.at)}</span></span>
         </button>
       ))}</div>
-      <p className="tiny muted center">Want these on your lock screen? Push notifications can be turned on in the current app (moving here soon).</p>
+      <p className="tiny muted center">{push.isOn() ? 'Push notifications are on for this device.' : 'Want these on your lock screen? Turn on push notifications in Profile.'}</p>
     </div>
   );
 }

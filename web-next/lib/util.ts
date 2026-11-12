@@ -53,3 +53,14 @@ export function yearsOld(iso: string) {
 }
 export const formatDob = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return `${d} ${MONTHS[m - 1]} ${y}`; };
 export const fmtDate = (d: Date) => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+
+export async function copyText(text: string) {
+  try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
+}
+/** Share sheet where there is one, otherwise copy the link. */
+export async function shareOrCopy({ title, text, url }: { title: string; text: string; url: string }) {
+  if (navigator.share) {
+    try { await navigator.share({ title, text, url }); return 'shared'; } catch (e) { if (e && (e as Error).name === 'AbortError') return 'cancelled'; }
+  }
+  return (await copyText(url)) ? 'copied' : 'failed';
+}

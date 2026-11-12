@@ -7,7 +7,8 @@ export const metadata: Metadata = {
   title: 'treehouse',
   description: 'treehouse: anonymous dating and state chatrooms. Anonymous users. Real connections.',
   icons: { icon: '/icon.svg', apple: '/icon-180.png' },
-  appleWebApp: { title: 'treehouse' },
+  appleWebApp: { title: 'treehouse', capable: true },
+  manifest: '/home.webmanifest',
 };
 export const viewport: Viewport = {
   width: 'device-width', initialScale: 1, viewportFit: 'cover', interactiveWidget: 'resizes-visual',

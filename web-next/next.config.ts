@@ -5,11 +5,19 @@ import type { NextConfig } from 'next';
 // That lets the two run side by side, and lets screens move over one at a time.
 const LEGACY = (process.env.LEGACY_ORIGIN || 'https://treehouse.ng').replace(/\/$/, '');
 
+// One id per build: open phones compare it with /home-build and reload when a newer version is live.
+const BUILD = (process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 12) || Date.now().toString(36);
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  env: { NEXT_PUBLIC_BUILD: BUILD },
   poweredByHeader: false,
   async headers() {
     return [{
+      // The push-notification worker must always be re-checked, so updates reach phones.
+      source: '/home-sw.js',
+      headers: [{ key: 'Cache-Control', value: 'no-cache' }],
+    }, {
       source: '/:path*',
       headers: [
         { key: 'Referrer-Policy', value: 'no-referrer' },

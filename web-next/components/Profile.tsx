@@ -13,6 +13,8 @@ import { Icon, Hero, Avatar, Chips, StateSelect, DobPicker, dobFrom, dobValue, T
 import { openSheet, confirmSheet, toast } from './overlay';
 import { BellButton } from './Home';
 import { applyTheme } from './App';
+import { PushRow, InstallRow } from './PushInstall';
+import * as push from '@/lib/push';
 
 const LIVE = process.env.NEXT_PUBLIC_LIVE_APP || 'https://treehouse.ng';
 
@@ -86,6 +88,8 @@ export default function Profile() {
         <a className="settings-row" href="mailto:support@treehouse.ng?subject=treehouse%20report"><Icon name="flag" /><span className="grow">Report a problem by email<span className="sub">support@treehouse.ng</span></span><span className="chev"><Icon name="chev" cls="sm" /></span></a>
       </Group>
 
+      <Group title="Notifications"><PushRow /><InstallRow /></Group>
+
       <Group title="Appearance">
         <div className="settings-row" style={{ cursor: 'default' }}><Icon name="moon" /><span className="grow">Theme</span><ThemePicker /></div>
       </Group>
@@ -96,7 +100,7 @@ export default function Profile() {
         <a className="settings-row" href="mailto:support@treehouse.ng?subject=treehouse%20report"><Icon name="info" /><span className="grow">Contact us & report a problem<span className="sub">support@treehouse.ng</span></span><span className="chev"><Icon name="chev" cls="sm" /></span></a>
         <a className="settings-row" href="/privacy"><Icon name="shield" /><span className="grow">Privacy policy</span><span className="chev"><Icon name="chev" cls="sm" /></span></a>
         <a className="settings-row" href="/terms"><Icon name="shield" /><span className="grow">Terms of Use</span><span className="chev"><Icon name="chev" cls="sm" /></span></a>
-        <button className="settings-row" onClick={() => api.signOut()}><Icon name="logout" />Sign out</button>
+        <button className="settings-row" onClick={async () => { await push.forget(); api.signOut(); }}><Icon name="logout" />Sign out</button>
         <button className="settings-row danger" onClick={deleteAccount}><Icon name="trash" />Delete my account</button>
       </Group>
 

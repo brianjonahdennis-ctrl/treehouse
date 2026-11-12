@@ -7,7 +7,9 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import * as api from '@/lib/api';
 import { state, emit, useAppState, loadAll, loadDating, patchChat, closeChatLocal, inboxBadge, newNotifCount, unreadChats, messageRequests } from '@/lib/state';
-import { setRouter, go } from '@/lib/nav';
+import { setRouter, go, openChat } from '@/lib/nav';
+import * as push from '@/lib/push';
+import * as inst from '@/lib/install';
 import { store } from '@/lib/util';
 import { Icon, Logo, EmptyState } from './ui';
 import { OverlayHost, openSheet, toast } from './overlay';
@@ -109,6 +111,11 @@ async function boot() {
   if (booting) return;
   booting = true;
   applyTheme();
+  push.registerWorker();
+  inst.watchInstall();
+  inst.onChange(() => emit('push'));   // the browser's install offer can arrive any time
+  watchServiceWorker();
+  watchForUpdates();
   try {
     await api.init();
     await api.detectFeatures();
@@ -159,6 +166,8 @@ let live = false;
 function startLive() {
   if (live || !state.profile) return;
   live = true;
+  // Push notifications: find out if they're set up, and keep this device linked to this account.
+  push.available().then((ok) => { if (ok) { emit('push'); push.sync(); } });
   // The server nudges this device when something new arrives; at most one full refresh every 20 s.
   let nudgeTimer: ReturnType<typeof setTimeout> | null = null, lastNudgeLoad = 0;
   api.onInboxNudge(state.user.id, (n) => {
@@ -190,6 +199,39 @@ function startLive() {
   };
   setInterval(roomBeat, 180000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { roomBeat(); loadDating(); } });
+}
+
+// Tapping a notification while treehouse is open: the background worker asks us to open that screen.
+function watchServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    if (!e.data || e.data.type !== 'treehouse-open' || !state.user) return;
+    const path = new URL(e.data.url, location.origin).pathname.replace(/^\/home\/?/, '');
+    const chat = path.match(/^matches\/([0-9a-f-]{36})$/);
+    if (chat) openChat(chat[1]); else go(path || 'home');
+  });
+}
+
+// New version? Reload by itself. Phones keep the page open for days; when treehouse comes back to the
+// screen after a minute or more (or every 30 minutes), ask which version is live and reload if it's
+// newer, unless someone is typing.
+const MY_BUILD = process.env.NEXT_PUBLIC_BUILD || '';
+function watchForUpdates() {
+  if (!MY_BUILD || process.env.NODE_ENV !== 'production') return;
+  let hiddenAt = 0, lastCheck = Date.now();
+  const check = async (force = false) => {
+    if (!force && Date.now() - hiddenAt < 60000 && Date.now() - lastCheck < 30 * 60000) return;
+    lastCheck = Date.now();
+    try {
+      const r = await fetch('/home-build', { cache: 'no-store' });
+      const { build } = await r.json();
+      if (!build || build === MY_BUILD) return;
+      const typing = [...document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('textarea, input[type="text"], input:not([type])')].some((el) => el.value && el.value.trim());
+      if (!typing) location.reload();
+    } catch { /* offline: try next time */ }
+  };
+  document.addEventListener('visibilitychange', () => { if (document.hidden) hiddenAt = Date.now(); else check(); });
+  setInterval(() => { if (!document.hidden) check(true); }, 30 * 60000);
 }
 
 // Everyone must agree to the Terms of Use; people who joined earlier are asked once.

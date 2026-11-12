@@ -3,7 +3,7 @@
 // A private chat (port of openChat in anon-inbox/public/hy-dating.js). Text messages, replies,
 // edits (15 minutes), unsend, delete for me, Sent/Delivered/Seen, typing and "online" over the
 // chat's private live channel, the request accept bar, reveal and add-friend buttons.
-// Not yet here: sending photos (viewing them works) and swipe-to-reply.
+// Photos (sending and viewing) unlock after a real conversation; swipe a message right to reply.
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as api from '@/lib/api';
@@ -13,9 +13,11 @@ import { clock, dayLabel } from '@/lib/util';
 import { Icon, Avatar } from './ui';
 import { openSheet, confirmSheet, toast } from './overlay';
 import { setOpenChatHandler } from './chatBus';
+import * as photos from './photos';
+import { useSwipeReply } from './swipe';
 import { meta, activeText, shortName, acceptRequest, declineRequest, blockConvo, cancelSent, askFriend, doReveal, chatMenu, partnerProfile } from './convo';
 
-type Msg = { id: string; sender_id: string; body: string; created_at: string; reply_to: string | null; edited_at: string | null; deleted_at: string | null; photo?: string | null; photo_w?: number; photo_h?: number; pending?: boolean };
+type Msg = { id: string; sender_id: string; body: string; created_at: string; reply_to: string | null; edited_at: string | null; deleted_at: string | null; photo?: string | null; photo_w?: number; photo_h?: number; pending?: boolean; localUrl?: string };
 const EDIT_WINDOW = 15 * 60 * 1000;
 const coarse = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 
@@ -40,7 +42,7 @@ export default function Chat({ id }: { id: string }) {
 
 // The chat sits on top of the app, sized to the space above the phone's keyboard (see hy-dating.js
 // fitChatToViewport for the reasons), with the app behind it switched off.
-function ChatFrame({ children }: { children: React.ReactNode }) {
+export function ChatFrame({ children, cls = 'chat', label = 'Chat' }: { children: React.ReactNode; cls?: string; label?: string }) {
   const ref = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const el = ref.current!;
@@ -70,7 +72,7 @@ function ChatFrame({ children }: { children: React.ReactNode }) {
       document.querySelector('.shell')?.removeAttribute('inert');
     };
   }, []);
-  return <section ref={ref} className="chat" aria-label="Chat">{children}</section>;
+  return <section ref={ref} className={cls} aria-label={label}>{children}</section>;
 }
 
 function ChatView({ convo }: { convo: Convo }) {
@@ -89,12 +91,28 @@ function ChatView({ convo }: { convo: Convo }) {
   const channel = useRef<ReturnType<typeof api.joinChat> | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastMsg = useRef<Msg | null>(null);
+  // Photos: greyed out until the two of you have chatted enough (the database decides).
+  const [photoOk, setPhotoOk] = useState(false);
+  const photoCheck = useRef<Promise<boolean> | null>(null);
+  const sinceCheck = useRef(0);
+  const [unblurred, setUnblurred] = useState(0);   // bumps when a photo is tapped to view
+  const [older, setOlder] = useState<Record<string, Msg>>({});   // quoted messages from before what's loaded
 
   const scroll = useCallback(() => requestAnimationFrame(() => { const b = body.current; if (b) b.scrollTop = b.scrollHeight; }), []);
+  const checkPhotos = useCallback(() => {
+    if (photoCheck.current) return photoCheck.current;
+    const c = state.convos.find((x) => x.conversation_id === id);
+    photoCheck.current = (c && statusOf(c) === 'chat' ? api.photosUnlocked(id) : Promise.resolve(false))
+      .then((v: boolean) => { setPhotoOk(v); sinceCheck.current = 0; return v; })
+      .catch(() => false)
+      .finally(() => { photoCheck.current = null; });
+    return photoCheck.current!;
+  }, [id]);
   const add = useCallback((m: Msg) => {
+    if (!m.photo && ++sinceCheck.current >= 6) checkPhotos();
     setMsgs((list) => (list.some((x) => x.id === m.id) ? list : [...list.filter((x) => !(x.pending && m.sender_id === me && x.body === m.body)), m]));
     if (!lastMsg.current || new Date(m.created_at) >= new Date(lastMsg.current.created_at)) lastMsg.current = m;
-  }, [me]);
+  }, [me, checkPhotos]);
   const update = useCallback((m: Partial<Msg> & { id: string }) => setMsgs((list) => list.map((x) => (x.id === m.id ? { ...x, ...m } : x))), []);
 
   // A request becomes a chat when someone replies, etc.: refresh this chat's state from the list.
@@ -149,6 +167,7 @@ function ChatView({ convo }: { convo: Convo }) {
       } catch {}
     }, 45000);
     if (!convo.blocked && !coarse()) setTimeout(() => input.current?.focus(), 50);
+    if (!convo.blocked && statusOf(convo) !== 'request') checkPhotos();
     return () => {
       alive = false;
       clearInterval(poll);
@@ -206,6 +225,55 @@ function ChatView({ convo }: { convo: Convo }) {
     setSending(false); input.current?.focus();
   }
 
+  async function photoTap(how: 'choose' | 'library') {
+    if (!photoOk) {
+      // Maybe it just unlocked: ask once more before saying no. (Then they tap again to pick.)
+      if (await checkPhotos()) { toast('Photos unlocked 🎉 Tap again to send one', 'image'); return; }
+      photos.lockedSheet(statusOf(convo) === 'chat' ? 'chat' : 'request');
+      return;
+    }
+    const source = how === 'library' ? 'library' : await photos.chooseSource();
+    if (!source) return;
+    const files = await photos.pickPhotos(source);
+    if (!files.length) return;
+    const ready = await photos.reviewPhotos(files);
+    for (const p of ready) await sendOnePhoto(p);
+  }
+  // Show it straight away as "Sending…" with the local copy, then swap in the saved message.
+  async function sendOnePhoto(p: photos.Prepared) {
+    const quoted = bar && bar.kind === 'reply' ? bar.m : null;
+    setBar(null);
+    const temp: Msg = { id: `pending-ph-${Date.now()}`, sender_id: me, body: '📷 Photo', created_at: new Date().toISOString(), reply_to: null, edited_at: null, deleted_at: null, pending: true, photo: 'local', photo_w: p.w, photo_h: p.h, localUrl: p.url };
+    setMsgs((list) => [...list, temp]); scroll();
+    try {
+      const m = await api.sendPhoto(id, p.blob, p.w, p.h, quoted ? quoted.id : null);
+      setMsgs((list) => list.filter((x) => x.id !== temp.id));
+      add(m); scroll();
+    } catch (e: any) {
+      setMsgs((list) => list.filter((x) => x.id !== temp.id));
+      if (/row-level|policy|chatted enough|42501/i.test(`${e.message} ${e.code || ''}`)) { setPhotoOk(false); photos.lockedSheet('chat'); }
+      else toast(api.friendly(e), 'x');
+    }
+  }
+  // First tap on their photo un-blurs it; after that a tap opens it full screen.
+  function photoClick(m: Msg) {
+    if (m.pending) return;
+    if (photos.expired(m)) { messageActions(m); return; }
+    if (m.sender_id !== me && !photos.wasSeen(m.id)) { photos.markSeen(m.id); setUnblurred((n) => n + 1); return; }
+    photos.openViewer(m, { onMore: () => messageActions(m) });
+  }
+  async function reportPhoto(m: Msg) {
+    if (!(await confirmSheet({ title: 'Report this photo?', yes: 'Report', danger: true, text: 'Our team will review it. You can also block them from the chat menu.' }))) return;
+    try { await api.reportPartner(id, 'inappropriate', `Photo message ${m.id}`); toast('Reported. Thanks for keeping treehouse safe', 'shield'); }
+    catch (e) { toast(api.friendly(e), 'x'); }
+  }
+  function jumpTo(mid: string) {
+    const row = body.current?.querySelector(`.msg-row[data-id="${mid}"]`) as HTMLElement | null;
+    if (!row) { toast('That message is further back in the chat', 'reply'); return; }
+    row.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash');
+  }
+
   function messageActions(m: Msg) {
     if (m.deleted_at) {
       openSheet((close) => (<><h2>Deleted message</h2>
@@ -221,6 +289,7 @@ function ChatView({ convo }: { convo: Convo }) {
         <div className="menu-list">
           {canTalk ? <button className="menu-item" onClick={() => { close(); setReply(m); }}><Icon name="reply" />Reply</button> : null}
           {m.photo ? null : <button className="menu-item" onClick={async () => { close(); let ok = false; try { await navigator.clipboard.writeText(m.body); ok = true; } catch {} toast(ok ? 'Copied' : 'Couldn’t copy', 'copy'); }}><Icon name="copy" />Copy</button>}
+          {m.photo && !mine ? <button className="menu-item danger" onClick={() => { close(); reportPhoto(m); }}><Icon name="flag" />Report photo</button> : null}
           {canEdit ? <button className="menu-item" onClick={() => { close(); setEdit(m); }}><Icon name="edit" />Edit</button> : null}
           {mine ? <button className="menu-item danger" onClick={() => { close(); unsend(m); }}><Icon name="ban" />Unsend for everyone</button> : null}
           <button className="menu-item danger" onClick={() => { close(); hideForMe(m); }}><Icon name="trash" />Delete for me</button>
@@ -288,19 +357,24 @@ function ChatView({ convo }: { convo: Convo }) {
           const sep = day !== lastDay ? <div className="day-sep">{day}</div> : null;
           lastDay = day;
           const mine = m.sender_id === me, gone = !!m.deleted_at;
-          const q = m.reply_to ? byId.get(m.reply_to) : null;
+          const q = m.reply_to ? (byId.get(m.reply_to) || older[m.reply_to] || null) : null;
+          if (m.reply_to && !q && !gone && !(m.reply_to in older)) {   // older than what's loaded: fetch it once
+            const rid = m.reply_to;
+            setTimeout(() => { setOlder((o) => (rid in o ? o : { ...o, [rid]: null as any })); api.messageById(rid).then((x: any) => { if (x) setOlder((o) => ({ ...o, [rid]: x })); }).catch(() => {}); }, 0);
+          }
+          const quote = m.reply_to && !gone
+            ? <button className={`bubble-quote ${q && q.sender_id === me ? 'mine' : ''}`} onClick={(e) => { e.stopPropagation(); jumpTo(m.reply_to!); }}><b>{q ? who(q.sender_id) : 'Message'}</b><span>{q ? preview(q) : 'Earlier message'}</span></button> : null;
           return (
             <Fragment key={m.id}>
               {sep}
-              <div className={`msg-row ${mine ? 'me' : 'them'} ${gone ? 'gone' : ''} ${m.pending ? 'pending' : ''}`} data-id={m.id}>
-                {!m.pending ? <button className="msg-swipe" aria-label="Reply" tabIndex={-1} onClick={(e) => { e.stopPropagation(); setReply(m); }}><Icon name="reply" cls="sm" /></button> : null}
-                <div className={`bubble ${m.photo && !gone ? 'photo-bubble' : ''}`} onClick={() => !m.pending && messageActions(m)}>
-                  {m.reply_to && !gone ? <span className={`bubble-quote ${q && q.sender_id === me ? 'mine' : ''}`}><b>{q ? who(q.sender_id) : 'Message'}</b><span>{q ? preview(q) : 'Earlier message'}</span></span> : null}
-                  {gone ? <span className="gone-text"><Icon name="ban" cls="sm" />{mine ? 'You unsent a message' : 'This message was deleted'}</span>
-                    : m.photo ? <PhotoBox m={m} mine={mine} /> : m.body}
-                </div>
-                <time dateTime={m.created_at}>{m.edited_at && !gone ? `Edited · ${clock(m.created_at)}` : clock(m.created_at)}</time>
-              </div>
+              <MsgRow m={m} mine={mine} gone={gone} canSwipe={canTalk && !gone && !m.pending} onReply={() => setReply(m)}>
+                {m.photo && !gone
+                  ? <div className="bubble photo-bubble" onClick={() => photoClick(m)}>{quote}<photos.PhotoBox key={unblurred} m={m} mine={mine} localUrl={m.localUrl} blur={!photos.wasSeen(m.id)} /></div>
+                  : <div className="bubble" onClick={() => !m.pending && messageActions(m)}>
+                    {quote}
+                    {gone ? <span className="gone-text"><Icon name="ban" cls="sm" />{mine ? 'You unsent a message' : 'This message was deleted'}</span> : m.body}
+                  </div>}
+              </MsgRow>
               {receiptFor(i)}
             </Fragment>
           );
@@ -333,9 +407,11 @@ function ChatView({ convo }: { convo: Convo }) {
               </div>
             ) : null}
             <form className="composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
+              <button type="button" className={`ph-btn plus ${photoOk ? '' : 'locked'}`.trim()} aria-disabled={!photoOk} aria-label="Send a photo" onClick={() => photoTap('choose')}><Icon name="plus" /></button>
               <textarea ref={input} className="input" rows={1} maxLength={1000} placeholder="Type a message…" aria-label="Message" value={text}
                 onChange={(e) => { setText(e.target.value); const el = e.target; el.style.height = 'auto'; el.style.height = `${Math.min(120, el.scrollHeight)}px`; channel.current?.typing(); }}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !coarse()) { e.preventDefault(); send(); } }} />
+              <button type="button" className={`ph-btn gallery ${photoOk ? '' : 'locked'}`.trim()} aria-disabled={!photoOk} aria-label="Send photos from your gallery" onClick={() => photoTap('library')}><Icon name="image" /></button>
               {/* Keep the keyboard open when tapping Send (see keepKeyboardOnSend in hy-dating.js). */}
               <button className="send" aria-label="Send" disabled={sending} onMouseDown={(e) => e.preventDefault()}><Icon name="send" cls="sm" /></button>
             </form>
@@ -391,21 +467,14 @@ function FriendButton({ convo }: { convo: Convo }) {
   return <span className="head-reveal head-friend">{el}</span>;
 }
 
-// Photo messages: blurred until tapped (the photo is fetched with a short-lived private link only
-// then). Photos expire after 30 days, like the live app.
-function PhotoBox({ m, mine }: { m: Msg; mine: boolean }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const expired = Date.now() - new Date(m.created_at).getTime() > 30 * 864e5;
-  const ratio = m.photo_w && m.photo_h ? `${m.photo_w} / ${m.photo_h}` : '4 / 3';
-  if (expired) return <span className="ph ph-gone">📷 Photo expired</span>;
-  if (!url) {
-    return (
-      <span className="ph blur" style={{ aspectRatio: ratio, display: 'grid', placeItems: 'center', minWidth: '160px' }} onClick={async (e) => {
-        e.stopPropagation();
-        try { setUrl(await api.photoUrl(m.photo!)); } catch (err) { toast(api.friendly(err), 'x'); }
-      }}><span className="ph-veil">{mine ? 'Your photo · tap to view' : 'Photo · tap to view'}</span></span>
-    );
-  }
-  // eslint-disable-next-line @next/next/no-img-element
-  return <span className="ph" style={{ aspectRatio: ratio }}><img src={url} alt="Photo" /></span>;
+// One message row; swipe it right to reply.
+function MsgRow({ m, mine, gone, canSwipe, onReply, children }: { m: Msg; mine: boolean; gone: boolean; canSwipe: boolean; onReply: () => void; children: React.ReactNode }) {
+  const { ref, handlers } = useSwipeReply(onReply, canSwipe);
+  return (
+    <div ref={ref} className={`msg-row ${mine ? 'me' : 'them'} ${gone ? 'gone' : ''} ${m.pending ? 'pending' : ''}`} data-id={m.id} {...handlers}>
+      {!m.pending ? <button className="msg-swipe" aria-label="Reply" tabIndex={-1} onClick={(e) => { e.stopPropagation(); onReply(); }}><Icon name="reply" cls="sm" /></button> : null}
+      {children}
+      <time dateTime={m.created_at}>{m.edited_at && !gone ? `Edited · ${clock(m.created_at)}` : clock(m.created_at)}</time>
+    </div>
+  );
 }

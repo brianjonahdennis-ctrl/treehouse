@@ -11,6 +11,7 @@ import { ago, avatarBg, initials, store } from '@/lib/util';
 import { Icon, Logo, Hero, HeroBtn, Avatar, vars } from './ui';
 import { useAvatarPicture } from '@/lib/avatars';
 import { openSheet, toast } from './overlay';
+import { HomeAppCard } from './PushInstall';
 
 const firstName = (n: string) => String(n || '').trim().split(/\s+/)[0].slice(0, 24);
 function greeting() {
@@ -75,6 +76,8 @@ export default function Home() {
           <Stat iconName="send" kind="talk" n={requests.length} label="Requests" onClick={() => go('matches/requests')} />
         </div>
       </section>
+
+      <HomeAppCard />
 
       <section>
         <div className="section-head"><h2>Recent activity</h2><button className="link-btn" onClick={() => go('matches')}>Inbox</button></div>
