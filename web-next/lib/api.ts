@@ -276,10 +276,6 @@ export const startChat = (handle: string) => rpc('start_conversation', { p_handl
 export const startFriend = (handle: string) => rpc('start_friend_request', { p_handle: handle });
 export const askFriend = (conversationId: string, on = true) => rpc('ask_friend', { p_conversation: conversationId, p_on: on });
 
-// ---- Speed Dating (rules live in the database; video relay passwords from the existing server) -----
-export const speedConfig = () => fetch('/api/speed-config', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({ enabled: false }));
-export const speedQuota = () => rpc('speed_quota');
-
 let asksMissing = false;
 export async function myFriendAsks() {
   if (asksMissing) return [];
@@ -399,3 +395,43 @@ export const kickrsStatus = async (): Promise<{ ready: boolean; blocker: string 
 export const kickrsConnect = async () => ((await rpc('kickrs_connect')) || [])[0] || null;
 export const kickrsDisconnect = () => rpc('kickrs_disconnect');
 export const kickrsFriendRequest = (kickrsId: string) => rpc('kickrs_friend_request', { p_kickrs_id: kickrsId });
+
+// ---- Speed Dating (three-minute video dates; rules live in the database) ----------------------------
+// Config and relay passwords come from the existing server (/api/*, passed through by next.config.ts).
+export const speedConfig = () => fetch('/api/speed-config', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({ enabled: false }));
+export const speedJoin = () => rpc('speed_join');
+export const speedPoll = () => rpc('speed_poll');
+export const speedLeaveQueue = () => rpc('speed_leave_queue');
+export const speedWaiting = () => rpc('speed_waiting');
+// Dates used in the last 24 hours, the daily limit, and (when used up) when the next date opens.
+export const speedQuota = () => rpc('speed_quota');
+export const speedSession = (id: string | null = null) => rpc('speed_session', { p_session: id });
+export const speedReady = (id: string) => rpc('speed_ready', { p_session: id });
+export const speedHeartbeat = (id: string) => rpc('speed_heartbeat', { p_session: id });
+export const speedSignal = (id: string, data: unknown) => rpc('speed_signal', { p_session: id, p_data: data });
+// The other person's call-setup messages from the mailbox (after message number `after`).
+export const speedPull = (id: string, after = 0) => rpc('speed_pull', { p_session: id, p_after: after });
+export const speedEnd = (id: string) => rpc('speed_end', { p_session: id });
+export const speedDecide = (id: string, like: boolean) => rpc('speed_decide', { p_session: id, p_like: like });
+export const speedReport = (id: string, reason: string | null, details = '', block = false) => rpc('speed_report', { p_session: id, p_reason: reason, p_details: details, p_block: block });
+// Relay passwords for the video call (from our server, only while on a live date).
+export async function speedIce() {
+  const { data } = await sb.auth.getSession();
+  const r = await fetch('/api/speed-ice', { method: 'POST', headers: { Authorization: `Bearer ${data.session && data.session.access_token}` } });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'Couldn’t start the video call.');
+  return j;
+}
+// The date's private live channel (call setup + "ended"), and your own queue channel ("paired").
+export function speedChannel(id: string, { onSignal, onEnded, onStatus }: { onSignal?: (m: any) => void; onEnded?: () => void; onStatus?: (s: string) => void }) {
+  const ch = sb.channel(`speed:${id}`, { config: { private: true } })
+    .on('broadcast', { event: 'signal' }, (e: any) => onSignal && onSignal((e && e.payload) || {}))
+    .on('broadcast', { event: 'ended' }, () => onEnded && onEnded())
+    .subscribe((st: string) => onStatus && onStatus(st));
+  return { leave: () => { try { sb.removeChannel(ch); } catch {} } };
+}
+export function speedQueueChannel(uid: string, onPaired: (p: any) => void) {
+  const ch = sb.channel(`speedq:${uid}`, { config: { private: true } })
+    .on('broadcast', { event: 'paired' }, (e: any) => onPaired((e && e.payload) || {})).subscribe();
+  return { leave: () => { try { sb.removeChannel(ch); } catch {} } };
+}

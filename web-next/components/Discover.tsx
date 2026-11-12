@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Discover (port of renderDiscover/renderDeck in anon-inbox/public/hy-dating.js): the dark card deck
 // with Pass / Like / message request, undo, the location and preference filters, and the match moment.
-// Not yet here: drag-to-swipe (buttons and ← → keys work), Nearby and the Speed Dating banner.
+// Speed Dating starts from the banner (components/speed.js). Not yet here: drag-to-swipe (buttons and ← → keys work).
 import { useEffect, useState } from 'react';
 import * as api from '@/lib/api';
 import { state, emit, subscribe, useAppState, loadDating, statusOf } from '@/lib/state';
@@ -11,6 +11,7 @@ import { go, openChat } from '@/lib/nav';
 import { avatarBg, hash, initials } from '@/lib/util';
 import { useAvatarPicture } from '@/lib/avatars';
 import { Icon, Hero, HeroBtn, Avatar, EmptyState, vars } from './ui';
+import SpeedBanner from './SpeedBanner';
 import { openSheet, toast } from './overlay';
 import { editPrefs } from './Profile';
 import { meta, activeText, shortName } from './convo';
@@ -142,6 +143,7 @@ export default function Discover() {
     <div className="stack">{head}
       {api.features.states ? <LocationBar /> : null}
       {!p.is_active ? <div className="notice"><Icon name="pause" cls="sm" /><span>Your dating profile is paused, so others can’t see you. Turn it on in Profile.</span></div> : null}
+      <SpeedBanner />
       <div>{deckEl}</div>
     </div>
   );
