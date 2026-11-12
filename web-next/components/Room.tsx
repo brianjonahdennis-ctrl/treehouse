@@ -100,8 +100,12 @@ function RoomView({ target, restart }: { target: string; restart: () => void }) 
   const api$ = useRef<{ add: (m: any) => void; pull: () => void; loadPeople: () => void; dropped: () => void; markRead: (soon?: number) => void }>(null as any);
   useEffect(() => {
     const r = R.current;
+    // Each run of this effect is its own visit (React may start one, stop it and start again).
+    let alive = true;
     r.alive = true;
-    const isMine = () => r.alive;
+    r.messages = new Map(); r.handle = ''; r.joined = null; r.left = false;
+    setItems([]); unseenRef.current = 0; setUnseen(0);
+    const isMine = () => alive && r.alive;
     const lastId = () => { let max = 0; for (const k of r.messages.keys()) { const n = Number(k); if (n > max) max = n; } return max; };
     const markRead = (soon = 4000) => {
       if (!isMine() || document.hidden) return;
@@ -249,7 +253,8 @@ function RoomView({ target, restart }: { target: string; restart: () => void }) 
           scrollNext.current = 'bottom';
         } else if (firstUnread) {
           const n = unseenRef.current;
-          setItems((list) => {
+          setItems((all) => {
+            const list = all.filter((x) => x.k !== 'unread');
             const i = list.findIndex((x) => x.k === 'msg' && x.m.id === firstUnread);
             if (i < 0) return list;
             return [...list.slice(0, i), { k: 'unread', id: 'unread-sep', n }, ...list.slice(i)];
@@ -290,6 +295,7 @@ function RoomView({ target, restart }: { target: string; restart: () => void }) 
     })();
 
     return () => {
+      alive = false;
       r.alive = false;
       // Closed without leaving: keep the last messages in memory for a quick return.
       kept = r.handle && !r.left && r.joined ? { state: target, joined: r.joined, at: Date.now(),
