@@ -14,6 +14,13 @@ This folder holds several of Hydra's (Brian Jonah Dennis) apps. Most work here i
 Dev servers are defined in `.claude/launch.json`: `anon-inbox` (4000, real Supabase), `treehouse-preview`
 (4010, mock data, no database), `hydra`, `hydra-earn-api`.
 
+## GitHub
+- **treehouse** repo (private) = this whole folder: `anon-inbox`, `tell-hydra-app`, `avatars-site`, `brand`.
+  Commit from this folder: `git add -A && git commit -m "…" && git push`. Each subfolder's .gitignore keeps
+  secrets out (anon-inbox/data, tell-hydra-app/signing, .env, app builds); the root .gitignore skips the others.
+- `hydra`, `hydra-earn`, `harmony-profile`, `main-site` are separate private repos (commit inside each folder).
+- GitHub account: brianjonahdennis-ctrl; `gh` is at ~/.local/bin/gh and git logs in through it.
+
 ## How Hydra wants to work
 - Explain things in plain words, not jargon. He is the owner, not a full-time developer.
 - The audience is Nigeria: 36 states + FCT, Africa/Lagos time zone, NGN.
