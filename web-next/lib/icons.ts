@@ -1,6 +1,7 @@
 // 24px line icons, copied from anon-inbox/public/hy-ui.js (our own fixed markup, never user text).
 export const PATHS: Record<string, string> = {
   home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',
+  gamepad: '<path d="M7.5 7h9a5 5 0 0 1 4.9 6l-.6 3.1a2.6 2.6 0 0 1-4.5 1.2L14.5 15h-5l-1.8 2.3a2.6 2.6 0 0 1-4.5-1.2L2.6 13a5 5 0 0 1 4.9-6z"/><path d="M8 9.8v3.4M6.3 11.5h3.4"/><circle cx="15.6" cy="10.6" r=".9"/><circle cx="17.6" cy="12.6" r=".9"/>',
   inbox: '<path d="M4 4h16v12H4z" opacity="0"/><path d="M21 12h-5l-2 3h-4l-2-3H3"/><path d="M5.5 5h13L21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z"/>',
   flame: '<path d="M12 22c4 0 7-2.7 7-7 0-3.5-2.4-6.2-4-8-.4 2-1.6 3.3-3 3.8C12.6 7.6 11.4 4.7 9 2c0 4-4 6.6-4 13 0 4.3 3 7 7 7z"/>',
   heart: '<path d="M12 20.5s-7.5-4.6-9.3-9.2C1.5 8 3.6 4.5 7.1 4.5c2 0 3.5 1.1 4.9 2.8 1.4-1.7 2.9-2.8 4.9-2.8 3.5 0 5.6 3.5 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/>',

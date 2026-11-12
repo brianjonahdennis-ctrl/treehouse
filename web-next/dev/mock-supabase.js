@@ -198,6 +198,10 @@
     speed_decide: ({ p_session, p_like }) => { const db = speedDb(); const s = db.sessions[p_session]; const k = s.a === TAB ? 'aLike' : 'bLike'; if (s[k] == null) s[k] = !!p_like; if (s.aLike && s.bLike && !s.matchedAt) s.matchedAt = Date.now(); speedSave(db); return speedView(s); },
     speed_report: ({ p_session, p_block }) => { if (p_block) RPC.speed_end({ p_session }); },
     start_friend_request: () => 'c9',
+    kickrs_status: () => ({ ready: true, blocker: null, connected: sessionStorage.getItem('mock-kickrs') === '1' }),
+    kickrs_connect: () => { sessionStorage.setItem('mock-kickrs', '1'); return [{ kickrs_id: '00000000-0000-4000-8000-000000000214', handle: profile.handle, avatar: null }]; },
+    kickrs_disconnect: () => { sessionStorage.removeItem('mock-kickrs'); return null; },
+    kickrs_friend_request: () => 'c9',
     // Matches → friends: in Golden Kite's chat (c3) they've asked you; elsewhere nobody has yet.
     friend_ask_state: ({ p_conversation }) => { const c = convos.find((x) => x.conversation_id === p_conversation); return !c ? null : c.kind === 'friend' ? 'friends' : (friendAsks[p_conversation] || (p_conversation === 'c3' ? 'theirs' : 'none')); },
     my_friend_asks: () => { const out = Object.entries(friendAsks).filter(([, v]) => v === 'mine' || v === 'theirs').map(([k, v]) => ({ conversation_id: k, who: v }));

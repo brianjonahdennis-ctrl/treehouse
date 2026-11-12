@@ -6,6 +6,9 @@ export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   const dev = process.env.NODE_ENV === 'development';
   const sb = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
+  // Games are Kickrs pages shown in a frame, and the games list comes from the Kickrs server.
+  const kickrs = (process.env.NEXT_PUBLIC_KICKRS_ORIGIN || 'https://kickrs.app').replace(/\/$/, '');
+  const kickrsApi = (process.env.NEXT_PUBLIC_KICKRS_API || 'https://play.kickrs.app').replace(/\/$/, '');
   const csp = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ''}`,
@@ -14,7 +17,8 @@ export function proxy(request: NextRequest) {
     `font-src https://fonts.gstatic.com${dev ? " 'self'" : ''}`,
     `img-src 'self' data: blob: https://img.treehouse.ng https://tile.openstreetmap.org ${sb}`.trim(),
     "media-src 'self' https://img.treehouse.ng",
-    `connect-src 'self' ${sb} ${sb.replace('https://', 'wss://')}${dev ? ' ws:' : ''}`.trim(),
+    `connect-src 'self' ${sb} ${sb.replace('https://', 'wss://')} ${kickrsApi}${dev ? ' ws:' : ''}`.trim(),
+    `frame-src ${kickrs}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

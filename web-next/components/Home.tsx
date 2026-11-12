@@ -11,6 +11,7 @@ import { ago, avatarBg, initials, store } from '@/lib/util';
 import { Icon, Logo, Hero, HeroBtn, Avatar, vars } from './ui';
 import { useAvatarPicture } from '@/lib/avatars';
 import { openSheet, toast } from './overlay';
+import { GamesCard } from './Games';
 
 const firstName = (n: string) => String(n || '').trim().split(/\s+/)[0].slice(0, 24);
 function greeting() {
@@ -65,6 +66,8 @@ export default function Home() {
             onClick={() => go(myRoom ? `rooms/${encodeURIComponent(myRoom.state)}` : 'rooms')} />
         </div>
       </div>
+
+      <GamesCard />
 
       <section>
         <div className="section-head"><h2>Your connections</h2></div>

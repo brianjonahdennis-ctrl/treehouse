@@ -57,6 +57,7 @@ npm run dev                      # http://localhost:4020/home
 | `hy-photos.js` | pick, shrink, send chat photos; viewer | `PhotoBox` in `Chat.tsx` (viewing only) | ⏳ sending |
 | `hy-push.js`, `home-sw.js` | push notifications + service worker | – | ⏳ |
 | `hy-install.js`, `home.webmanifest` | "Add to Home Screen" | – | ⏳ |
+| (new) | Games tab, Home games card, Kickrs games, Profile avatar top left | `components/Games.tsx`, `lib/kickrs.ts`, `app/api/kickrs/ticket`, `app/home/games`, `app/home/connect/kickrs` | ✅ new feature, see `KICKRS.md` |
 | `server.js` routes | `/api/*`, `/terms`, `/privacy`, `/u/<name>`, landing `/` | passed through to the existing server (`next.config.ts` fallback rewrite, `LEGACY_ORIGIN`) | ✅ no change needed |
 
 ## How the important parts work

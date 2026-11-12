@@ -14,15 +14,19 @@ import { OverlayHost, openSheet, toast } from './overlay';
 import { Landing, NewPassword, Underage } from './Auth';
 import Onboarding from './Onboarding';
 import { deliverToOpenChat } from './chatBus';
+import { connectWaiting, rememberConnect } from '@/lib/kickrs';
 
-const TABS = [
+// Games sits in the raised centre. Profile is the avatar at the top left of every screen on phones
+// (and the last item in the desktop sidebar).
+const TABS: { route: string; label: string; icon: string; center?: boolean; badge?: boolean; sideOnly?: boolean }[] = [
   { route: 'home', label: 'Home', icon: 'home' },
   { route: 'rooms', label: 'Chatrooms', icon: 'rooms' },
-  { route: 'discover', label: 'Discover', icon: 'flame', center: true },
+  { route: 'games', label: 'Games', icon: 'gamepad', center: true },
+  { route: 'discover', label: 'Discover', icon: 'flame' },
   { route: 'matches', label: 'Inbox', icon: 'mail', badge: true },
-  { route: 'profile', label: 'Profile', icon: 'user' },
+  { route: 'profile', label: 'Profile', icon: 'user', sideOnly: true },
 ];
-const TITLES: Record<string, string> = { rooms: 'Chatrooms', home: 'Home', discover: 'Discover', matches: 'Inbox', profile: 'Profile', notifications: 'Notifications' };
+const TITLES: Record<string, string> = { rooms: 'Chatrooms', home: 'Home', games: 'Games', discover: 'Discover', matches: 'Inbox', profile: 'Profile', notifications: 'Notifications', connect: 'Kickrs' };
 
 export function applyTheme(t: string = store.get('hy-theme', 'system') || 'system') {
   if (t === 'system') document.documentElement.removeAttribute('data-theme');
@@ -75,10 +79,11 @@ function Shell({ pathname, children }: { pathname: string; children: ReactNode }
     if (lastTab.current !== tab) { window.scrollTo(0, 0); lastTab.current = tab; }
   });
   useEffect(() => () => document.body.classList.remove('dark-screen'), []);
+  useEffect(() => { if (tab !== 'connect' && connectWaiting()) go('connect/kickrs', { replace: true }); }, [tab]);
 
   const item = (t: typeof TABS[number], side: boolean) => {
     const n = t.badge ? badge : 0;
-    const cls = side ? `side-item${t.center ? ' side-center' : ''}` : `nav-item${t.center ? ' nav-center' : ''}`;
+    const cls = side ? `side-item${t.center ? ` side-center side-${t.route}` : ''}` : `nav-item${t.center ? ` nav-center nav-${t.route}` : ''}`;
     return (
       <Link key={t.route} href={`/home${t.route === 'home' ? '' : '/' + t.route}`} className={cls} aria-current={tab === t.route ? 'page' : undefined}>
         {t.center && !side ? <span className="nav-orb"><Icon name={t.icon} /></span> : <Icon name={t.icon} />}
@@ -98,7 +103,7 @@ function Shell({ pathname, children }: { pathname: string; children: ReactNode }
         </div>
       </nav>
       <div className="shell-body"><main className="main" id="main" tabIndex={-1}><div className="screen" key={tab}>{children}</div></main></div>
-      <nav className="bottom-nav" aria-label="Main">{TABS.map((t) => item(t, false))}</nav>
+      <nav className="bottom-nav" aria-label="Main">{TABS.filter((t) => !t.sideOnly).map((t) => item(t, false))}</nav>
     </div>
   );
 }
@@ -109,6 +114,7 @@ async function boot() {
   if (booting) return;
   booting = true;
   applyTheme();
+  rememberConnect();
   try {
     await api.init();
     await api.detectFeatures();
