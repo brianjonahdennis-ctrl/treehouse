@@ -7,6 +7,8 @@ import { PATHS } from '@/lib/icons';
 import { avatarBg, initials, lagosToday, MONTHS } from '@/lib/util';
 import { useAvatarPicture } from '@/lib/avatars';
 import { toast } from './overlay';
+import { state } from '@/lib/state';
+import { go } from '@/lib/nav';
 
 export function Icon({ name, cls = '' }: { name: string; cls?: string }) {
   // Our own fixed icon markup (never user text), as in the live app.
@@ -40,11 +42,18 @@ export function Avatar({ seed, label, cls = '' }: { seed: string; label?: string
   );
 }
 
-export function Hero({ title, sub, top, actions, cls = '', children }: { title?: ReactNode; sub?: ReactNode; top?: ReactNode; actions?: ReactNode; cls?: string; children?: ReactNode }) {
+// Your profile and settings: your avatar at the top right of each screen.
+export function MeButton() {
+  const handle = state.profile?.handle;
+  if (!handle) return null;
+  return <button className="hero-me" aria-label="Your profile" onClick={() => go('profile')}><Avatar seed={handle} cls="sm" /></button>;
+}
+
+export function Hero({ title, sub, top, actions, cls = '', me = true, children }: { title?: ReactNode; sub?: ReactNode; top?: ReactNode; actions?: ReactNode; cls?: string; me?: boolean; children?: ReactNode }) {
   return (
     <header className={`hero ${cls}`.trim()}>
       {top || title || actions ? (
-        <div className="hero-top">{top || <h1>{title}</h1>}{actions ? <div className="hero-actions">{actions}</div> : null}</div>
+        <div className="hero-top">{top || <h1>{title}</h1>}{actions || me ? <div className="hero-actions">{actions}{me ? <MeButton /> : null}</div> : null}</div>
       ) : null}
       {top && title ? <h1>{title}</h1> : null}
       {sub ? <p className="sub">{sub}</p> : null}

@@ -1,63 +1,14 @@
 'use client';
-// Photos in private chats (port of anon-inbox/public/hy-photos.js): pick (camera or gallery), shrink
-// on the phone (which also drops the photo's location data), preview and send, blurred until tapped,
+// Photos in private chats (port of anon-inbox/public/hy-photos.js); picking and shrinking live in
+// lib/photos.ts. Here: choose, preview and send, blurred until tapped,
 // full-screen viewer. Photos unlock after a real conversation: the database decides.
 import { useEffect, useState } from 'react';
 import * as api from '@/lib/api';
 import { Icon } from './ui';
 import { openSheet, toast } from './overlay';
 
-export const MAX_PHOTOS = 10;
-const MAX_SIDE = 1600;
-const MAX_BYTES = 1400000;
-export type Prepared = { blob: Blob; w: number; h: number; url: string };
-
-// ---- Prepare: decode, turn upright, shrink, re-save as JPEG (no EXIF/GPS survives a canvas) -----
-export async function preparePhoto(file: File): Promise<Prepared> {
-  if (file.type && !/^image\//.test(file.type)) throw new Error('That file isn’t a photo.');
-  let src: ImageBitmap | HTMLImageElement;
-  try { src = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
-  catch {
-    src = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('That photo can’t be opened. Try a JPEG or PNG.'));
-      img.src = URL.createObjectURL(file);
-    });
-  }
-  const W = (src as HTMLImageElement).naturalWidth || src.width, H = (src as HTMLImageElement).naturalHeight || src.height;
-  if (!W || !H) throw new Error('That photo can’t be opened.');
-  const k = Math.min(1, MAX_SIDE / Math.max(W, H));
-  const w = Math.max(1, Math.round(W * k)), ht = Math.max(1, Math.round(H * k));
-  const c = document.createElement('canvas');
-  c.width = w; c.height = ht;
-  const ctx = c.getContext('2d')!;
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, w, ht);
-  ctx.drawImage(src, 0, 0, w, ht);
-  if ('close' in src) src.close();
-  let q = 0.82;
-  const toBlob = (qq: number) => new Promise<Blob | null>((r) => c.toBlob(r, 'image/jpeg', qq));
-  let blob = await toBlob(q);
-  while (blob && blob.size > MAX_BYTES && q > 0.4) { q -= 0.14; blob = await toBlob(q); }
-  if (!blob || blob.size > MAX_BYTES) throw new Error('That photo is too large.');
-  return { blob, w, h: ht, url: URL.createObjectURL(blob) };
-}
-
-// ---- Choosing ---------------------------------------------------------------------------------------
-function pickFiles({ camera = false } = {}): Promise<File[]> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/*'; input.hidden = true;
-    if (camera) input.setAttribute('capture', 'environment'); else input.multiple = true;
-    let done = false;
-    const finish = (files: File[]) => { if (done) return; done = true; input.remove(); resolve(files); };
-    input.addEventListener('change', () => finish([...(input.files || [])]));
-    input.addEventListener('cancel', () => finish([]));
-    document.body.append(input);
-    input.click();
-  });
-}
+import { MAX_PHOTOS, pickFiles, preparePhoto, type Prepared } from '@/lib/photos';
+export { MAX_PHOTOS, type Prepared };
 
 // "+" button: Camera or Photos.
 export function chooseSource(): Promise<'camera' | 'library' | null> {
@@ -76,7 +27,7 @@ export function chooseSource(): Promise<'camera' | 'library' | null> {
 }
 
 export async function pickPhotos(source: 'camera' | 'library') {
-  const files = await pickFiles({ camera: source === 'camera' });
+  const files = await pickFiles(source === 'camera');
   if (files.length > MAX_PHOTOS) toast(`Up to ${MAX_PHOTOS} photos at a time`, 'image');
   return files.slice(0, MAX_PHOTOS);
 }

@@ -12,6 +12,7 @@ import { Icon, Logo, Hero, HeroBtn, Avatar, vars } from './ui';
 import { useAvatarPicture } from '@/lib/avatars';
 import { openSheet, toast } from './overlay';
 import { HomeAppCard } from './PushInstall';
+import { GamesCard } from './Games';
 
 const firstName = (n: string) => String(n || '').trim().split(/\s+/)[0].slice(0, 24);
 function greeting() {
@@ -44,7 +45,7 @@ export default function Home() {
 
   return (
     <div className="stack-lg home">
-      <Hero cls="home-hero" top={<Logo />} actions={<><BellButton /><HeroBtn icon="gear" label="Settings" onClick={() => go('profile')} /></>}>
+      <Hero cls="home-hero" top={<Logo />} actions={<BellButton />}>
         <div className="hm-me">
           <button className="hm-av" aria-label="Your profile" onClick={() => go('profile')}><Avatar seed={profile.handle} cls="xl" /></button>
           <div className="grow">
@@ -66,6 +67,8 @@ export default function Home() {
             onClick={() => go(myRoom ? `rooms/${encodeURIComponent(myRoom.state)}` : 'rooms')} />
         </div>
       </div>
+
+      <GamesCard />
 
       <section>
         <div className="section-head"><h2>Your connections</h2></div>

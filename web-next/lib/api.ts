@@ -383,3 +383,10 @@ export const roomProfile = async (handle: string) => ((await rpc('room_profile',
 // ---- Custom avatars ----------------------------------------------------------------------------------
 export const getAvatars = async (handles: string[]) => (await rpc('get_avatars', { p_handles: handles })) || [];
 export const setMyAvatar = (config: unknown) => rpc('set_my_avatar', { p_config: config });
+
+// ---- Games (Kickrs) ------------------------------------------------------------------------------
+// kickrs_status(): { ready, blocker: 'profile' | 'suspended' | null, connected }
+export const kickrsStatus = async (): Promise<{ ready: boolean; blocker: string | null; connected: boolean }> => (await rpc('kickrs_status')) || { ready: false, blocker: 'profile', connected: false };
+export const kickrsConnect = async () => ((await rpc('kickrs_connect')) || [])[0] || null;
+export const kickrsDisconnect = () => rpc('kickrs_disconnect');
+export const kickrsFriendRequest = (kickrsId: string) => rpc('kickrs_friend_request', { p_kickrs_id: kickrsId });

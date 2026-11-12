@@ -127,6 +127,7 @@
   const chatMsgs = {
     c1: [['them', 'Hey! Your bio made me laugh 😂', 90], ['me', 'Haha glad someone gets the Bar Beach joke', 80], ['them', 'I’m in Lekki too actually', 10], ['them', 'Haha true! Which side of Lekki are you?', 4]],
     c2: [['me', 'That was such a good chat', 200], ['them', 'It really was. Talk tomorrow?', 190], ['me', 'Goodnight 🌙', 180]],
+    c3: [['them', `⚽ Penalty shootout! I challenge you on Kickrs. Tap to play: ${location.origin}/home/games/penalties?join=ABC234`, 2], ['me', `⚽ Penalty shootout! I challenge you on Kickrs. Tap to play: ${location.origin}/home/games/penalties?join=XYZ789`, 30]],
     c4: [['them', 'Hi! Saw you in the Lagos room, you seem fun 😄', 12]],
     c5: [['them', 'Hey, love your bio', 95]],
     c6: [['me', 'Hey! Are you going to Detty December?', 300]],
@@ -198,6 +199,10 @@
     speed_decide: ({ p_session, p_like }) => { const db = speedDb(); const s = db.sessions[p_session]; const k = s.a === TAB ? 'aLike' : 'bLike'; if (s[k] == null) s[k] = !!p_like; if (s.aLike && s.bLike && !s.matchedAt) s.matchedAt = Date.now(); speedSave(db); return speedView(s); },
     speed_report: ({ p_session, p_block }) => { if (p_block) RPC.speed_end({ p_session }); },
     start_friend_request: () => 'c9',
+    kickrs_status: () => ({ ready: true, blocker: null, connected: sessionStorage.getItem('mock-kickrs') === '1' }),
+    kickrs_connect: () => { sessionStorage.setItem('mock-kickrs', '1'); return [{ kickrs_id: '00000000-0000-4000-8000-000000000214', handle: profile.handle, avatar: null }]; },
+    kickrs_disconnect: () => { sessionStorage.removeItem('mock-kickrs'); return null; },
+    kickrs_friend_request: () => 'c9',
     // Matches → friends: in Golden Kite's chat (c3) they've asked you; elsewhere nobody has yet.
     friend_ask_state: ({ p_conversation }) => { const c = convos.find((x) => x.conversation_id === p_conversation); return !c ? null : c.kind === 'friend' ? 'friends' : (friendAsks[p_conversation] || (p_conversation === 'c3' ? 'theirs' : 'none')); },
     my_friend_asks: () => { const out = Object.entries(friendAsks).filter(([, v]) => v === 'mine' || v === 'theirs').map(([k, v]) => ({ conversation_id: k, who: v }));

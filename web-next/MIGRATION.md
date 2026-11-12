@@ -44,7 +44,7 @@ npm run dev                      # http://localhost:4020/home
 | `hy-onboard.js` | landing, sign up/in (email + Google), verify, reset, onboarding, under-18 | `components/Auth.tsx`, `components/Onboarding.tsx` | ✅ |
 | `hy-home.js` | Home hub, status, friends strip, activity, people | `components/Home.tsx` | ✅ (no install/push/beta cards yet) |
 | `hy-dating.js` → Inbox | chats, requests, friends, matches, likes | `components/Inbox.tsx`, `components/convo.tsx` | ✅ |
-| `hy-dating.js` → chat | private chat | `components/Chat.tsx` | ✅ text, reply, edit, unsend, delete, receipts, typing, online, accept/decline/block, reveal, add friend, report, view photos. ⏳ sending photos, swipe-to-reply |
+| `hy-dating.js` → chat | private chat | `components/Chat.tsx` | ✅ text, reply, edit, unsend, delete, receipts, typing, online, accept/decline/block, reveal, add friend, report, view and send photos (+ menu), Kickrs challenges. ⏳ swipe-to-reply |
 | `hy-dating.js` → Discover | card deck, filters, match moment, message request | `components/Discover.tsx` | ✅ buttons + ← → keys. ⏳ drag-to-swipe, Speed Dating banner |
 | `hy-profile.js` | profile, edit card, preferences, theme, blocked, account | `components/Profile.tsx` | ✅ (avatar editor, Nearby settings and push open the current app) |
 | (in `hy-app.js`) | Notifications screen | `components/Notifications.tsx` | ✅ |
@@ -54,9 +54,10 @@ npm run dev                      # http://localhost:4020/home
 | `hy-speed.js` | Speed Dating video dates (WebRTC) | – | ⏳ |
 | `hy-avatar.js` | custom avatars on nicknames | `lib/avatars.ts`, `lib/avatar-core.js` | ✅ showing avatars |
 | `hy-avatar-ui.js` | avatar picker/editor | – | ⏳ |
-| `hy-photos.js` | pick, shrink, send chat photos; viewer | `PhotoBox` in `Chat.tsx` (viewing only) | ⏳ sending |
+| `hy-photos.js` | pick, shrink, send chat photos; viewer | `lib/photos.ts`, `PhotoBox` and the + menu in `Chat.tsx` | ✅ |
 | `hy-push.js`, `home-sw.js` | push notifications + service worker | – | ⏳ |
 | `hy-install.js`, `home.webmanifest` | "Add to Home Screen" | – | ⏳ |
+| (new) | Games tab, Home games card, Kickrs games, Profile avatar top left | `components/Games.tsx`, `lib/kickrs.ts`, `app/api/kickrs/ticket`, `app/home/games`, `app/home/connect/kickrs` | ✅ new feature, see `KICKRS.md` |
 | `server.js` routes | `/api/*`, `/terms`, `/privacy`, `/u/<name>`, landing `/` | passed through to the existing server (`next.config.ts` fallback rewrite, `LEGACY_ORIGIN`) | ✅ no change needed |
 
 ## How the important parts work
@@ -92,7 +93,7 @@ are needed, both already public.
    or people stop getting notified. Serve `home-sw.js` from the Next app at the same address.
 2. **Chatroom conversations** (`hy-rooms.js` `openRoom`): the biggest screen (live messages, reactions,
    replies, members, kicks, block/report).
-3. **Chat photos** (sending) and swipe-to-reply.
+3. Swipe-to-reply.
 4. **Avatar picker/editor**, **Install card**, **Android beta card**.
 5. **Nearby** (list + Leaflet map, served locally for the CSP).
 6. **Speed Dating** (WebRTC, `/api/speed-ice` stays on the existing server).

@@ -3,7 +3,8 @@
 // A private chat (port of openChat in anon-inbox/public/hy-dating.js). Text messages, replies,
 // edits (15 minutes), unsend, delete for me, Sent/Delivered/Seen, typing and "online" over the
 // chat's private live channel, the request accept bar, reveal and add-friend buttons.
-// Photos (sending and viewing) unlock after a real conversation; swipe a message right to reply.
+// The + next to the message box sends photos (camera or gallery, once unlocked) and Kickrs challenges.
+// Photos are blurred until tapped; swipe a message right to reply.
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as api from '@/lib/api';
@@ -15,6 +16,7 @@ import { openSheet, confirmSheet, toast } from './overlay';
 import { setOpenChatHandler } from './chatBus';
 import * as photos from './photos';
 import { useSwipeReply } from './swipe';
+import { CHALLENGE_MS, parseChallenge } from '@/lib/kickrs';
 import { meta, activeText, shortName, acceptRequest, declineRequest, blockConvo, cancelSent, askFriend, doReveal, chatMenu, partnerProfile } from './convo';
 
 type Msg = { id: string; sender_id: string; body: string; created_at: string; reply_to: string | null; edited_at: string | null; deleted_at: string | null; photo?: string | null; photo_w?: number; photo_h?: number; pending?: boolean; localUrl?: string };
@@ -225,15 +227,13 @@ function ChatView({ convo }: { convo: Convo }) {
     setSending(false); input.current?.focus();
   }
 
-  async function photoTap(how: 'choose' | 'library') {
+  async function photoTap(source: 'camera' | 'library') {
     if (!photoOk) {
       // Maybe it just unlocked: ask once more before saying no. (Then they tap again to pick.)
       if (await checkPhotos()) { toast('Photos unlocked 🎉 Tap again to send one', 'image'); return; }
       photos.lockedSheet(statusOf(convo) === 'chat' ? 'chat' : 'request');
       return;
     }
-    const source = how === 'library' ? 'library' : await photos.chooseSource();
-    if (!source) return;
     const files = await photos.pickPhotos(source);
     if (!files.length) return;
     const ready = await photos.reviewPhotos(files);
@@ -272,6 +272,29 @@ function ChatView({ convo }: { convo: Convo }) {
     if (!row) { toast('That message is further back in the chat', 'reply'); return; }
     row.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash');
+  }
+
+  // The + next to the message box: photos (camera or gallery) and games.
+  function plusMenu() {
+    const talking = statusOf(convo) === 'chat';
+    openSheet((close) => (
+      <>
+        <h2>Send</h2>
+        <div className="ph-sources">
+          <button className="ph-source cam" onClick={() => { close(); photoTap('camera'); }}><Icon name={photoOk ? 'camera' : 'lock'} /><span>Camera</span></button>
+          <button className="ph-source lib" onClick={() => { close(); photoTap('library'); }}><Icon name={photoOk ? 'image' : 'lock'} /><span>Photos</span></button>
+        </div>
+        {talking ? (
+          <div className="menu-list" style={{ marginTop: '12px' }}>
+            <button className="menu-item kick-item" onClick={() => { close(); go(`games/penalties?challenge=${encodeURIComponent(id)}&back=${encodeURIComponent(id)}`); }}>
+              <span className="kc-art" aria-hidden="true">⚽</span>
+              <span className="grow"><b>Penalty challenge</b><small className="muted">Play {shortName(convo.other_handle)} on Kickrs. They get a Play button here.</small></span>
+            </button>
+          </div>
+        ) : null}
+        {!photoOk ? <p className="tiny muted" style={{ marginTop: '10px' }}>Photos unlock once you two have chatted enough.</p> : null}
+      </>
+    ), { label: 'Send' });
   }
 
   function messageActions(m: Msg) {
@@ -372,7 +395,7 @@ function ChatView({ convo }: { convo: Convo }) {
                   ? <div className="bubble photo-bubble" onClick={() => photoClick(m)}>{quote}<photos.PhotoBox key={unblurred} m={m} mine={mine} localUrl={m.localUrl} blur={!photos.wasSeen(m.id)} /></div>
                   : <div className="bubble" onClick={() => !m.pending && messageActions(m)}>
                     {quote}
-                    {gone ? <span className="gone-text"><Icon name="ban" cls="sm" />{mine ? 'You unsent a message' : 'This message was deleted'}</span> : m.body}
+                    {gone ? <span className="gone-text"><Icon name="ban" cls="sm" />{mine ? 'You unsent a message' : 'This message was deleted'}</span> : <Body m={m} mine={mine} chatId={id} />}
                   </div>}
               </MsgRow>
               {receiptFor(i)}
@@ -407,11 +430,10 @@ function ChatView({ convo }: { convo: Convo }) {
               </div>
             ) : null}
             <form className="composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
-              <button type="button" className={`ph-btn plus ${photoOk ? '' : 'locked'}`.trim()} aria-disabled={!photoOk} aria-label="Send a photo" onClick={() => photoTap('choose')}><Icon name="plus" /></button>
+              <button type="button" className="composer-plus" aria-label="Photos and games" onMouseDown={(e) => e.preventDefault()} onClick={plusMenu}><Icon name="plus" /></button>
               <textarea ref={input} className="input" rows={1} maxLength={1000} placeholder="Type a message…" aria-label="Message" value={text}
                 onChange={(e) => { setText(e.target.value); const el = e.target; el.style.height = 'auto'; el.style.height = `${Math.min(120, el.scrollHeight)}px`; channel.current?.typing(); }}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !coarse()) { e.preventDefault(); send(); } }} />
-              <button type="button" className={`ph-btn gallery ${photoOk ? '' : 'locked'}`.trim()} aria-disabled={!photoOk} aria-label="Send photos from your gallery" onClick={() => photoTap('library')}><Icon name="image" /></button>
               {/* Keep the keyboard open when tapping Send (see keepKeyboardOnSend in hy-dating.js). */}
               <button className="send" aria-label="Send" disabled={sending} onMouseDown={(e) => e.preventDefault()}><Icon name="send" cls="sm" /></button>
             </form>
@@ -476,5 +498,22 @@ function MsgRow({ m, mine, gone, canSwipe, onReply, children }: { m: Msg; mine: 
       {children}
       <time dateTime={m.created_at}>{m.edited_at && !gone ? `Edited · ${clock(m.created_at)}` : clock(m.created_at)}</time>
     </div>
+  );
+}
+
+// A message with a Kickrs challenge link shows as a card with a Play button (open for 10 minutes).
+function Body({ m, mine, chatId }: { m: Msg; mine: boolean; chatId: string }) {
+  const c = parseChallenge(m.body);
+  if (!c) return <>{m.body}</>;
+  const open = Date.now() - new Date(m.created_at).getTime() < CHALLENGE_MS;
+  const play = (e: React.MouseEvent) => { e.stopPropagation(); go(`games/${c.game}?join=${c.code}&back=${encodeURIComponent(chatId)}`); };
+  const again = (e: React.MouseEvent) => { e.stopPropagation(); go(`games/${c.game}?challenge=${encodeURIComponent(chatId)}&back=${encodeURIComponent(chatId)}`); };
+  return (
+    <span className="kick-card">
+      <span className="kc-art" aria-hidden="true">⚽</span>
+      <span className="kc-text"><b>Penalty shootout</b><span>{mine ? (open ? 'Challenge sent · waiting for them' : 'Your challenge expired') : open ? 'You’ve been challenged on Kickrs' : 'This challenge expired'}</span></span>
+      {!mine && open ? <button type="button" className="btn btn-sm kc-play" onClick={play}>Play</button> : null}
+      {!open ? <button type="button" className="btn btn-sm kc-play" onClick={again}>{mine ? 'Send again' : 'Challenge back'}</button> : null}
+    </span>
   );
 }

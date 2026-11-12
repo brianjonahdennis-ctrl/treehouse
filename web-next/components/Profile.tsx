@@ -41,7 +41,7 @@ export default function Profile() {
   const openAvatar = () => { location.href = `${LIVE}/home/profile`; };
   return (
     <div className="stack-lg profile">
-      <Hero cls="profile-hero" actions={<BellButton />}>
+      <Hero cls="profile-hero" me={false} actions={<BellButton />}>
         <div className="pf-head">
           <button className="av-hero-btn" aria-label="Customize your avatar" onClick={openAvatar}><Avatar seed={profile.handle} cls="xl" /><span className="av-pencil"><Icon name="edit" cls="sm" /></span></button>
           <div className="grow">
