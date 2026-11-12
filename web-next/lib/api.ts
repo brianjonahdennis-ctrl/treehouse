@@ -309,6 +309,15 @@ export async function messageById(id: string) {
 }
 export const chatStatus = async (conversationId: string) => ((await rpc('chat_status', { p_conversation: conversationId })) || [])[0] || null;
 export const nearbySettings = async () => ((await rpc('nearby_settings')) || [])[0] || { enabled: false };
+// Nearby: the phone's position is sent once (turning Nearby on or refreshing your area) and is
+// reduced to a protected point by the database; raw GPS is never returned.
+export const nearbySetLocation = (lat: number, lng: number) => rpc('nearby_set_location', { p_lat: lat, p_lng: lng });
+export const nearbyUpdate = (args: Record<string, unknown>) => rpc('nearby_update_settings', args);
+export const nearbyPeople = async ({ radius, minAge, maxAge, genders, interests, sort }: { radius: number; minAge?: number | null; maxAge?: number | null; genders?: string[]; interests?: string[]; sort?: string }) => (await rpc('nearby_people', {
+  p_radius_km: radius, p_min_age: minAge || null, p_max_age: maxAge || null,
+  p_genders: genders && genders.length ? genders : null, p_interests: interests && interests.length ? interests : null,
+  p_sort: sort || 'distance', p_limit: 150,
+})) || [];
 export const blockProfile = (handle: string) => rpc('block_profile', { p_handle: handle });
 export const reportProfile = (handle: string, reason: string, details?: string) => rpc('report_profile', { p_handle: handle, p_reason: reason, p_details: details || '' });
 export const reportPartner = (conversationId: string, reason: string, details?: string) =>

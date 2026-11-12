@@ -15,9 +15,9 @@ import { BellButton } from './Home';
 import { applyTheme } from './App';
 import { PushRow, InstallRow } from './PushInstall';
 import { openAvatarPicker } from './AvatarEditor';
+import { openNearbySettings } from './Nearby';
 import * as push from '@/lib/push';
 
-const LIVE = process.env.NEXT_PUBLIC_LIVE_APP || 'https://treehouse.ng';
 
 function completion() {
   const p = state.profile;
@@ -83,7 +83,7 @@ export default function Profile() {
         <Info emoji="🎭" title="You’re anonymous" sub="People see your nickname and avatar, never your email or real name. Chatrooms use your room nickname." />
         <Info emoji="🔓" title="Identity reveal needs both of you" sub="Your first name is only shown when you and the other person both choose to reveal. Nobody can reveal you alone." />
         <Info emoji="📩" title="Who can send you message requests" sub="Anyone with a dating card. Requests wait in your Inbox until you accept; decline or block any time." />
-        <Row ico="pin" title="Nearby & location" sub="Off by default. Approximate area only (opens the current app)" onClick={() => { location.href = `${LIVE}/home/profile`; }} />
+        <Row ico="pin" title="Nearby & location" sub="Off by default. Approximate area only; pause or delete any time" onClick={() => openNearbySettings()} />
         <Row ico="ban" title="Blocked people" sub={blocked.length ? `${blocked.length} blocked` : 'No one blocked'} onClick={() => blockedSheet(blocked)} />
         <Info emoji="🚩" title="Reporting" sub="Report anyone from a chat’s ⋯ menu, a request, or a chatroom message. Reported messages are hidden for you straight away, and we act on reports within 24 hours." />
         <a className="settings-row" href="mailto:support@treehouse.ng?subject=treehouse%20report"><Icon name="flag" /><span className="grow">Report a problem by email<span className="sub">support@treehouse.ng</span></span><span className="chev"><Icon name="chev" cls="sm" /></span></a>
