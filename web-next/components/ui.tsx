@@ -42,7 +42,7 @@ export function Avatar({ seed, label, cls = '' }: { seed: string; label?: string
   );
 }
 
-// Your profile: the avatar at the top left of each screen on phones (the desktop sidebar has Profile).
+// Your profile and settings: your avatar at the top right of each screen.
 export function MeButton() {
   const handle = state.profile?.handle;
   if (!handle) return null;
@@ -53,7 +53,7 @@ export function Hero({ title, sub, top, actions, cls = '', me = true, children }
   return (
     <header className={`hero ${cls}`.trim()}>
       {top || title || actions ? (
-        <div className="hero-top">{me ? <MeButton /> : null}{top || <h1>{title}</h1>}{actions ? <div className="hero-actions">{actions}</div> : null}</div>
+        <div className="hero-top">{top || <h1>{title}</h1>}{actions || me ? <div className="hero-actions">{actions}{me ? <MeButton /> : null}</div> : null}</div>
       ) : null}
       {top && title ? <h1>{title}</h1> : null}
       {sub ? <p className="sub">{sub}</p> : null}

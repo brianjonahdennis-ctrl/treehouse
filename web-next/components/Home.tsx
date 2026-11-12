@@ -44,7 +44,7 @@ export default function Home() {
 
   return (
     <div className="stack-lg home">
-      <Hero cls="home-hero" top={<Logo />} actions={<><BellButton /><HeroBtn icon="gear" label="Settings" onClick={() => go('profile')} /></>}>
+      <Hero cls="home-hero" top={<Logo />} actions={<BellButton />}>
         <div className="hm-me">
           <button className="hm-av" aria-label="Your profile" onClick={() => go('profile')}><Avatar seed={profile.handle} cls="xl" /></button>
           <div className="grow">

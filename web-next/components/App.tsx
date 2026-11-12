@@ -16,13 +16,13 @@ import Onboarding from './Onboarding';
 import { deliverToOpenChat } from './chatBus';
 import { connectWaiting, rememberConnect } from '@/lib/kickrs';
 
-// Games sits in the raised centre. Profile is the avatar at the top left of every screen on phones
-// (and the last item in the desktop sidebar).
+// Discover sits in the raised centre, Games next to it. Profile is your avatar at the top right of
+// every screen (and the last item in the desktop sidebar).
 const TABS: { route: string; label: string; icon: string; center?: boolean; badge?: boolean; sideOnly?: boolean }[] = [
   { route: 'home', label: 'Home', icon: 'home' },
   { route: 'rooms', label: 'Chatrooms', icon: 'rooms' },
-  { route: 'games', label: 'Games', icon: 'gamepad', center: true },
-  { route: 'discover', label: 'Discover', icon: 'flame' },
+  { route: 'discover', label: 'Discover', icon: 'flame', center: true },
+  { route: 'games', label: 'Games', icon: 'gamepad' },
   { route: 'matches', label: 'Inbox', icon: 'mail', badge: true },
   { route: 'profile', label: 'Profile', icon: 'user', sideOnly: true },
 ];

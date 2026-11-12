@@ -1,10 +1,10 @@
 # Games on treehouse (Kickrs)
 
-The **Games** tab (raised centre of the bottom bar) shows games made by Kickrs (kickrs.app). Kickrs is
+The **Games** tab (bottom bar, next to Discover in the raised centre) shows games made by Kickrs (kickrs.app). Kickrs is
 the only game provider: Penalties is live, and Ludo, 8 Ball Pool, Chess, Quick Dice, Cards and Trivia
 show as "Coming soon". When Kickrs opens a new game it appears here on its own, no treehouse change.
-Profile moved from the bottom bar to the avatar at the top left of each screen (phones) and stays in
-the desktop sidebar.
+Profile moved from the bottom bar to your avatar at the top right of each screen (it replaces the
+Settings gear, which opened the same page) and stays in the desktop sidebar.
 
 ## What members see
 
@@ -13,8 +13,8 @@ the desktop sidebar.
    "Popular on treehouse" with how many are playing now.
 3. **First time only:** "Play Kickrs games as {nickname}?" with **Allow** / **Not now**. Kickrs sees the
    nickname, painted avatar and that they're 18+. Name, email, photos and chats stay on treehouse.
-4. **The game** (`/home/games/penalties`): full screen, treehouse bar on top (back, ⋯ → Disconnect
-   Kickrs), the game below, already signed in. At full time against another member: **Add {name} on
+4. **The game** (`/home/games/penalties`): treehouse bar on top (back, ⋯ → Disconnect Kickrs), the
+   game below, already signed in, and the bottom bar stays for moving around treehouse. At full time against another member: **Add {name} on
    treehouse** sends a normal treehouse friend request (same limits, blocks and checks).
 5. **On kickrs.app:** Sign in › **Continue with treehouse** opens `/home/connect/kickrs`, which signs the
    member in if needed (Google or email, as usual), shows the same Allow step, then goes back to Kickrs.

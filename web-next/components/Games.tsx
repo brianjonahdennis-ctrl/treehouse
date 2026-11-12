@@ -159,10 +159,6 @@ function Stage({ game, join, challenge, back }: { game: KickrsGame } & Opening) 
   const src = join ? `${KICKRS_ORIGIN}/f/${join}?embed=treehouse` : challenge && base ? `${base}&challenge=1` : base;
   const leave = () => (back ? openChat(back) : go('games'));
   useEffect(() => {
-    document.body.classList.add('game-open');
-    return () => document.body.classList.remove('game-open');
-  }, []);
-  useEffect(() => {
     if (!frame.current) return;
     return connectKickrs(frame.current, {
       addFriend: async (kickrsId) => {

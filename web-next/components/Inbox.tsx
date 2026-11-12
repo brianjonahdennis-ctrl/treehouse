@@ -8,7 +8,7 @@ import { state, emit, useAppState, loadDating, statusOf, messageRequests, matchF
 import { INTENT_LABEL } from '@/lib/options';
 import { go, openChat } from '@/lib/nav';
 import { ago } from '@/lib/util';
-import { Icon, Logo, Hero, HeroBtn, Avatar, EmptyState } from './ui';
+import { Icon, Logo, Hero, Avatar, EmptyState } from './ui';
 import { toast } from './overlay';
 import { BellButton, statusEditor } from './Home';
 import { meta, activeText, shortName, acceptRequest, declineRequest, cancelSent, cancelMatchAsk, askFriend, requestMenu, partnerProfile } from './convo';
@@ -45,7 +45,7 @@ export default function Inbox({ sub }: { sub: string | null }) {
   return (
     <>
       <div className="stack-lg inbox">
-        <Hero top={<Logo />} cls="inbox-hero" title="Inbox" sub="Messages, friends, requests and matches." actions={<><BellButton /><HeroBtn icon="gear" label="Settings" onClick={() => go('profile')} /></>}>
+        <Hero top={<Logo />} cls="inbox-hero" title="Inbox" sub="Messages, friends, requests and matches." actions={<BellButton />}>
           <div className="ib-tabs" role="tablist" aria-label="Inbox sections">
             {tab('chats', 'Chats', 'chat', 'chat', unread)}
             {tab('requests', 'Requests', 'send', 'req', requests.length + matchFriendAsks().length)}
