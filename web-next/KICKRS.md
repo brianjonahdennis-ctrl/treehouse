@@ -24,7 +24,7 @@ can't. Kickrs never gets a treehouse sign-in token.
 
 ## How it works
 
-- Database: `anon-inbox/supabase/migrations/20261112000062_kickrs_games.sql` adds one private table
+- Database: `anon-inbox/supabase/migrations/20261112000063_kickrs_games.sql` adds one private table
   (`dating_private.kickrs_links`) and five functions: `kickrs_status`, `kickrs_connect`,
   `kickrs_identity`, `kickrs_disconnect`, `kickrs_friend_request`. Each member gets a random Kickrs id
   (never their user id). Tests: `anon-inbox/supabase/tests/kickrs_games.test.sql` (19 checks).
@@ -43,7 +43,7 @@ can't. Kickrs never gets a treehouse sign-in token.
 |---|---|---|
 | treehouse-next (Railway) | `KICKRS_SIGNING_KEY` | Secret. From `node scripts/kickrs-keys.mjs` |
 | Kickrs (Railway) | `TREEHOUSE_PUBLIC_KEY` | The public key that script prints (Boma sets it) |
-| Kickrs (Railway) | `TREEHOUSE_CONNECT_URL` | `https://treehouse.ng/home/connect/kickrs` (default) |
+| Kickrs (Railway) | `TREEHOUSE_CONNECT_URL` | `https://app.treehouse.ng/home/connect/kickrs` (default) |
 | Kickrs (Vercel) | `NEXT_PUBLIC_TREEHOUSE_ORIGINS` | Only for a preview address, e.g. `https://next.treehouse.ng` |
 
 ## Going live with no downtime
