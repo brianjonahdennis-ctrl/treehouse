@@ -1,0 +1,15 @@
+# treehouse: one repository for the website (anon-inbox), the phone app (tell-hydra-app),
+# the avatars/video site (avatars-site) and the brand files. Each folder's own .gitignore
+# keeps its secrets out (anon-inbox/data, tell-hydra-app/signing, .env files, app builds).
+
+# Separate projects with their own GitHub repositories
+hydra/
+hydra-earn/
+harmony-profile/
+main-site/
+
+# Local tool caches and personal settings
+supabase/.temp/
+.claude/settings.local.json
+.DS_Store
+node_modules/

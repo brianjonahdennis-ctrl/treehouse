@@ -1,0 +1,41 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hydra",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd hydra && node node_modules/next/dist/bin/next dev --port $PORT"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "anon-inbox",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd anon-inbox && PORT=$PORT OWNER_NAME=Brian SUPABASE_URL=https://ctyyxxermexmcknhfmtl.supabase.co SUPABASE_PUBLISHABLE_KEY=sb_publishable_NElB5JZDuE2TsJessnDidg_u_tXOg8x DATING_ENABLED=1 node server.js"
+      ],
+      "port": 4000
+    },
+    {
+      "name": "treehouse-preview",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd anon-inbox && PORT=$PORT node dev/mock-server.mjs"
+      ],
+      "port": 4010
+    },
+    {
+      "name": "hydra-earn-api",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=$HOME/.local/bin:$PATH; cd hydra-earn && trap 'kill 0' EXIT; pnpm db:up & for i in $(seq 1 90); do nc -z localhost 54329 && break; sleep 1; done; pnpm db:deploy && cd apps/api && PORT=$PORT pnpm exec tsx src/server.ts"
+      ],
+      "port": 4100
+    }
+  ]
+}

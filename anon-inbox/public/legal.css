@@ -1,0 +1,22 @@
+/* treehouse legal pages (privacy policy, account deletion) */
+:root { --ink: #1b1530; --muted: #6b6488; --line: #e7e1f5; --bg: #f6f3fd; --brand: #7c3aed; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --ink: #f2eeff; --muted: #a8a0c6; --line: #2c2349; --bg: #0b0920; --brand: #b18cff; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.65 "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { background: radial-gradient(120% 100% at 15% 0%, #3c1a8f 0%, #22106a 34%, #0f0a42 68%, #05051f 100%); color: #fff; padding: 28px 20px 34px; }
+.wrap { max-width: 760px; margin: 0 auto; }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font: 900 24px/1 "Nunito", system-ui, sans-serif; letter-spacing: -.03em; }
+.brand img { width: 36px; height: 36px; }
+.brand i { display: inline-block; width: .2em; height: .2em; border-radius: 50%; background: #ff2d9b; margin-left: .06em; }
+header h1 { margin: 22px 0 6px; font-size: 32px; line-height: 1.15; letter-spacing: -.02em; }
+header p { margin: 0; color: rgba(255, 255, 255, .78); }
+main { padding: 28px 20px 60px; }
+h2 { margin: 34px 0 8px; font-size: 20px; letter-spacing: -.01em; }
+h3 { margin: 22px 0 4px; font-size: 16px; }
+p, li { color: var(--ink); }
+ul { padding-left: 22px; }
+li { margin: 4px 0; }
+a { color: var(--brand); }
+.note { background: color-mix(in srgb, var(--brand) 10%, transparent); border-radius: 14px; padding: 14px 16px; margin: 18px 0; }
+.steps li { margin: 8px 0; }
+footer { border-top: 1px solid var(--line); padding: 20px; color: var(--muted); font-size: 14px; }

@@ -1,0 +1,7 @@
+{
+  "name": "treehouse-avatars",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-01",
+  "assets": { "directory": "./public", "binding": "ASSETS", "not_found_handling": "none", "run_worker_first": ["/ads/*"] },
+  "routes": [{ "pattern": "img.treehouse.ng", "custom_domain": true }]
+}

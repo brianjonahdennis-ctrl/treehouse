@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">treehouse</string>
+    <string name="title_activity_main">treehouse</string>
+    <string name="package_name">com.brianjonahdennis.treehouse</string>
+    <string name="custom_url_scheme">com.brianjonahdennis.treehouse</string>
+</resources>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="apple-mobile-web-app-title" content="treehouse">
+  <meta name="theme-color" content="#b06bff">
+  <title>treehouse</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/home.webmanifest">
+  <link rel="apple-touch-icon" href="/icon-180.png">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;0,800;1,800&family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,800;1,900&display=swap">
+  <link rel="stylesheet" href="/send.css">
+</head>
+<body>
+  <main class="wrap">
+    <section id="compose">
+      <form id="form" class="ask-card" autocomplete="off">
+        <div class="ask-head">
+          <div class="avatar" id="avatar"><img src="/avatar.jpg" alt="" width="56" height="56"></div>
+          <div>
+            <div class="handle">@<span id="owner">me</span></div>
+            <div class="prompt" id="prompt">send me anonymous messages!</div>
+          </div>
+        </div>
+        <div class="ask-body">
+          <label for="text" class="hp">Your message</label>
+          <textarea id="text" maxlength="250" placeholder="type your message…" required></textarea>
+          <div class="ask-foot">
+            <span id="counter" class="counter" aria-live="polite">250</span>
+            <button type="button" id="dice" class="dice" title="Give me an idea" aria-label="Suggest a message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.2" fill="currentColor"/></svg>
+          </button>
+          </div>
+        </div>
+        <div class="hp" aria-hidden="true">
+          <label>Website <input type="text" name="website" id="website" tabindex="-1" autocomplete="off"></label>
+        </div>
+      </form>
+
+      <p id="outOfRoom" class="room-hint hidden">Out of room! Send this one, then send the rest as another message.</p>
+
+      <p class="lock">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        treehouse · anonymous
+      </p>
+
+      <button id="submit" class="send-btn" form="form" type="submit" disabled>Send!</button>
+      <div id="status" class="status" role="status"></div>
+      <a id="dateBtn" class="date-btn hidden" href="/home/discover">💘 Date Anonymously</a>
+      <a class="own-link" href="/home">🌳 Join treehouse: anonymous users, real connections</a>
+
+      <section id="dating" class="dating hidden" aria-labelledby="datingTitle">
+        <h2 id="datingTitle">Dating requests</h2>
+        <p class="dating-sub">Anonymous people looking to connect. Names stay hidden until you both choose to reveal.</p>
+        <div id="cards" class="cards"></div>
+        <button type="button" id="moreCards" class="more-cards hidden">Show more</button>
+      </section>
+
+      <details class="promise">
+        <summary>How is my identity hidden?</summary>
+        <ul>
+          <li>No sign-up, no name, no email.</li>
+          <li>Your IP address and device info are never saved.</li>
+          <li id="cookieNote">No cookies or trackers on this page.</li>
+          <li>Send times are rounded to the hour.</li>
+        </ul>
+      </details>
+    </section>
+
+    <section id="missing" class="sent hidden">
+      <h1>Link not found</h1>
+      <p>This link doesn't exist, or it isn't taking messages right now.</p>
+      <a class="send-btn" href="/home">Join treehouse</a>
+    </section>
+
+    <section id="sent" class="sent hidden">
+      <div class="check">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+      </div>
+      <h1>Sent!</h1>
+      <p>Your message was delivered anonymously.</p>
+      <button id="again" class="send-btn">Send another message</button>
+      <a class="own-link" href="/home">🌳 Join treehouse: anonymous users, real connections</a>
+      <div id="adBox" class="ad-box hidden">
+        <div class="ad-label">Advertisement</div>
+      </div>
+    </section>
+  </main>
+  <script src="/config.js"></script>
+  <script src="/send.js"></script>
+</body>
+</html>

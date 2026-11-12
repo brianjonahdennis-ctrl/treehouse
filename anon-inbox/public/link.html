@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#b06bff">
+  <meta name="robots" content="noindex">
+  <title>Get your link · Tell Hydra</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,800;1,900&display=swap">
+  <link rel="stylesheet" href="send.css">
+  <link rel="stylesheet" href="date.css">
+  <link rel="stylesheet" href="link.css">
+</head>
+<body>
+  <main class="wrap">
+    <a href="/" class="back">‹ Back</a>
+
+    <section id="s-loading" class="step">
+      <div class="d-card"><div class="d-body center muted-ink">Loading…</div></div>
+    </section>
+
+    <!-- Welcome -->
+    <section id="s-welcome" class="step hidden">
+      <div class="d-card">
+        <div class="d-head">
+          <h1>Get your own anonymous link</h1>
+          <p>Share it anywhere. Friends send you anonymous messages, and you read them in your Tell Hydra inbox.</p>
+        </div>
+        <div class="d-body">
+          <ul class="perks">
+            <li>💌 <span>Your own link: <b>treehouse.ng</b></span></li>
+            <li>🕶️ <span>Senders stay anonymous: no account, nothing about them is stored</span></li>
+            <li>📸 <span>Turn any message into a story image for Instagram or WhatsApp</span></li>
+            <li>💘 <span>The same account works for Date Anonymously</span></li>
+          </ul>
+          <button class="d-btn" type="button" id="startSignup">Create my link</button>
+          <button class="d-link" type="button" id="startSignin">I already have a Tell Hydra account</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sign up / sign in -->
+    <section id="s-auth" class="step hidden">
+      <form id="authForm" class="d-card" novalidate>
+        <div class="d-head">
+          <h1 id="authTitle">Create your account</h1>
+          <p id="authSub">Your email is never shown to anyone.</p>
+        </div>
+        <div class="d-body">
+          <label>Email
+            <input type="email" id="fEmail" autocomplete="email" required>
+          </label>
+          <label>Password
+            <input type="password" id="fPassword" minlength="8" autocomplete="new-password" required>
+            <small id="pwHint">At least 8 characters, with letters and numbers.</small>
+          </label>
+          <label class="check" id="ageRow">
+            <input type="checkbox" id="fAge">
+            <span>I'm 13 or older</span>
+          </label>
+          <p id="authError" class="d-error" role="alert"></p>
+          <button class="d-btn" type="submit" id="authBtn">Create account</button>
+          <a class="d-link hidden" id="forgotLink" href="/date">Forgot password?</a>
+          <button class="d-link" type="button" id="authSwitch">Already have an account? Sign in</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Check email -->
+    <section id="s-check" class="step hidden">
+      <div class="d-card">
+        <div class="d-head"><h1>Check your email</h1></div>
+        <div class="d-body center">
+          <div class="big-emoji">📩</div>
+          <p class="lead">We sent a verification link to <b id="checkEmail"></b>.</p>
+          <p class="muted-ink">Tap it, then come back here to choose your username.</p>
+          <p id="checkMsg" class="d-note" role="status"></p>
+          <button class="d-btn ghost" type="button" id="resendBtn">Resend email</button>
+          <button class="d-link" type="button" data-go="s-auth">Wrong email? Go back</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Choose username -->
+    <section id="s-claim" class="step hidden">
+      <form id="claimForm" class="d-card" novalidate>
+        <div class="d-head">
+          <h1>Choose your link</h1>
+          <p>This is what people will see and share.</p>
+        </div>
+        <div class="d-body">
+          <label>Username
+            <div class="url-input">
+              <span>/u/</span>
+              <input type="text" id="fUsername" maxlength="20" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="yourname" required>
+            </div>
+            <small id="userStatus">3–20 letters, numbers or underscores.</small>
+            <small id="urlPreview" class="url-preview"></small>
+          </label>
+          <label>Display name
+            <input type="text" id="fDisplay" maxlength="40" placeholder="How you want to appear, e.g. Amaka" required>
+          </label>
+          <label>Your prompt
+            <input type="text" id="fPrompt" maxlength="120" value="send me anonymous messages!" required>
+          </label>
+          <div class="chips" id="promptChips"></div>
+          <p id="claimError" class="d-error" role="alert"></p>
+          <button class="d-btn" type="submit" id="claimBtn" disabled>Claim my link</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- My link -->
+    <!-- Inbox tab: the messages people sent to this member's link -->
+    <section id="s-mine" class="step hidden">
+      <div class="d-card">
+        <div class="d-head">
+          <h1>Inbox <span id="inboxBadge" class="badge hidden"></span></h1>
+          <p id="mineTitle"></p>
+        </div>
+        <div class="d-body">
+          <p id="pausedNote" class="paused-note hidden">Your link is paused, so it isn't taking messages.</p>
+          <div id="inboxList" class="inbox-list"></div>
+          <p id="inboxEmpty" class="muted-ink small-print hidden">No messages yet. Share your link to get some! 💌</p>
+          <div class="share-row">
+            <button class="d-btn" type="button" id="shareBtn">🔗 Share my link</button>
+            <button class="d-btn ghost" type="button" id="stickerBtn">📸 Story sticker</button>
+          </div>
+          <button class="topic-line" type="button" id="topicLine">Topic: <b id="topicLineText"></b> <span>Change ›</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Settings tab: the link, its topic, display name, pause, sign out -->
+    <section id="s-settings" class="step hidden">
+      <div class="d-card">
+        <div class="d-head">
+          <h1>Settings</h1>
+          <p>Your link and what people see when they open it.</p>
+        </div>
+        <div class="d-body">
+          <div class="my-url">
+            <code id="myUrl"></code>
+            <div class="my-url-actions">
+              <button class="d-btn small-btn" type="button" id="copyBtn">Copy</button>
+              <button class="d-btn small-btn ghost" type="button" id="shareBtn2">Share</button>
+            </div>
+          </div>
+
+          <!-- Topic: the question people answer when they open the link -->
+          <div class="topic-card" id="topicCard">
+            <h2>Your topic</h2>
+            <p class="muted-ink small-print">What people answer when they open your link. Change it any time.</p>
+            <p class="topic-now" id="topicNow"></p>
+            <div class="chips" id="topicChips"></div>
+            <form id="topicForm" class="topic-form" novalidate>
+              <input type="text" id="topicInput" maxlength="120" placeholder="Write your own…" aria-label="Your own topic">
+              <button class="d-btn small-btn" type="submit">Save</button>
+            </form>
+            <p id="topicMsg" class="d-error" role="status"></p>
+          </div>
+
+          <div class="topic-card">
+            <h2>Your link page</h2>
+            <div class="ask-card preview">
+              <div class="ask-head"><div><div class="handle">@<span id="pvUser"></span></div><div class="prompt" id="pvPrompt"></div></div></div>
+              <div class="ask-body"><div class="pv-body">type your message…</div></div>
+            </div>
+            <form id="editForm" class="settings-form" novalidate>
+              <label>Display name <input type="text" id="eDisplay" maxlength="40" required></label>
+              <p id="editMsg" class="d-error" role="status"></p>
+              <button class="d-btn" type="submit">Save name</button>
+            </form>
+            <button class="d-btn ghost" type="button" id="pauseBtn">Pause my link</button>
+          </div>
+
+          <a class="d-btn ghost" href="/date">💘 Dating profile &amp; account</a>
+          <button class="d-link" type="button" id="signOutBtn">Sign out</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- A message, shown as its story image -->
+    <section id="s-msg" class="step hidden">
+      <div class="d-card msg-card">
+        <div class="msg-bar">
+          <button class="chat-back" type="button" id="msgBack" aria-label="Back to inbox">‹</button>
+          <span class="muted-ink" id="msgTime"></span>
+          <span></span>
+        </div>
+        <div class="shot">
+          <img id="msgImg" class="shot-img hidden" alt="">
+          <div id="msgLoading" class="shot-loading">Making image…</div>
+        </div>
+        <p class="muted-ink small-print">Press and hold the image to save it</p>
+        <div class="msg-actions">
+          <button class="d-btn" type="button" id="msgShare">Share</button>
+          <button class="d-btn ghost" type="button" id="msgSave">Save image</button>
+        </div>
+        <div class="msg-actions" id="msgModeration">
+          <button class="d-link danger-link" type="button" id="msgReport">Report</button>
+          <button class="d-link danger-link" type="button" id="msgDelete">Delete</button>
+        </div>
+
+        <form class="report-sheet hidden" id="reportSheet">
+          <h2>Report this message</h2>
+          <p class="muted-ink small-print">Tell Hydra reviews reports and can suspend links that receive abuse. The sender is anonymous, so they can't be identified.</p>
+          <div class="reasons">
+            <label><input type="radio" name="reason" value="harassment"> Bullying or harassment</label>
+            <label><input type="radio" name="reason" value="threat"> Threats or violence</label>
+            <label><input type="radio" name="reason" value="hate"> Hate speech</label>
+            <label><input type="radio" name="reason" value="sexual"> Sexual content</label>
+            <label><input type="radio" name="reason" value="self_harm"> Self-harm or suicide</label>
+            <label><input type="radio" name="reason" value="spam"> Spam</label>
+            <label><input type="radio" name="reason" value="other"> Something else</label>
+          </div>
+          <label class="check"><input type="checkbox" id="reportDelete" checked> <span>Also delete it from my inbox</span></label>
+          <p id="reportError" class="d-error" role="alert"></p>
+          <button class="d-btn danger-btn" type="submit" id="reportSend" disabled>Send report</button>
+          <button class="d-link" type="button" id="reportCancel">Cancel</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="s-error" class="step hidden">
+      <div class="d-card">
+        <div class="d-head"><h1>Something went wrong</h1></div>
+        <div class="d-body center">
+          <p class="lead" id="errorMsg"></p>
+          <button class="d-btn" type="button" id="errorRetry">Try again</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="config.js"></script>
+  <script src="supabase.js"></script>
+  <script src="story.js"></script>
+  <script src="nav.js"></script>
+  <script src="link.js"></script>
+</body>
+</html>

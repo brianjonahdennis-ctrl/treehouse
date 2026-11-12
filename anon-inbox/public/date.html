@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#b06bff">
+  <meta name="robots" content="noindex">
+  <title>Date Anonymously · Tell Hydra</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,800;1,900&display=swap">
+  <link rel="stylesheet" href="send.css">
+  <link rel="stylesheet" href="date.css">
+</head>
+<body>
+  <main class="wrap">
+    <a href="/" class="back">‹ Back to messages</a>
+    <p id="dmBanner" class="dm-banner hidden"></p>
+
+    <!-- Loading -->
+    <section id="s-loading" class="step">
+      <div class="d-card"><div class="d-body center muted-ink">Loading…</div></div>
+    </section>
+
+    <!-- Step 1: basic profile -->
+    <section id="s-profile" class="step hidden">
+      <form id="profileForm" class="d-card" novalidate>
+        <div class="d-head">
+          <span class="d-step">Step 1 of 3</span>
+          <h1>Date Anonymously</h1>
+          <p>Your name stays hidden until you both choose to reveal.</p>
+        </div>
+        <div class="d-body">
+          <label>Name
+            <input type="text" id="fName" maxlength="60" autocomplete="given-name" required>
+            <small>Only shown to someone after you both agree to reveal.</small>
+          </label>
+          <label>Gender
+            <select id="fGender" required>
+              <option value="">Choose…</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other / Prefer not to say</option>
+            </select>
+          </label>
+          <label>Age
+            <input type="number" id="fAge" min="18" max="120" inputmode="numeric" required>
+          </label>
+          <label>Location
+            <input type="text" id="fLocation" maxlength="80" placeholder="City or state, e.g. Lagos" autocomplete="address-level2">
+          </label>
+          <label class="check">
+            <input type="checkbox" id="fAdult" required>
+            <span>I confirm I am 18 or older</span>
+          </label>
+          <p id="profileError" class="d-error" role="alert"></p>
+          <button class="d-btn" type="submit">Done</button>
+          <button class="d-link" type="button" id="toSignIn">Already have a dating inbox? Sign in</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Under 18 -->
+    <section id="s-under18" class="step hidden">
+      <div class="d-card">
+        <div class="d-head"><h1>Sorry, 18+ only</h1></div>
+        <div class="d-body center">
+          <p class="lead">Dating on Tell Hydra is only for people aged 18 and over.</p>
+          <a class="d-btn" href="/">Back to anonymous messages</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 2: intent -->
+    <section id="s-intent" class="step hidden">
+      <form id="intentForm" class="d-card">
+        <div class="d-head">
+          <span class="d-step">Step 2 of 3</span>
+          <h1>What are you looking for?</h1>
+        </div>
+        <div class="d-body">
+          <div class="intents" role="radiogroup" aria-label="What are you looking for?">
+            <label class="intent"><input type="radio" name="intent" value="fun"><span class="i-emoji">😄</span><span class="i-name">Fun</span></label>
+            <label class="intent"><input type="radio" name="intent" value="love"><span class="i-emoji">❤️</span><span class="i-name">Love</span></label>
+            <label class="intent"><input type="radio" name="intent" value="marriage"><span class="i-emoji">💍</span><span class="i-name">Marriage</span></label>
+          </div>
+          <button class="d-btn" type="submit" id="intentDone" disabled>Done</button>
+          <button class="d-link" type="button" data-go="s-profile">‹ Edit profile</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Step 3: create inbox (sign up) / sign in -->
+    <section id="s-inbox" class="step hidden">
+      <form id="authForm" class="d-card" novalidate>
+        <div class="d-head">
+          <span class="d-step" id="authStep">Step 3 of 3</span>
+          <h1 id="authTitle">Create your dating inbox</h1>
+          <p id="authSub">So people interested in you can message you. Your email is never shown to anyone.</p>
+        </div>
+        <div class="d-body">
+          <label>Email
+            <input type="email" id="fEmail" autocomplete="email" required>
+          </label>
+          <label>Password
+            <input type="password" id="fPassword" minlength="8" autocomplete="new-password" required>
+            <small id="pwHint">At least 8 characters, with letters and numbers.</small>
+          </label>
+          <p id="authError" class="d-error" role="alert"></p>
+          <button class="d-btn" type="submit" id="authBtn">Create my inbox</button>
+          <button class="d-link hidden" type="button" id="forgotLink">Forgot password?</button>
+          <button class="d-link" type="button" id="authSwitch">Already have an account? Sign in</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Forgot password -->
+    <section id="s-forgot" class="step hidden">
+      <form id="forgotForm" class="d-card" novalidate>
+        <div class="d-head">
+          <h1>Reset your password</h1>
+          <p>Enter your email and we'll send you a link to choose a new password.</p>
+        </div>
+        <div class="d-body">
+          <label>Email
+            <input type="email" id="forgotEmail" autocomplete="email" required>
+          </label>
+          <p id="forgotMsg" class="d-error" role="status"></p>
+          <button class="d-btn" type="submit" id="forgotBtn">Send reset link</button>
+          <button class="d-link" type="button" data-go="s-inbox">‹ Back to sign in</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- New password (after tapping the reset link) -->
+    <section id="s-newpass" class="step hidden">
+      <form id="newPassForm" class="d-card" novalidate>
+        <div class="d-head">
+          <h1>Choose a new password</h1>
+        </div>
+        <div class="d-body">
+          <label>New password
+            <input type="password" id="newPass" minlength="8" autocomplete="new-password" required>
+            <small>At least 8 characters, with letters and numbers.</small>
+          </label>
+          <label>Type it again
+            <input type="password" id="newPass2" minlength="8" autocomplete="new-password" required>
+          </label>
+          <p id="newPassMsg" class="d-error" role="alert"></p>
+          <button class="d-btn" type="submit" id="newPassBtn">Save new password</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Check email -->
+    <section id="s-check" class="step hidden">
+      <div class="d-card">
+        <div class="d-head"><h1>Check your email</h1></div>
+        <div class="d-body center">
+          <div class="big-emoji">📩</div>
+          <p class="lead">We sent a verification link to <b id="checkEmail"></b>.</p>
+          <p class="muted-ink">Tap the link to verify your email. Your dating profile goes live as soon as you do.</p>
+          <p id="checkMsg" class="d-note" role="status"></p>
+          <button class="d-btn ghost" type="button" id="resendBtn">Resend email</button>
+          <button class="d-link" type="button" data-go="s-inbox">Wrong email? Go back</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Live -->
+    <section id="s-live" class="step hidden">
+      <div class="d-card">
+        <div class="d-head">
+          <h1>You're live! 🎉</h1>
+          <p>This is how others see you. Your name stays private.</p>
+        </div>
+        <div class="d-body">
+          <div class="preview">
+            <div class="p-handle" id="liveHandle"></div>
+            <div class="p-meta" id="liveMeta"></div>
+            <div class="p-intent" id="liveIntent"></div>
+          </div>
+          <p id="liveStatus" class="d-note"></p>
+          <p id="dmSoon" class="soon hidden"></p>
+          <button class="d-btn" type="button" id="myChatsBtn">My chats <span id="chatsBadge" class="badge hidden"></span></button>
+          <button class="d-btn ghost" type="button" data-browse>Browse dating requests</button>
+          <button class="d-btn ghost" type="button" id="pauseBtn">Pause my profile</button>
+          <p class="muted-ink small-print" id="pauseHint">Pausing hides your card. You can resume anytime.</p>
+          <details class="danger">
+            <summary>Delete…</summary>
+            <button class="d-btn danger-btn" type="button" id="deleteProfileBtn">Delete my dating profile</button>
+            <p class="muted-ink small-print">Removes your card and name. You can create a new profile later with the same email.</p>
+            <button class="d-btn danger-btn" type="button" id="deleteAccountBtn">Delete my whole account</button>
+            <p class="muted-ink small-print">Permanently erases your email, profile and all chats. This can't be undone.</p>
+          </details>
+          <button class="d-link" type="button" id="signOutBtn">Sign out</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Browse dating requests (inside the app, no ad) -->
+    <section id="s-browse" class="step hidden">
+      <div class="browse-head">
+        <h1>Dating requests</h1>
+        <p>Anonymous people looking to connect. Tap one to message them.</p>
+      </div>
+      <div id="browseCards" class="cards"></div>
+      <p id="browseEmpty" class="browse-empty hidden">No dating requests right now. Check back soon!</p>
+      <button type="button" id="browseMore" class="more-cards hidden">Show more</button>
+    </section>
+
+    <!-- Chat list -->
+    <section id="s-chats" class="step hidden">
+      <div class="d-card">
+        <div class="d-head">
+          <h1>My chats</h1>
+          <p>Everyone here sees you only as <b id="chatsMe"></b>.</p>
+        </div>
+        <div class="d-body">
+          <div id="chatList" class="chat-list"></div>
+          <p id="chatsEmpty" class="muted-ink small-print hidden">No chats yet. Tap <b>Message</b> on a dating request to start one.</p>
+          <button class="d-btn" type="button" data-browse>Browse dating requests</button>
+          <button class="d-link" type="button" data-go-live>‹ My profile</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Chat -->
+    <section id="s-chat" class="step hidden">
+      <div class="d-card chat-card">
+        <div class="chat-head">
+          <button class="chat-back" type="button" id="chatBack" aria-label="Back to my chats">‹</button>
+          <div class="chat-who">
+            <div class="chat-handle" id="chatHandle"></div>
+            <div class="chat-meta" id="chatMeta"></div>
+            <div class="chat-name hidden" id="chatName"></div>
+          </div>
+          <button class="chat-menu-btn" type="button" id="chatMenuBtn" aria-label="Block or report" aria-haspopup="true" aria-expanded="false">⋯</button>
+          <div class="chat-menu hidden" id="chatMenu" role="menu">
+            <button type="button" role="menuitem" id="blockBtn">Block</button>
+            <button type="button" role="menuitem" id="reportBtn" class="danger-text">Report</button>
+          </div>
+        </div>
+        <div class="reveal-bar" id="revealBar" aria-live="polite"></div>
+        <div class="chat-msgs" id="chatMsgs" aria-live="polite">
+          <p class="chat-note">You're both anonymous. Names stay hidden until you both choose to reveal.</p>
+        </div>
+        <form class="chat-compose" id="chatForm">
+          <textarea id="chatInput" rows="1" maxlength="1000" placeholder="Type a message…" aria-label="Message"></textarea>
+          <button type="submit" id="chatSend" aria-label="Send">➤</button>
+        </form>
+        <p id="chatError" class="d-error chat-error" role="alert"></p>
+
+        <!-- Report sheet -->
+        <form class="report-sheet hidden" id="reportSheet">
+          <h2>Report <span id="reportWho"></span></h2>
+          <p class="muted-ink small-print">Reports go to the site owner, who can see this chat to review it. They won't see your name.</p>
+          <div class="reasons">
+            <label><input type="radio" name="reason" value="harassment"> Harassment or threats</label>
+            <label><input type="radio" name="reason" value="inappropriate"> Sexual or inappropriate</label>
+            <label><input type="radio" name="reason" value="spam"> Spam or scam</label>
+            <label><input type="radio" name="reason" value="fake"> Fake profile</label>
+            <label><input type="radio" name="reason" value="underage"> Seems under 18</label>
+            <label><input type="radio" name="reason" value="other"> Something else</label>
+          </div>
+          <textarea id="reportDetails" maxlength="1000" rows="3" placeholder="Anything else we should know? (optional)"></textarea>
+          <label class="check"><input type="checkbox" id="reportBlock" checked> <span>Also block them</span></label>
+          <p id="reportError" class="d-error" role="alert"></p>
+          <button class="d-btn danger-btn" type="submit" id="reportSend" disabled>Send report</button>
+          <button class="d-link" type="button" id="reportCancel">Cancel</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Deleted -->
+    <section id="s-deleted" class="step hidden">
+      <div class="d-card">
+        <div class="d-head"><h1 id="deletedTitle">Deleted</h1></div>
+        <div class="d-body center">
+          <p class="lead" id="deletedMsg"></p>
+          <a class="d-btn" href="/">Back to anonymous messages</a>
+          <button class="d-link" type="button" id="newProfileBtn">Create a new dating profile</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Error -->
+    <section id="s-error" class="step hidden">
+      <div class="d-card">
+        <div class="d-head"><h1>Something went wrong</h1></div>
+        <div class="d-body center">
+          <p class="lead" id="errorMsg"></p>
+          <button class="d-btn" type="button" id="errorRetry">Try again</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="config.js"></script>
+  <script src="supabase.js"></script>
+  <script src="nav.js"></script>
+  <script src="date.js"></script>
+</body>
+</html>

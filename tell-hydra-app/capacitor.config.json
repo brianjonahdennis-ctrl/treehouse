@@ -1,0 +1,29 @@
+{
+  "appId": "com.brianjonahdennis.treehouse",
+  "appName": "treehouse",
+  "webDir": "www",
+  "server": {
+    "url": "https://treehouse.ng/home",
+    "androidScheme": "https",
+    "cleartext": false,
+    "errorPath": "offline.html",
+    "allowNavigation": [
+      "treehouse.ng",
+      "www.treehouse.ng",
+      "tell.brianjonahdennis.com"
+    ]
+  },
+  "android": {
+    "backgroundColor": "#05051f",
+    "appendUserAgent": "TreehouseApp/1.7"
+  },
+  "ios": {
+    "appendUserAgent": "TreehouseApp/1.4",
+    "backgroundColor": "#05051f"
+  },
+  "plugins": {
+    "Keyboard": {
+      "resize": "native"
+    }
+  }
+}

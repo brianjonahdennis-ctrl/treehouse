@@ -1,0 +1,14 @@
+node_modules/
+android/app/build/
+android/.gradle/
+android/build/
+signing/
+*.apk
+.DS_Store
+*.aab
+*.keystore
+*.jks
+ios/App/Pods/
+ios/App/build/
+ios/DerivedData/
+.env

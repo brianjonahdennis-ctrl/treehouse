@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#b06bff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="treehouse">
+  <title>treehouse</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,800;1,900&display=swap">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <!-- Sign in -->
+  <section id="login" class="login hidden">
+    <img src="icon.svg" alt="" class="login-logo">
+    <h1>treehouse</h1>
+    <p>Your anonymous inbox. Only you can open it.</p>
+    <form id="loginForm">
+      <input type="password" id="password" placeholder="Password" autocomplete="current-password" required>
+      <button type="submit" class="btn primary">Open inbox</button>
+      <div id="loginStatus" class="error"></div>
+    </form>
+  </section>
+
+  <!-- Main app -->
+  <div id="main" class="hidden">
+    <header class="top">
+      <h1 id="viewTitle">Inbox</h1>
+      <span id="unreadPill" class="pill hidden"></span>
+    </header>
+
+    <main class="views">
+      <section id="view-inbox" class="view">
+        <div id="list" class="list"></div>
+        <p id="limitNote" class="muted small limit-note hidden"></p>
+      </section>
+
+      <section id="view-safety" class="view hidden">
+        <div class="stats-switch" role="tablist" aria-label="Which reports">
+          <button type="button" role="tab" data-rkind="dating" class="on" aria-selected="true">💘 Dating</button>
+          <button type="button" role="tab" data-rkind="links" aria-selected="false">🔗 Links</button>
+        </div>
+        <div class="range" role="group" aria-label="Which reports">
+          <button data-rstatus="open" class="on">Open</button>
+          <button data-rstatus="all">All</button>
+        </div>
+        <div id="reportsBody"></div>
+        <p class="muted small section">
+          Reports come from Date Anonymously chats. You see anonymous handles and the reported chat,
+          never names or emails. Suspending hides their card and stops them messaging anyone.
+        </p>
+      </section>
+
+      <section id="view-share" class="view hidden">
+        <div class="preview-card" id="shareCard">
+          <div class="pc-head">
+            <div class="avatar" id="shareAvatar"><img src="avatar.jpg" alt="" width="44" height="44"></div>
+            <div>
+              <div class="muted small">@<span id="shareName"></span></div>
+              <div class="pc-prompt" id="sharePrompt"></div>
+            </div>
+          </div>
+          <div class="pc-body">your friends answer here…</div>
+        </div>
+
+        <h2 class="step"><span>1</span> Copy your link</h2>
+        <div class="linkbox">
+          <code id="link"></code>
+          <button class="btn small" id="copyLink">Copy</button>
+        </div>
+
+        <h2 class="step"><span>2</span> Post it to your story</h2>
+        <p class="muted small">Share the sticker image, then add a link sticker with your link.</p>
+        <div class="btn-row">
+          <button class="btn primary" id="shareSticker">Share story sticker</button>
+          <button class="btn" id="shareLink">Share link</button>
+        </div>
+      </section>
+
+      <section id="view-stats" class="view hidden">
+        <div class="stats-switch" role="tablist" aria-label="Which stats">
+          <button type="button" role="tab" data-sview="messages" class="on" aria-selected="true">💬 Messages</button>
+          <button type="button" role="tab" data-sview="dating" aria-selected="false">💘 Dating</button>
+        </div>
+        <div class="range" role="group" aria-label="Date range">
+          <button data-range="7" class="on">7 days</button>
+          <button data-range="30">30 days</button>
+          <button data-range="90">90 days</button>
+        </div>
+        <div id="statsBody"></div>
+        <div id="datingBody" class="hidden"></div>
+        <p class="muted small section">
+          Visits are counted as daily totals only. No IP addresses, cookies or device details are stored,
+          so nobody can be identified from these numbers. Your own visits while signed in aren't counted.
+        </p>
+      </section>
+
+      <section id="view-settings" class="view hidden">
+        <form id="settingsForm" class="stack">
+          <label>Your name
+            <input type="text" id="setName" maxlength="40" required>
+          </label>
+          <label>Your prompt
+            <input type="text" id="setPrompt" maxlength="120" required>
+          </label>
+          <div class="chips" id="promptIdeas"></div>
+          <button class="btn primary" type="submit">Save</button>
+          <div id="settingsStatus" class="muted small"></div>
+        </form>
+
+        <div class="stack section">
+          <label class="toggle">
+            <span>Alert me about new messages<br><span class="muted small">While the app is open</span></span>
+            <input type="checkbox" id="notify">
+          </label>
+          <button class="btn" id="logout">Sign out</button>
+        </div>
+
+        <p class="muted small section">
+          <strong>Install on your phone:</strong> open this page in Safari (iPhone) or Chrome (Android),
+          then tap Share → <em>Add to Home Screen</em>.
+        </p>
+      </section>
+    </main>
+
+    <nav class="tabs">
+      <button data-tab="inbox" class="active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+        Inbox<span id="tabBadge" class="dot hidden"></span>
+      </button>
+      <button data-tab="stats">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        Stats
+      </button>
+      <button data-tab="safety">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Reports<span id="safetyBadge" class="dot hidden"></span>
+      </button>
+      <button data-tab="share">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        Share
+      </button>
+      <button data-tab="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+    </nav>
+  </div>
+
+  <!-- Message sheet -->
+  <div id="sheet" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-panel">
+      <div class="sheet-bar">
+        <button class="icon-btn" id="closeSheet" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+        <span class="muted small" id="sheetTime"></span>
+        <button class="icon-btn danger" id="deleteMsg" aria-label="Delete">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+        </button>
+      </div>
+
+      <!-- The message is shown as the finished story image, so press-and-hold saves it. -->
+      <div class="shot">
+        <img id="msgImg" class="story-img shot-img hidden" alt="">
+        <div id="msgLoading" class="shot-loading">Making image…</div>
+      </div>
+      <p class="muted small shot-hint">Press and hold the image to save it</p>
+      <div class="btn-row shot-actions">
+        <button class="btn primary" id="msgShare">Share</button>
+        <button class="btn" id="msgSave">Save image</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Story image preview -->
+  <div id="imgModal" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-panel center">
+      <img id="storyImg" alt="Story image preview" class="story-img">
+      <div class="btn-row">
+        <button class="btn primary" id="imgShare">Share</button>
+        <button class="btn" id="imgSave">Save image</button>
+        <button class="btn" id="imgClose">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="story.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

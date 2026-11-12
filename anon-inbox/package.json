@@ -1,0 +1,8 @@
+{
+  "name": "anon-inbox",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Receive anonymous messages. Zero dependencies.",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
