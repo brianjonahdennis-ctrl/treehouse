@@ -1,6 +1,6 @@
 // Lets the owner app open from the home screen, even on a flaky connection.
 // API responses (your messages) are never cached.
-const CACHE = 'treehouse-v41';
+const CACHE = 'treehouse-v42';
 const SHELL = ['/app', '/app.css', '/app.js', '/story.js', '/icon.svg', '/icon-192.png', '/avatar.jpg', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {

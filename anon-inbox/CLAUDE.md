@@ -4,7 +4,8 @@ treehouse (formerly "Tell Hydra") is an anonymous social app for Nigeria: anonym
 chatrooms (per state, university, topic), friends, statuses, Nearby, and anonymous messages.
 Members never show their real name until both people agree to reveal.
 
-- Live: **https://treehouse.ng** (new) and **https://tell.brianjonahdennis.com** (old, keeps working)
+- Live: **https://app.treehouse.ng** (member app), **https://treehouse.ng** (landing; treehouse.ng/home still
+  serves the app for installed phone apps and people signed in there) and **https://tell.brianjonahdennis.com** (owner's link)
 - Member app: `/home` · public send page: `/` · owner's private app: `/app` · personal links: `/u/<name>`
 - Full docs: `README.md` (architecture), `DOMAIN-MOVE.md` (treehouse.ng switch-over checklist),
   `REDESIGN-REPORT.md` (design system + backend gaps), `../tell-hydra-app/README.md` and
@@ -43,7 +44,7 @@ PORT=4000 node server.js                      # local (add SUPABASE_* + DATING_E
 PORT=4010 node dev/mock-server.mjs            # preview with fake data (?signedout=1, ?empty=1, ?reset=1)
 ~/.local/supabase/node_modules/.bin/supabase db push --remote --dry-run   # review, then without --dry-run
 node supabase/run-tests.mjs                   # pgTAP tests, rolled back, no data left behind
-~/.local/railway/node_modules/.bin/railway up --service tell-hydra        # deploy
+./deploy.sh                                   # deploy (copies the site to a clean folder, then railway up)
 ```
 Confirm with Hydra before `db push`, `config push` or `railway up`: they change the live app.
 

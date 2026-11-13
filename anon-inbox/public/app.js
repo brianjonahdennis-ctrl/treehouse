@@ -655,7 +655,7 @@ function renderDatingStats(d, body, downloads = []) {
       tile('Speed dates', fmt(r2.connected), `${pct(r2.connected, r2.pairings)} of ${fmt(r2.pairings)} pairings connected`),
       tile('Speed matches', fmt(r2.matches), `${pct(r2.matches, r2.connected)} of dates · ${fmt(sp.totals.matches)} all time`),
       tile('Speed daters', fmt(r2.daters), `${fmt(sp.totals.daters)} all time`),
-      tile('Average date', r2.avgMinutes == null ? '–' : `${r2.avgMinutes} min`, `${fmt(r2.fullFive)} went the full 5 minutes`),
+      tile('Average date', r2.avgMinutes == null ? '–' : `${r2.avgMinutes} min`, `${fmt(r2.fullFive)} went the full time`),
       tile('Speed reports', fmt(r2.reports), `${fmt(r2.blocked)} date${r2.blocked === 1 ? '' : 's'} ended by a block`));
     head.append(st);
     if (sp.daily && sp.daily.length) {

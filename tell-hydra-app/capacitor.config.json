@@ -3,11 +3,12 @@
   "appName": "treehouse",
   "webDir": "www",
   "server": {
-    "url": "https://treehouse.ng/home",
+    "url": "https://app.treehouse.ng/home",
     "androidScheme": "https",
     "cleartext": false,
     "errorPath": "offline.html",
     "allowNavigation": [
+      "app.treehouse.ng",
       "treehouse.ng",
       "www.treehouse.ng",
       "tell.brianjonahdennis.com"

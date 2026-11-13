@@ -303,7 +303,7 @@ export const startFriend = (handle) => rpc('start_friend_request', { p_handle: h
 export const askFriend = (conversationId, on = true) => rpc('ask_friend', { p_conversation: conversationId, p_on: on });
 // Pending match friend requests: [{ conversation_id, who: 'mine' | 'theirs' }] ([] on older databases).
 let asksMissing = false;
-// ---- Speed Dating (five-minute video dates; rules live in the database) ----------------------------
+// ---- Speed Dating (three-minute video dates; rules live in the database) ----------------------------
 export const speedConfig = () => fetch(API + '/api/speed-config', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({ enabled: false }));
 export const speedJoin = () => rpc('speed_join');
 export const speedPoll = () => rpc('speed_poll');

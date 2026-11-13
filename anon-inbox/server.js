@@ -636,6 +636,10 @@ const REDIRECT_CODE = process.env.DOMAIN_REDIRECT === '301' ? 301 : 302;
 const ANDROID_APK = 'treehouse-1.5.apk';
 const LINK_HOST = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(process.env.ANON_LINK_HOST || '') ? process.env.ANON_LINK_HOST : 'tell.brianjonahdennis.com';
 const TREEHOUSE_HOSTS = new Set(['treehouse.ng', 'www.treehouse.ng', CANONICAL_HOST].filter(Boolean));
+// The member app's own address. treehouse.ng stays the landing page; app.treehouse.ng opens the app.
+// treehouse.ng/home keeps working too: installed phone apps load it, and people signed in there stay
+// signed in (browsers keep sign-ins per address).
+const APP_HOST = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(process.env.APP_HOST || '') ? process.env.APP_HOST : 'app.treehouse.ng';
 const hostOf = (req) => (req.headers.host || '').split(':')[0].toLowerCase();
 function domainRedirect(req, url) {
   if (!CANONICAL_HOST || (req.method !== 'GET' && req.method !== 'HEAD')) return null;
@@ -656,6 +660,7 @@ async function handle(req, res) {
 
   if (req.method === 'GET') {
     if (p === '/') {
+      if (hostOf(req) === APP_HOST) return send(res, 302, '', { Location: '/home', 'Cache-Control': 'no-store' });
       if (TREEHOUSE_HOSTS.has(hostOf(req))) return serveFile(res, 'landing.html', {}, req);
       countVisit(req);
       return serveFile(res, 'index.html', ADSENSE_CLIENT ? { 'Content-Security-Policy': ADS_CSP } : {});

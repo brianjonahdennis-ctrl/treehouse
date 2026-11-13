@@ -1,7 +1,7 @@
-// Speed Dating: five-minute anonymous one-on-one video dates.
+// Speed Dating: three-minute anonymous one-on-one video dates.
 //   Discover banner → landing (what it is, your preferences, safety) → camera & microphone check →
 //   queue (the database pairs two compatible people) → video call (WebRTC; call setup passes through
-//   the date's private channel; video goes through Cloudflare's relay when needed) → five minutes on
+//   the date's private channel; video goes through Cloudflare's relay when needed) → three minutes on
 //   the database's clock → Like or Pass, privately → match (an ordinary chat in Matches) or "Date complete".
 // Rules (who can be paired, the clock, decisions, matches) are enforced in the database, not here.
 // Calls are never recorded. Not shown in the iPhone app for now (App Store review).
@@ -50,9 +50,9 @@ function countdown(el, q, done) {
 export function speedBanner() {
   if (iosApp || !state.profile || state.profile.suspended) return null;
   const tag = h('span', { class: 'sd-tag' }, h('i'), 'Speed Dating');
-  const sub = h('span', { class: 'sd-sub' }, '5-minute anonymous video dates with real people.');
+  const sub = h('span', { class: 'sd-sub' }, '3-minute anonymous video dates with real people.');
   const cta = h('span', { class: 'sd-cta' }, 'Start Speed Dating', icon('chev', 'sm'));
-  const el = h('button', { class: 'sd-banner', onclick: () => openSpeedDating(), 'aria-label': 'Speed Dating: 5-minute anonymous video dates' },
+  const el = h('button', { class: 'sd-banner', onclick: () => openSpeedDating(), 'aria-label': 'Speed Dating: 3-minute anonymous video dates' },
     h('span', { class: 'sd-banner-art', 'aria-hidden': 'true' },
       h('span', { class: 'sd-art-call' }, h('span', { class: 'sd-art-face a' }), h('span', { class: 'sd-art-face b' })),
       h('span', { class: 'sd-art-watch' }, icon('stopwatch', 'sm'))),
@@ -69,7 +69,7 @@ export function speedBanner() {
       cta.replaceChildren('See details', icon('chev', 'sm'));
       return;
     }
-    if (waiting > 0) { tag.replaceChildren(h('i'), 'Live now'); sub.textContent = waiting >= 3 ? `${waiting} people waiting for a date right now.` : '5-minute anonymous video dates with real people.'; }
+    if (waiting > 0) { tag.replaceChildren(h('i'), 'Live now'); sub.textContent = waiting >= 3 ? `${waiting} people waiting for a date right now.` : '3-minute anonymous video dates with real people.'; }
     else { tag.replaceChildren(icon('video', 'sm'), 'Find a date'); sub.textContent = 'Join the queue and we’ll pair you with someone new.'; }
   });
   return el;
@@ -148,13 +148,13 @@ export async function openSpeedDating() {
         h('div', { class: 'sd-hero-art', 'aria-hidden': 'true' },
           h('span', { class: 'sd-hero-frame a' }, h('span', { class: 'sd-art-face a' })),
           h('span', { class: 'sd-hero-frame b' }, h('span', { class: 'sd-art-face b' })),
-          h('span', { class: 'sd-hero-timer' }, icon('stopwatch', 'sm'), '05:00')),
-        h('h1', {}, 'Five minutes. One connection. No pressure.'),
+          h('span', { class: 'sd-hero-timer' }, icon('stopwatch', 'sm'), '03:00')),
+        h('h1', {}, 'Three minutes. One connection. No pressure.'),
         h('p', {}, 'Meet someone new through a private anonymous video date. If you both like each other, you can continue chatting.'),
         q && !coolingDown(q) ? h('span', { class: 'sd-left' }, icon('video', 'sm'), `${q.left} of ${q.limit} speed dates left today`) : null,
         waitingEl),
       h('div', { class: 'sd-steps' },
-        step('🎥', 'A 5-minute video date', 'One-on-one, with someone whose preferences match yours.'),
+        step('🎥', 'A 3-minute video date', 'One-on-one, with someone whose preferences match yours.'),
         step('❤️', 'Like or pass, privately', 'Nobody sees your choice. Only two likes make a match.'),
         step('💬', 'Match? Keep talking', 'You’ll find each other in Matches, still anonymous.')),
       h('section', { class: 'sd-card' },
@@ -327,7 +327,7 @@ async function startDate(s) {
   const remote = h('video', { class: 'sd-remote', autoplay: true, playsinline: true });
   const local = h('video', { class: 'sd-local', autoplay: true, muted: true, playsinline: true });
   local.muted = true; attach(local, flow.stream);
-  const timer = h('span', { class: 'sd-timer' }, icon('stopwatch', 'sm'), h('b', {}, '05:00'));
+  const timer = h('span', { class: 'sd-timer' }, icon('stopwatch', 'sm'), h('b', {}, '03:00'));
   const quality = h('span', { class: 'sd-quality', title: 'Connection' }, h('i'), h('i'), h('i'));
   const overlay = h('div', { class: 'sd-overlay' }, h('div', { class: 'spinner' }), h('p', {}, 'Connecting your video…'));
   // Your own nickname and the time, faintly across the video you're watching: a screenshot or
@@ -491,7 +491,7 @@ async function onConnected() {
   flow.ui.overlay.hidden = true;
   setQuality(3);
   if (flow.startedAt) return;
-  // Both connected? The database starts the five minutes (and tells us the exact times).
+  // Both connected? The database starts the three minutes (and tells us the exact times).
   for (let i = 0; i < 20 && flow && !flow.startedAt && !flow.ended; i++) {
     try { applyServer(await api.speedReady(flow.session.id)); } catch {}
     if (flow && !flow.startedAt) await new Promise((r) => setTimeout(r, 1500));
@@ -504,7 +504,7 @@ function onTrouble(st) {
   setQuality(st === 'failed' ? 0 : 1);
   flow.ui.overlay.hidden = false;
   flow.ui.overlay.replaceChildren(h('div', { class: 'spinner' }), h('p', {}, 'Reconnecting…'));
-  // Try a fresh route; the five minutes keep running (the date can't be extended).
+  // Try a fresh route; the three minutes keep running (the date can't be extended).
   if (flow.session.role === 'a') offer(true); else sendSignal({ t: 'restart' });
   setTimeout(() => { if (flow && !flow.ended && !flow.connected && Date.now() - flow.troubleSince >= 19000) { api.speedEnd(flow.session.id).catch(() => {}); finishCall(); } }, 20000);
 }

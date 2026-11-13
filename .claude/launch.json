@@ -29,6 +29,15 @@
       "port": 4010
     },
     {
+      "name": "treehouse-next",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd ../treehouse-nextjs/web-next && NEXT_PUBLIC_TH_MOCK=1 node node_modules/next/dist/bin/next dev --port $PORT"
+      ],
+      "port": 4020
+    },
+    {
       "name": "hydra-earn-api",
       "runtimeExecutable": "bash",
       "runtimeArgs": [

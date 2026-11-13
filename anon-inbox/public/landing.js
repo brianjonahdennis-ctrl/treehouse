@@ -14,11 +14,13 @@
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 
-  // Already signed in here? Say "Open treehouse" instead of "Join".
+  // The app lives at app.treehouse.ng. Already signed in on treehouse.ng (from before the move)?
+  // Keep using treehouse.ng/home so nobody has to sign in again, and say "Open treehouse".
   let signedIn = false;
   try { signedIn = Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k)); } catch {}
   if (signedIn) {
     document.querySelectorAll('[data-open-app]').forEach((a) => {
+      a.setAttribute('href', '/home');
       if (/join|create/i.test(a.textContent)) a.textContent = 'Open treehouse';
     });
   }
