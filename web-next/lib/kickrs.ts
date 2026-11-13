@@ -12,7 +12,7 @@ export const KICKRS_API = (process.env.NEXT_PUBLIC_KICKRS_API || 'https://play.k
 const RETURN_URLS = [`${KICKRS_ORIGIN}/treehouse`, ...(process.env.NEXT_PUBLIC_KICKRS_RETURN_URLS || '').split(',').map((u) => u.trim()).filter(Boolean)];
 const NONCE = /^[A-Za-z0-9_-]{16,64}$/;
 
-export interface KickrsGame { id: string; name: string; tagline: string; status: 'live' | 'soon'; players: string; path: string | null; playing: number | null }
+export interface KickrsGame { id: string; name: string; tagline: string; status: 'live' | 'soon'; players: string; path: string | null; join?: string | null; playing: number | null }
 
 export type KickrsEvent =
   | { type: 'kickrs:ready'; v: 1; nonce: string }
@@ -42,6 +42,7 @@ export async function kickrsGames(): Promise<KickrsGame[]> {
   return games;
 }
 export const gameUrl = (g: KickrsGame) => (g.path ? `${KICKRS_ORIGIN}${g.path}` : null);
+export const joinUrl = (g: KickrsGame, code: string) => `${KICKRS_ORIGIN}${g.join || '/f/'}${code}?embed=treehouse`;
 
 function mockToken() {
   const tab = sessionStorage.getItem('mock-tab') || 'T0';
@@ -119,8 +120,13 @@ export function clearConnect() { try { sessionStorage.removeItem(CONNECT_KEY); }
 export const CHALLENGE_MS = 10 * 60 * 1000;
 const CHALLENGE_LINK = /\/home\/games\/([a-z0-9-]{2,30})\?join=([A-Z0-9]{4,10})\b/;
 export const isInviteCode = (v: unknown): v is string => typeof v === 'string' && /^[A-Z0-9]{4,10}$/.test(v);
+export const CHALLENGES: Record<string, { art: string; title: string; line: string; menu: string; what: string }> = {
+  penalties: { art: '⚽', title: 'Penalty shootout', line: '⚽ Penalty shootout! I challenge you on Kickrs.', menu: 'Penalty challenge', what: 'Play' },
+  trivia: { art: '🧠', title: 'Trivia duel', line: '🧠 Trivia duel! Think you know more than me? Play me on Kickrs.', menu: 'Trivia challenge', what: 'Quiz' },
+};
+export const challengeOf = (gameId: string) => CHALLENGES[gameId] || CHALLENGES.penalties;
 export const challengeText = (gameId: string, code: string) =>
-  `⚽ Penalty shootout! I challenge you on Kickrs. Tap to play: ${location.origin}/home/games/${gameId}?join=${code}`;
+  `${challengeOf(gameId).line} Tap to play: ${location.origin}/home/games/${gameId}?join=${code}`;
 export function parseChallenge(body: string): { game: string; code: string } | null {
   const m = CHALLENGE_LINK.exec(body || '');
   return m ? { game: m[1], code: m[2] } : null;

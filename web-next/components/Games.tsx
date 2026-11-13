@@ -6,12 +6,12 @@ import { useEffect, useRef, useState } from 'react';
 import * as api from '@/lib/api';
 import { state, useAppState, loadDating, statusOf, type Convo } from '@/lib/state';
 import { go, openChat } from '@/lib/nav';
-import { challengeText, clearConnect, connectKickrs, gameUrl, isInviteCode, kickrsGames, kickrsTicket, KICKRS_ORIGIN, pendingConnect, type KickrsGame } from '@/lib/kickrs';
+import { challengeText, clearConnect, connectKickrs, gameUrl, isInviteCode, joinUrl, kickrsGames, kickrsTicket, pendingConnect, type KickrsGame } from '@/lib/kickrs';
 import { Avatar, EmptyState, Hero, Icon, SkeletonList } from './ui';
 import { BellButton } from './Home';
 import { confirmSheet, openSheet, toast } from './overlay';
 
-const ART: Record<string, string> = { penalties: '⚽', ludo: '🎲', chess: '♟️', dice: '🎯', crosswords: '🔠', trivia: '❓' };
+const ART: Record<string, string> = { penalties: '⚽', ludo: '🎲', chess: '♟️', dice: '🎯', crosswords: '🔠', trivia: '🧠' };
 const FILTERS = [['all', 'All Games'], ['multi', 'Multiplayer'], ['quick', 'Quick Play']] as const;
 const playing = (n: number | null) => (!n ? '' : n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K playing` : `${n} playing`);
 const BLOCKED: Record<string, string> = {
@@ -156,7 +156,7 @@ function Stage({ game, join, challenge, back }: { game: KickrsGame } & Opening) 
   const frame = useRef<HTMLIFrameElement>(null);
   const sent = useRef(false);
   const base = gameUrl(game);
-  const src = join ? `${KICKRS_ORIGIN}/f/${join}?embed=treehouse` : challenge && base ? `${base}&challenge=1` : base;
+  const src = join ? joinUrl(game, join) : challenge && base ? `${base}&challenge=1` : base;
   const playingNow = useRef(false);
   const okToLeave = async () => !playingNow.current || await confirmSheet({ title: 'Leave the match?', text: 'The match is still going. If you leave now, you lose it.', yes: 'Leave match', danger: true });
   const leave = async () => {

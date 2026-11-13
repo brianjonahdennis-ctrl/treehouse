@@ -127,7 +127,7 @@
   const chatMsgs = {
     c1: [['them', 'Hey! Your bio made me laugh 😂', 90], ['me', 'Haha glad someone gets the Bar Beach joke', 80], ['them', 'I’m in Lekki too actually', 10], ['them', 'Haha true! Which side of Lekki are you?', 4]],
     c2: [['me', 'That was such a good chat', 200], ['them', 'It really was. Talk tomorrow?', 190], ['me', 'Goodnight 🌙', 180]],
-    c3: [['them', `⚽ Penalty shootout! I challenge you on Kickrs. Tap to play: ${location.origin}/home/games/penalties?join=ABC234`, 2], ['me', `⚽ Penalty shootout! I challenge you on Kickrs. Tap to play: ${location.origin}/home/games/penalties?join=XYZ789`, 30]],
+    c3: [['them', `⚽ Penalty shootout! I challenge you on Kickrs. Tap to play: ${location.origin}/home/games/penalties?join=ABC234`, 2], ['me', `⚽ Penalty shootout! I challenge you on Kickrs. Tap to play: ${location.origin}/home/games/penalties?join=XYZ789`, 30], ['them', `🧠 Trivia duel! Think you know more than me? Play me on Kickrs. Tap to play: ${location.origin}/home/games/trivia?join=TRV234`, 1]],
     c4: [['them', 'Hi! Saw you in the Lagos room, you seem fun 😄', 12]],
     c5: [['them', 'Hey, love your bio', 95]],
     c6: [['me', 'Hey! Are you going to Detty December?', 300]],

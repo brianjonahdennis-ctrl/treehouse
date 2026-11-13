@@ -1,7 +1,7 @@
 # Games on treehouse (Kickrs)
 
 The **Games** tab (bottom bar, next to Discover in the raised centre) shows games made by Kickrs (kickrs.app). Kickrs is
-the only game provider: Penalties is live, and Ludo, Chess, Quick Dice, Crosswords and Trivia
+the only game provider: Penalties and Trivia are live, and Ludo, Chess, Quick Dice and Crosswords
 show as "Coming soon". When Kickrs opens a new game it appears here on its own, no treehouse change.
 Profile moved from the bottom bar to your avatar at the top right of each screen (it replaces the
 Settings gear, which opened the same page) and stays in the desktop sidebar.
@@ -24,6 +24,14 @@ Settings gear, which opened the same page) and stays in the desktop sidebar.
    message with the link. The other person sees it as a card with **Play**, which opens Penalties and
    starts the match. After 10 minutes the card says it expired and offers **Challenge back** / **Send
    again**. Back in the game returns to the chat. (In the old app the message shows as text with a link.)
+   **Trivia challenge** works the same way: a 7-question duel (10 seconds each) in Mixed categories,
+   with a 🧠 Trivia duel card. Kickrs tells treehouse where each game's invite links live (`join` in
+   `/games`), so new games' challenges need no treehouse change beyond the + menu entry.
+
+7. **Trivia** (`/home/games/trivia`): 1v1 duels by category (Naija Music, Nollywood, Football, History,
+   Nigeria & Africa, Food & Culture, Science, World, or Mixed), a daily quiz (10 questions, one try,
+   same for everyone, new at midnight Lagos time) and Trivia leaderboards. Questions are managed in the
+   Kickrs admin (Trivia section).
 
 Who can play: anyone with a dating profile (all 18+). Suspended profiles and anyone marked under 18
 can't. Kickrs never gets a treehouse sign-in token.
