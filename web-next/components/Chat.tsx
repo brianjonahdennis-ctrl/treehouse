@@ -290,7 +290,7 @@ function ChatView({ convo }: { convo: Convo }) {
             {Object.entries(CHALLENGES).map(([game, c]) => (
               <button key={game} className="menu-item kick-item" onClick={() => { close(); go(`games/${game}?challenge=${encodeURIComponent(id)}&back=${encodeURIComponent(id)}`); }}>
                 <span className="kc-art" aria-hidden="true">{c.art}</span>
-                <span className="grow"><b>{c.menu}</b><small className="muted">{game === 'trivia' ? `Quiz ${shortName(convo.other_handle)} on Kickrs: 7 questions, 10 seconds each.` : `Play ${shortName(convo.other_handle)} on Kickrs. They get a Play button here.`}</small></span>
+                <span className="grow"><b>{c.menu}</b><small className="muted">{game === 'trivia' ? `Quiz ${shortName(convo.other_handle)} on Kickrs: 7 questions, 10 seconds each.` : game === 'crosswords' ? `Race ${shortName(convo.other_handle)} to fill the same crossword.` : `Play ${shortName(convo.other_handle)} on Kickrs. They get a Play button here.`}</small></span>
               </button>
             ))}
           </div>
