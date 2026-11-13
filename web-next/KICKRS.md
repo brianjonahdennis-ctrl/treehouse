@@ -1,7 +1,7 @@
 # Games on treehouse (Kickrs)
 
 The **Games** tab (bottom bar, next to Discover in the raised centre) shows games made by Kickrs (kickrs.app). Kickrs is
-the only game provider: Penalties and Trivia are live, and Ludo, Chess, Quick Dice and Crosswords
+the only game provider: Penalties, Trivia and Crosswords are live, and Ludo, Chess and Quick Dice
 show as "Coming soon". When Kickrs opens a new game it appears here on its own, no treehouse change.
 Profile moved from the bottom bar to your avatar at the top right of each screen (it replaces the
 Settings gear, which opened the same page) and stays in the desktop sidebar.
@@ -32,6 +32,12 @@ Settings gear, which opened the same page) and stays in the desktop sidebar.
    Nigeria & Africa, Food & Culture, Science, World, or Mixed), a daily quiz (10 questions, one try,
    same for everyone, new at midnight Lagos time) and Trivia leaderboards. Questions are managed in the
    Kickrs admin (Trivia section).
+
+8. **Crosswords** (`/home/games/crosswords`): grids of interlocking everyday English and Naija words with
+   gaps; members drag letter pieces into the gaps and words turn green when right. A level ladder that
+   gets bigger and harder, and 1v1 races on the same puzzle (first to fill the grid wins). Hints cost
+   coins, which members earn by finishing levels, winning races and playing Penalties and Trivia (no
+   money). **Crossword race** is in the chat + menu too.
 
 Who can play: anyone with a dating profile (all 18+). Suspended profiles and anyone marked under 18
 can't. Kickrs never gets a treehouse sign-in token.
