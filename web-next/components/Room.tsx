@@ -163,7 +163,10 @@ function RoomView({ target, restart }: { target: string; restart: () => void }) 
       const cached = kept && kept.state === target && Date.now() - kept.at < 8 * 60000 ? kept : null;
       kept = null;
       const still = !!cached || myRoomState() === target;
-      const early = still ? api.roomHistory().catch(() => null) : null;
+      // Back in a room we showed a few minutes ago: fetch only what's new since then (the full
+      // history is one of the database's heaviest jobs).
+      const cachedLast = cached && cached.msgs.length ? String(Math.max(...cached.msgs.map((m: any) => Number(m.id) || 0))) : null;
+      const early = still ? (cachedLast ? api.roomHistorySince(cachedLast) : api.roomHistory()).catch(() => null) : null;
       // Kicked out of this room for inactivity: say so, and only join again when they choose to.
       if (!still && rejoinFor !== target) {
         const k = await api.myRoomKick().catch(() => null);
