@@ -27,6 +27,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Nunito:wght@800;900&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,800&family=Inter:ital,wght@0,400;0,600;0,700;0,800;0,900;1,800;1,900&display=swap" />
         {/* Saved light/dark theme before first paint (no flash). */}
         <Script src="/hy-theme.js" strategy="beforeInteractive" nonce={nonce} />
+        {/* Start-up safety net: a clear message instead of a frozen splash on old phone browsers. */}
+        <Script src="/hy-boot.js" strategy="beforeInteractive" nonce={nonce} />
       </head>
       <body>
         {/* Gradient used by the active nav icon */}

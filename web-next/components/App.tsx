@@ -147,6 +147,7 @@ async function boot() {
     if (linkError && !state.user) store.set('hy-auth-error', linkError);
     if (state.user && !state.recovering) await loadAll();
     state.booted = true;
+    (window as any).__thBooted = true; // eslint-disable-line @typescript-eslint/no-explicit-any
     emit('all');
     if (state.user && !state.recovering) { startLive(); ensureTerms(); }
     api.sb.auth.onAuthStateChange((event: string) => {
@@ -154,6 +155,7 @@ async function boot() {
       if (event === 'SIGNED_OUT') { state.user = null; state.profile = null; emit('all'); }
     });
   } catch (e) {
+    (window as any).__thBooted = true; // eslint-disable-line @typescript-eslint/no-explicit-any
     state.bootError = api.friendly(e);
     emit('all');
   }
