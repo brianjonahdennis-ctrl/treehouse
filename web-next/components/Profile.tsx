@@ -3,6 +3,7 @@
 // Profile: your dating card, privacy, appearance and account (port of anon-inbox/public/hy-profile.js).
 // Same rules: state changes once every 30 days, gender every 90, date of birth every 365 (the database
 // enforces these; the screen explains them).
+import { setBirthdayPublic } from './Birthday';
 import { MyIdentity } from './Reputation';
 import { useState, type ReactNode } from 'react';
 import * as api from '@/lib/api';
@@ -86,6 +87,10 @@ export default function Profile() {
         <Info emoji="🎭" title="You’re anonymous" sub="People see your nickname and avatar, never your email or real name. Chatrooms use your room nickname." />
         <Info emoji="🔓" title="Identity reveal needs both of you" sub="Your first name is only shown when you and the other person both choose to reveal. Nobody can reveal you alone." />
         <Info emoji="📩" title="Who can send you message requests" sub="Anyone with a dating card. Requests wait in your Inbox until you accept; decline or block any time." />
+        <div className="settings-row" style={{ cursor: 'default' }}><span style={{ fontSize: '20px' }}>🎂</span>
+          <span className="grow">Show my birthday<span className="sub">{profile.birth_date ? 'On your birthday, people see “Today is their birthday 🎂”. Never your date. Off by default.' : 'Add your date of birth in Edit dating profile first'}</span></span>
+          <Toggle checked={!!profile.birthday_public} label="Show my birthday" onChange={async (on) => { try { await setBirthdayPublic(on); emit('profile'); } catch (e: any) { if (e && e.message !== 'no dob') toast(api.friendly(e), 'x'); throw e; } }} />
+        </div>
         <Row ico="pin" title="Nearby & location" sub="Off by default. Approximate area only; pause or delete any time" onClick={() => openNearbySettings()} />
         <Row ico="ban" title="Blocked people" sub={blocked.length ? `${blocked.length} blocked` : 'No one blocked'} onClick={() => blockedSheet(blocked)} />
         <Info emoji="🚩" title="Reporting" sub="Report anyone from a chat’s ⋯ menu, a request, or a chatroom message. Reported messages are hidden for you straight away, and we act on reports within 24 hours." />

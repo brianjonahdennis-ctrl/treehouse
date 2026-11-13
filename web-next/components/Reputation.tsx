@@ -3,6 +3,7 @@
 // Bird Kingdom (levels from active hours; hours and thresholds are never shown to members) and Community Star Ratings (anonymous, from profiles).
 // Two separate indicators, never combined. Rules and maths: REPUTATION.md. Everything is decided by the
 // database; this file only shows it and sends a once-a-minute "I'm active" ping.
+import { isMyBirthday } from '@/lib/birthday';
 import { useEffect, useState } from 'react';
 import * as api from '@/lib/api';
 import { state, emit, useAppState } from '@/lib/state';
@@ -90,7 +91,7 @@ export function useHandleBadges(handles: string[]) {
   return (h: string) => fresh(`h:${h}`) || null;
 }
 /** Compact bird + stars (with the number of ratings) for lists, cards and chat headers. */
-const Compact = ({ b }: { b: any }) => (b ? <span className="bk-compact"><BirdBadge level={b.level} compact /><StarPill rating={b.rating} ratings={b.ratings} /></span> : null);
+const Compact = ({ b }: { b: any }) => (b ? <span className="bk-compact"><BirdBadge level={b.level} compact /><StarPill rating={b.rating} ratings={b.ratings} />{b.birthday ? <span className="bday-mini" title="Birthday today">🎂</span> : null}</span> : null);
 export function ConvoBird({ id }: { id: string }) { return <Compact b={useConvoBadges([id])(id)} />; }
 export function RoomBird({ handle }: { handle: string }) { return <Compact b={useRoomBadges([handle])(handle)} />; }
 export function HandleBadges({ handle }: { handle: string }) { return <Compact b={useHandleBadges([handle])(handle)} />; }
@@ -101,7 +102,7 @@ export function ProfileBadges({ convo, handle, dating }: { convo?: string; handl
   const byH = useHandleBadges(dating ? [dating] : []);
   const b = convo ? byC(convo) : handle ? byR(handle) : dating ? byH(dating) : null;
   if (!b) return null;
-  return <div className="pc-badges"><BirdBadge level={b.level} /><StarPill rating={b.rating} ratings={b.ratings} /></div>;
+  return <div className="pc-badges"><BirdBadge level={b.level} /><StarPill rating={b.rating} ratings={b.ratings} />{b.birthday ? <span className="bday-pill">🎂 Today is their birthday! 🎉</span> : null}</div>;
 }
 
 // ---- "Rate this user" (profile only; never a pop-up) ------------------------------------------
@@ -184,6 +185,7 @@ export function MyHomeBadges() {
   if (!b && !rep) return null;
   return (
     <div className="hm-badges">
+      {isMyBirthday() ? <span className="bday-pill">🎂 Happy birthday to you! 🎉</span> : null}
       {b ? <button className="plain-btn" onClick={openBirdKingdom} aria-label={`Bird Kingdom: Level ${b.level} — ${bird(b.level).name}`}><BirdBadge level={b.level} /></button> : null}
       {rep ? <button className="plain-btn" onClick={openReputation} aria-label="My community rating"><StarPill rating={rep.established ? rep.score : null} ratings={rep.ratings} /></button> : null}
     </div>

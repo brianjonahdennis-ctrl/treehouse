@@ -4,6 +4,7 @@
 // the room's private channel, with a safety-net check; replies (tap or swipe right), reactions, the
 // members dropdown and page, profile cards, hide / block / report, leave and invite, "N new messages",
 // and the 10-minute inactivity kick. Same database functions and the same rules as the live app.
+import { RoomBirthdayBanner } from './Birthday';
 import { ProfileBadges, RateUser, RoomBird } from './Reputation';
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -547,6 +548,7 @@ function RoomView({ target, restart }: { target: string; restart: () => void }) 
           <button className="plain-btn" aria-label="Dismiss" onClick={() => { store.set(`hy-room-banner-${target}`, true); setBanner(false); }}><Icon name="x" cls="sm" /></button>
         </div>
       ) : null}
+      {joined ? <RoomBirthdayBanner room={target} /> : null}
       <div className="room-middle">
         <div ref={body} className="chat-body room-body" role="log" aria-live="polite"
           onClick={() => { if (drop) setDrop(false); }}

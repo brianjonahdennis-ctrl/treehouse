@@ -152,7 +152,7 @@ export const deleteAccount = () => rpc('delete_my_account');
 export async function myProfile() {
   const cols = 'handle, name, gender, age, location, intent, is_active, suspended'
     + (features.matching ? ', bio, interests, interested_in, min_age, max_age' : '')
-    + (features.states ? ', state, pref_state, state_changed_at, gender_changed_at, age_changed_at, birth_date, dob_underage_at' : '');
+    + (features.states ? ', state, pref_state, state_changed_at, gender_changed_at, age_changed_at, birth_date, dob_underage_at, birthday_public' : '');
   const { data, error } = await sb.from('dating_profiles').select(cols).maybeSingle();
   if (error) throw error;
   return data;
@@ -446,4 +446,5 @@ export const rateConvo = (id: string, stars: number) => rpc('rate_convo', { p_co
 export const rateRoomMember = (handle: string, stars: number) => rpc('rate_room_member', { p_handle: handle, p_stars: stars });
 export const badgesForConvos = async (ids: string[]) => (await rpc('badges_for_convos', { p_ids: ids })) || [];
 export const badgesForRoom = async (handles: string[]) => (await rpc('badges_for_room', { p_handles: handles })) || [];
+export const roomBirthdays = async () => (await rpc('room_birthdays')) || [];
 export const badgesForHandles = async (handles: string[]) => (await rpc('badges_for_handles', { p_handles: handles })) || [];

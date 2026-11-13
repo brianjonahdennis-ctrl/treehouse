@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Home: the hub (port of anon-inbox/public/hy-home.js). Who you are, the two ways in (Discover,
 // Chatrooms), your connections at a glance and recent activity. Pink = dating, blue = talking.
+import { previewOf } from './Birthday';
 import { MyHomeBadges } from './Reputation';
 import { useEffect, useState, type ReactNode } from 'react';
 import * as api from '@/lib/api';
@@ -221,7 +222,7 @@ function Activity({ live, requests, myRoom }: { live: Convo[]; requests: Convo[]
   for (const c of live) {
     const st = statusOf(c);
     if (st === 'chat' && !c.last_message) items.push({ at: c.last_at, key: `c${c.conversation_id}`, el: <ActRow handle={c.other_handle} kind="date" iconName="sparkles" title={c.other_handle} sub={isMatch(c) ? 'You matched! Say hi 👋' : 'Request accepted. Say hi 👋'} at={c.last_at} onClick={() => openChat(c.conversation_id)} pill="Say hi" /> });
-    else if (st === 'chat' || st === 'sent') items.push({ at: c.last_at, key: `c${c.conversation_id}`, el: <ActRow handle={c.other_handle} kind="talk" iconName="chat" title={nameOf(c)} sub={`${c.last_from_me ? 'You: ' : ''}${c.last_message || ''}`} at={c.last_at} onClick={() => openChat(c.conversation_id)} pill={c.unread ? String(c.unread) : st === 'sent' ? 'Pending' : null} strong={!!c.unread} /> });
+    else if (st === 'chat' || st === 'sent') items.push({ at: c.last_at, key: `c${c.conversation_id}`, el: <ActRow handle={c.other_handle} kind="talk" iconName="chat" title={nameOf(c)} sub={`${c.last_from_me ? 'You: ' : ''}${previewOf(c.last_message)}`} at={c.last_at} onClick={() => openChat(c.conversation_id)} pill={c.unread ? String(c.unread) : st === 'sent' ? 'Pending' : null} strong={!!c.unread} /> });
   }
   for (const f of friendsList()) {
     if (f.friend_status) items.push({ at: f.friend_status.updated_at, key: `s${f.conversation_id}`, el: <ActRow handle={f.other_handle} kind="talk" iconName="chat" title={`${nameOf(f)} posted a status`} sub={`“${f.friend_status.body}”`} at={f.friend_status.updated_at} onClick={() => openChat(f.conversation_id)} /> });

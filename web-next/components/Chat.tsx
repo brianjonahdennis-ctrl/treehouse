@@ -5,6 +5,7 @@
 // chat's private live channel, the request accept bar, reveal and add-friend buttons.
 // The + next to the message box sends photos (camera or gallery, once unlocked) and Kickrs challenges.
 // Photos are blurred until tapped; swipe a message right to reply.
+import { BirthdayCardBubble, ChatBirthdayBanner, openCardPicker, parseBirthdayCard } from './Birthday';
 import { ConvoBird } from './Reputation';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -228,6 +229,21 @@ function ChatView({ convo }: { convo: Convo }) {
     setSending(false); input.current?.focus();
   }
 
+  // A birthday card is an ordinary message (drawn as a card), sent like any other.
+  async function sendCard(t: string) {
+    const temp: Msg = { id: `pending-${Date.now()}`, sender_id: me, body: t, created_at: new Date().toISOString(), reply_to: null, edited_at: null, deleted_at: null, pending: true };
+    setMsgs((list) => [...list, temp]); scroll();
+    try {
+      const m = await api.sendMessage(id, t, null);
+      setMsgs((list) => list.filter((x) => x.id !== temp.id));
+      add(m); scroll();
+      toast('Birthday card sent 🎂', 'check');
+    } catch (e: any) {
+      setMsgs((list) => list.filter((x) => x.id !== temp.id));
+      toast(api.friendly(e), 'x');
+    }
+  }
+
   async function photoTap(source: 'camera' | 'library') {
     if (!photoOk) {
       // Maybe it just unlocked: ask once more before saying no. (Then they tap again to pick.)
@@ -373,6 +389,7 @@ function ChatView({ convo }: { convo: Convo }) {
         <RevealPill convo={convo} />
         <button className="plain-btn" aria-label="Chat options" onClick={() => chatMenu(convo)}><Icon name="more" /></button>
       </div>
+      {convo.blocked || statusOf(convo) !== 'chat' ? null : <ChatBirthdayBanner convoId={convo.conversation_id} name={shortName(nameOf(convo))} onCard={() => openCardPicker(shortName(nameOf(convo)), sendCard)} />}
 
       <div ref={body} className="chat-body" role="log" aria-live="polite" onScroll={(e) => { const b = e.currentTarget; b.dataset.pinned = b.scrollHeight - b.scrollTop - b.clientHeight < 80 ? '1' : '0'; }}>
         {loaded && !msgs.length ? (
@@ -507,6 +524,7 @@ function MsgRow({ m, mine, gone, canSwipe, onReply, children }: { m: Msg; mine: 
 
 // A message with a Kickrs challenge link shows as a card with a Play button (open for 10 minutes).
 function Body({ m, mine, chatId }: { m: Msg; mine: boolean; chatId: string }) {
+  if (parseBirthdayCard(m.body)) return <BirthdayCardBubble body={m.body} mine={mine} />;
   const c = parseChallenge(m.body);
   if (!c) return <>{m.body}</>;
   const open = Date.now() - new Date(m.created_at).getTime() < CHALLENGE_MS;

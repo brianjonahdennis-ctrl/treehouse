@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Inbox (port of renderMatches and its tabs in anon-inbox/public/hy-dating.js): Chats, Requests,
 // Friends, Matches + Likes you. /home/matches/<chat id> opens the chat on top.
+import { previewOf } from './Birthday';
 import { ConvoBird } from './Reputation';
 import { useEffect, useState, type ReactNode } from 'react';
 import * as api from '@/lib/api';
@@ -144,7 +145,7 @@ function ChatList({ list }: { list: Convo[] }) {
 function ConvoRow({ c, lastActive = false }: { c: Convo; lastActive?: boolean }) {
   const st = statusOf(c);
   const away = lastActive && !c.blocked && !c.other_online ? activeText(false, c.other_active_hours) : null;
-  const preview = c.blocked ? 'Chat closed' : `${c.last_from_me ? 'You: ' : ''}${c.last_message || (isMatch(c) ? 'You matched. Say hi 👋' : isFriend(c) ? 'You’re friends. Say hi 👋' : 'Say hi 👋')}`;
+  const preview = c.blocked ? 'Chat closed' : `${c.last_from_me ? 'You: ' : ''}${previewOf(c.last_message) || (isMatch(c) ? 'You matched. Say hi 👋' : isFriend(c) ? 'You’re friends. Say hi 👋' : 'Say hi 👋')}`;
   const seen = !c.blocked && c.last_from_me && c.other_read_at && new Date(c.other_read_at) >= new Date(c.last_at);
   const delivered = !seen && !c.blocked && c.last_from_me && c.other_delivered_at && new Date(c.other_delivered_at) >= new Date(c.last_at);
   return (
@@ -245,7 +246,7 @@ function RequestCard({ c }: { c: Convo }) {
           <span className="req-meta">{meta({ age: c.other_age, gender: c.other_gender, location: c.other_location })}{c.other_intent ? ` · ${INTENT_LABEL[c.other_intent]}` : ''}</span>
         </span>
       </button>
-      {c.last_message ? <p className="req-msg">{c.last_message}</p> : null}
+      {c.last_message ? <p className="req-msg">{previewOf(c.last_message)}</p> : null}
       <div className="req-actions">
         <BusyButton cls="btn btn-primary btn-sm" onClick={() => acceptRequest(c)}><Icon name="check" cls="sm" />Accept</BusyButton>
         <BusyButton cls="btn btn-ghost btn-sm" onClick={() => declineRequest(c)}>Decline</BusyButton>
