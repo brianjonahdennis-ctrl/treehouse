@@ -48,9 +48,9 @@ update dating_private.bird_kingdom set last_ping_at = now() - interval '10 minut
 select pg_temp.login('00000000-0000-0000-0000-0000000000e9');
 select is((activity_ping() ->> 'added')::int, 0, 'A long gap (idle, background, offline) adds nothing');
 select pg_temp.admin();
-update dating_private.bird_kingdom set last_ping_at = now() - interval '85 seconds' where user_id = '00000000-0000-0000-0000-0000000000e9';
+update dating_private.bird_kingdom set last_ping_at = now() - interval '190 seconds' where user_id = '00000000-0000-0000-0000-0000000000e9';
 select pg_temp.login('00000000-0000-0000-0000-0000000000e9');
-select ok((activity_ping() ->> 'added')::int <= 60, 'One ping never adds more than 60 seconds');
+select ok((activity_ping() ->> 'added')::int <= 180, 'One ping never adds more than 3 minutes');
 select pg_temp.admin();
 select is(dating_private.bird_level_for(5 * 3600 - 1), 1::smallint, '4h59m is still Sparrow');
 select is(dating_private.bird_level_for(5 * 3600), 2::smallint, '5 hours is Dove');

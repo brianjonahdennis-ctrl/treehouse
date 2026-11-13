@@ -126,7 +126,6 @@ async function boot() {
   rememberConnect();
   try {
     await api.init();
-    await api.detectFeatures();
     const hash = new URLSearchParams(location.hash.slice(1));
     let linkError = hash.get('error_description');
     state.recovering = hash.get('type') === 'recovery';
@@ -137,7 +136,7 @@ async function boot() {
     if (tokenHash && linkType && ['email', 'signup', 'recovery', 'email_change'].includes(linkType)) {
       const err: any = await api.verifyEmailLink(tokenHash, linkType);
       if (err) linkError = /expired|invalid/i.test(err.message || '') ? 'This link has expired or was already used. Request a new one.' : (err.message || 'That link didn’t work.');
-      else { if (linkType === 'recovery') state.recovering = true; await api.detectFeatures(); }
+      else if (linkType === 'recovery') state.recovering = true;
     }
     const to = query.get('to');
     if (to && /^[A-Za-z]+ [A-Za-z]+ \d{3}$/.test(to)) store.set('hy-like-target', to);
@@ -165,7 +164,6 @@ export async function afterSignIn() {
   const sess = await api.session();
   state.user = sess ? sess.user : null;
   if (!state.user) { emit('all'); return; }
-  await api.detectFeatures();
   await loadAll();
   emit('all');
   startLive();

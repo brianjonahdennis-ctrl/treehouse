@@ -7,7 +7,9 @@ import { getClient } from './supabase';
 
 export const SITE = typeof window !== 'undefined' ? window.location.origin : '';
 export let sb: any = null;
-export const features = { matching: false, states: false };
+// Both database features have existed since Nov 2026, so no start-up check is needed (it cost a slow
+// round trip on every open).
+export const features = { matching: true, states: true };
 
 export function friendly(err: any): string {
   const m = (err && (err.message || err.error_description)) || String(err || '');
@@ -89,11 +91,7 @@ function listenForAppSignIn() {
   App.getLaunchUrl().then((r: any) => finishAppSignIn(r && r.url)).catch(() => {});
 }
 
-export async function detectFeatures() {
-  const [m, st] = await Promise.all([sb.rpc('my_pending_likes'), sb.from('dating_profiles').select('state').limit(1)]);
-  features.matching = !missing(m.error);
-  features.states = !missing(st.error);
-}
+export async function detectFeatures() { /* kept for callers; nothing to detect any more */ }
 
 // ---- Account --------------------------------------------------------------------------------
 export const session = async () => (await sb.auth.getSession()).data.session;

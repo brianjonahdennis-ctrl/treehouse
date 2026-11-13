@@ -299,8 +299,8 @@ function showLaunch(level: number) {
 }
 
 // ---- Active-time ping ----------------------------------------------------------------------------
-// Once a minute, only while the page is visible AND the person touched/typed/scrolled in the last
-// 2 minutes (or is on a game or a Speed Dating video, where input happens inside the video/game).
+// Every 3 minutes (kept light for the database), only while the page is visible AND the person
+// touched/typed/scrolled in the last 3 minutes (or is on a game or a Speed Dating video, where input happens inside the video/game).
 // The server measures the time itself; this only says "still here".
 let started = false;
 export function startActivity() {
@@ -318,10 +318,11 @@ export function startActivity() {
   };
   const ping = async () => {
     if (!state.user || document.visibilityState !== 'visible') return;
-    if (Date.now() - lastInput > 120000 && !watching()) return;
+    if (Date.now() - lastInput > 180000 && !watching()) return;
     try { apply(await api.activityPing()); } catch { /* never interrupt the app */ }
   };
-  api.myBird().then((b) => { apply(b); if (b && b.launch_level >= 2) showLaunch(b.launch_level); ping(); }).catch(() => {});
-  setInterval(ping, 60000);
+  api.myBird().then((b) => { apply(b); if (b && b.launch_level >= 2) showLaunch(b.launch_level); }).catch(() => {});
+  setTimeout(ping, 20000);   // starts the measuring clock; time then counts between pings
+  setInterval(ping, 180000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') mark(); });
 }
