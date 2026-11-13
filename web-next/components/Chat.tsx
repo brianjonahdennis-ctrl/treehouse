@@ -5,6 +5,7 @@
 // chat's private live channel, the request accept bar, reveal and add-friend buttons.
 // The + next to the message box sends photos (camera or gallery, once unlocked) and Kickrs challenges.
 // Photos are blurred until tapped; swipe a message right to reply.
+import { ConvoBird } from './Reputation';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as api from '@/lib/api';
@@ -365,6 +366,7 @@ function ChatView({ convo }: { convo: Convo }) {
           <span className="grow">
             <b className="ellipsis name-dot">{nameOf(convo)}<span className="name-dot-slot">{online ? <i className="online-dot-inline" role="img" aria-label="Online" /> : null}</span></b>
             <span className="status">{online ? <><i />Online</> : (active ? `${active} · ${metaText}` : metaText)}</span>
+            {convo.blocked ? null : <span className="chat-bird"><ConvoBird id={convo.conversation_id} /></span>}
           </span>
         </button>
         <FriendButton convo={convo} />

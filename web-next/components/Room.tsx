@@ -4,6 +4,7 @@
 // the room's private channel, with a safety-net check; replies (tap or swipe right), reactions, the
 // members dropdown and page, profile cards, hide / block / report, leave and invite, "N new messages",
 // and the 10-minute inactivity kick. Same database functions and the same rules as the live app.
+import { ProfileBadges, RateUser, RoomBird } from './Reputation';
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import * as api from '@/lib/api';
@@ -454,6 +455,7 @@ function RoomView({ target, restart }: { target: string; restart: () => void }) 
           <h2>{p.handle}</h2>
           <p className="pc-sub">{[p.place && p.place !== p.room ? p.place : roomName(p.room), p.age ? `${p.age} years` : null].filter(Boolean).join(' · ')}</p>
           <span className={`pc-status ${p.online ? 'on' : ''}`}>{p.online ? 'Online' : 'Away'}</span>
+          <ProfileBadges handle={p.handle} />
           {p.me ? null : (
             <div className="pc-actions">
               {existing
@@ -473,6 +475,7 @@ function RoomView({ target, restart }: { target: string; restart: () => void }) 
           </div>
           {(p.interests || []).length ? <div className="chips">{p.interests.map((i: string) => <span key={i} className="chip static">{i}</span>)}</div> : null}
         </div>
+        {p.me ? null : <RateUser handle={p.handle} />}
         {p.me ? null : (
           <div className="settings-group pc-safety">
             <button className="settings-row" onClick={async () => {
@@ -677,7 +680,7 @@ function MemberRow({ p, onCard }: { p: any; onCard: () => void }) {
     <div className="md-row" role="button" tabIndex={0} onClick={onCard} onKeyDown={(e) => { if (e.key === 'Enter') onCard(); }}>
       <span className="op-av"><RoomAvatar handle={p.handle} />{isOnline(p) ? <i /> : null}</span>
       <span className="grow"><b style={{ color: nameColor(p.handle) }}>{p.me ? `${p.handle} (you)` : p.handle}</b>
-        <span className="md-place">{`${p.place || ''}${p.place ? ' • ' : ''}${isOnline(p) ? 'Online' : 'Away'}`}</span></span>
+        <span className="md-place">{`${p.place || ''}${p.place ? ' • ' : ''}${isOnline(p) ? 'Online' : 'Away'}`}</span><RoomBird handle={p.handle} /></span>
       <MessageButton p={p} />
     </div>
   );

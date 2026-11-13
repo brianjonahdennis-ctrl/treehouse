@@ -151,7 +151,9 @@
     np('Cobalt Owl 341', 34, 'male', 3.4, 0.01, 0.03, false, { map_lat: null, map_lng: null }),
     np('Velvet Ray 222', 22, 'female', null, null, null, true, { map_lat: null, map_lng: null }),
   ];
-  const RPC = {
+  let mockBird = { level: 4, seconds: 61 * 3600 + 1200, historical_seconds: 60 * 3600, launch_level: 4, leveled_at: null, now: new Date().toISOString() };
+const mockRated = new Set();
+const RPC = {
     my_pending_likes: () => likes.length,
     dating_summary: () => ({ convos, requests: likes, pending: likes.length, my_status: myStatus,
       friend_statuses: [{ conversation_id: 'c8', body: 'Weekend vibes already! 🎉', updated_at: ago(17) }, { conversation_id: 'c9', body: 'At work, hit me up later 💼', updated_at: ago(180) }] }),
@@ -176,6 +178,21 @@
     room_history: () => (myRoom === 'Lagos' ? roomMsgs : []),
     room_people: () => roomPeople,
     send_room_message: ({ p_body, p_reply_to }) => { const q = roomMsgs.find((x) => x.id === p_reply_to); return [{ id: ++msgId + 50, handle: profile.handle, body: p_body, created_at: new Date().toISOString(), reply_to: q ? q.id : null, reply_handle: q ? q.handle : null, reply_body: q ? q.body.slice(0, 140) : null }]; },
+    // Bird Kingdom + ratings (sample data)
+    my_bird: () => mockBird,
+    activity_ping: () => { mockBird = { ...mockBird, seconds: mockBird.seconds + 60, leveled_up: false, added: 60 }; return mockBird; },
+    bird_launch_seen: () => { mockBird = { ...mockBird, launch_level: null }; return null; },
+    my_reputation: () => ({ score: 4.6, established: true, raters: 9, ratings: 11, band: 'high', distribution: { 5: 6, 4: 2, 3: 1 },
+      trend: [{ week: '2026-10-19', score: 4.2 }, { week: '2026-10-26', score: 4.4 }, { week: '2026-11-02', score: 4.5 }, { week: '2026-11-09', score: 4.6 }],
+      refreshed_at: new Date().toISOString(), min_raters: 5, high_band: 4, cooldown_days: 7 }),
+    rating_status_convo: ({ p_conversation }) => (mockRated.has(p_conversation)
+      ? { eligible: false, cooldown: true, next_at: new Date(Date.now() + 5 * 86400000).toISOString(), now: new Date().toISOString() }
+      : { eligible: true, now: new Date().toISOString() }),
+    rating_status_room: ({ p_handle }) => (p_handle === roomPeople[0].handle ? { eligible: false, self: true } : { eligible: true, now: new Date().toISOString() }),
+    rate_convo: ({ p_conversation }) => { mockRated.add(p_conversation); return { eligible: false, cooldown: true }; },
+    rate_room_member: () => ({ eligible: false, cooldown: true }),
+    badges_for_convos: ({ p_ids }) => p_ids.map((id, i) => ({ conversation_id: id, badge: { level: (i % 8) + 1, rating: i % 3 ? 4.3 + (i % 5) / 10 : null, ratings: i % 3 ? 7 + i : null } })),
+    badges_for_room: ({ p_handles }) => p_handles.map((h, i) => ({ handle: h, badge: { level: ((h.length + i) % 8) + 1, rating: i % 2 ? 4.8 : null, ratings: i % 2 ? 12 : null } })),
     room_profile: ({ p_handle }) => { const p = roomPeople.find((x) => x.handle === p_handle) || roomPeople[1]; return [{ handle: p.handle, room: 'Lagos', online: p.online, age: 25, gender: 'female', bio: 'Lagos babe, Afrobeats on repeat.', interests: ['Music', 'Fashion'], dating: p.dating, me: p.me, place: p.place }]; },
     toggle_room_reaction: () => [{ reactions: { '❤️': 1 }, added: true }],
     chat_partner_profile: ({ p_conversation }) => { const c = convos.find((x) => x.conversation_id === p_conversation); return c ? [{ handle: c.other_handle, age: c.other_age, gender: c.other_gender, location: c.other_location, intent: c.other_intent, bio: 'Love good food, music and deep conversations.', interests: ['Music', 'Food', 'Travel'], online: c.other_online, active_hours: c.other_active_hours, available: !c.blocked }] : []; },

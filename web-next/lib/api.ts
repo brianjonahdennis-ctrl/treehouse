@@ -435,3 +435,15 @@ export function speedQueueChannel(uid: string, onPaired: (p: any) => void) {
     .on('broadcast', { event: 'paired' }, (e: any) => onPaired((e && e.payload) || {})).subscribe();
   return { leave: () => { try { sb.removeChannel(ch); } catch {} } };
 }
+
+// ---- Bird Kingdom (active hours) and Community Star Ratings (see REPUTATION.md) ----------------------
+export const myBird = () => rpc('my_bird');
+export const activityPing = () => rpc('activity_ping');
+export const birdLaunchSeen = () => rpc('bird_launch_seen');
+export const myReputation = () => rpc('my_reputation');
+export const ratingStatusConvo = (id: string) => rpc('rating_status_convo', { p_conversation: id });
+export const ratingStatusRoom = (handle: string) => rpc('rating_status_room', { p_handle: handle });
+export const rateConvo = (id: string, stars: number) => rpc('rate_convo', { p_conversation: id, p_stars: stars });
+export const rateRoomMember = (handle: string, stars: number) => rpc('rate_room_member', { p_handle: handle, p_stars: stars });
+export const badgesForConvos = async (ids: string[]) => (await rpc('badges_for_convos', { p_ids: ids })) || [];
+export const badgesForRoom = async (handles: string[]) => (await rpc('badges_for_room', { p_handles: handles })) || [];

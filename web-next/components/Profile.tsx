@@ -3,6 +3,7 @@
 // Profile: your dating card, privacy, appearance and account (port of anon-inbox/public/hy-profile.js).
 // Same rules: state changes once every 30 days, gender every 90, date of birth every 365 (the database
 // enforces these; the screen explains them).
+import { MyIdentity } from './Reputation';
 import { useState, type ReactNode } from 'react';
 import * as api from '@/lib/api';
 import { state, emit, useAppState, loadDating } from '@/lib/state';
@@ -57,8 +58,10 @@ export default function Profile() {
         {profile.bio ? <p className="pf-bio">{profile.bio}</p> : <button className="pf-bio empty" onClick={editDating}>+ Add a short bio so people know your vibe</button>}
       </Hero>
 
+      <MyIdentity />
+
       {c.pct < 100 ? (
-        <div className="card pf-complete below-hero">
+        <div className="card pf-complete">
           <div className="completion"><div className="ring" style={vars({ '--p': c.pct })}><span>{c.pct}%</span></div>
             <div><h3>Complete your profile</h3><p className="small muted">Complete profiles get more likes and message requests.</p></div></div>
           <div className="pf-todos">{c.items.map(([label, ok]) => <div key={label} className={`todo ${ok ? 'done' : ''}`}><span className="dot">{ok ? <Icon name="check" cls="sm" /> : ''}</span>{label}</div>)}</div>

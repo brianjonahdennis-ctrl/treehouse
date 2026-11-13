@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // The member app shell (port of anon-inbox/public/hy-app.js): start-up, sign-in gate, navigation
 // (bottom bar on phones, sidebar on desktop), live updates, Terms of Use check.
+import { startActivity } from './Reputation';
 import { useEffect, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -171,6 +172,7 @@ export async function afterSignIn() {
 
 let live = false;
 function startLive() {
+  startActivity();
   if (live || !state.profile) return;
   live = true;
   // Push notifications: find out if they're set up, and keep this device linked to this account.

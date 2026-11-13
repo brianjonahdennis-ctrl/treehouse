@@ -10,6 +10,7 @@ import { store } from './util';
 export type Convo = any;
 export const state = {
   user: null as any,
+  bird: null as any,        // my Bird Kingdom level (my_bird / activity_ping)
   profile: null as any,
   requests: [] as any[],
   convos: [] as Convo[],
@@ -153,6 +154,7 @@ export function notifications(): Notif[] {
     if (!st || c.blocked || c.kind !== 'friend') continue;
     out.push({ kind: 'status', emoji: '💬', text: `${nameOf(c)} updated their status: “${st.body}”`, at: st.updated_at, chat: c.conversation_id });
   }
+  if (state.bird && state.bird.leveled_at && state.bird.level > 1) out.push({ kind: 'level', emoji: '🪶', text: `You reached Level ${state.bird.level} in the Bird Kingdom`, at: state.bird.leveled_at, to: 'profile' });
   if (state.profile && state.profile.suspended) out.push({ kind: 'account', emoji: '⚠️', text: 'Your dating profile is suspended after reports.', at: new Date().toISOString(), to: 'profile' });
   return out.sort((a, b) => +new Date(b.at) - +new Date(a.at));
 }

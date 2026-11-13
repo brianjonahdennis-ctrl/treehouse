@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Inbox (port of renderMatches and its tabs in anon-inbox/public/hy-dating.js): Chats, Requests,
 // Friends, Matches + Likes you. /home/matches/<chat id> opens the chat on top.
+import { ConvoBird } from './Reputation';
 import { useEffect, useState, type ReactNode } from 'react';
 import * as api from '@/lib/api';
 import { state, emit, useAppState, loadDating, statusOf, messageRequests, matchFriendAsks, isMatch, isFriend, friendsList, nameOf, type Convo } from '@/lib/state';
@@ -318,7 +319,8 @@ function FriendRow({ f }: { f: Convo }) {
         <span className="ib-av"><Avatar seed={f.other_handle} label={nameOf(f)} cls="lg" />{f.other_online ? <i className="on" /> : null}</span>
         <span className="grow"><b className="ellipsis">{nameOf(f)}</b>
           <span className={`fr-sub ellipsis ${st ? 'status' : ''}`}>{sub}</span>
-          {st && !f.other_online ? <span className="fr-away">{activeText(false, f.other_active_hours)}</span> : null}</span>
+          {st && !f.other_online ? <span className="fr-away">{activeText(false, f.other_active_hours)}</span> : null}
+          <ConvoBird id={f.conversation_id} /></span>
       </button>
       <button className="btn btn-soft btn-sm fr-msg" onClick={() => openChat(f.conversation_id)} aria-label={`Message ${nameOf(f)}`}><Icon name="chat" cls="sm" /><span className="fr-msg-t">Message</span></button>
     </div>

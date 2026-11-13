@@ -3,6 +3,7 @@
 // Things you can do with a conversation, shared by the Inbox and the chat screen (ports of the
 // matching functions in anon-inbox/public/hy-dating.js): accept, decline, block, unmatch, report,
 // reveal, delete, view their dating card.
+import { ProfileBadges, RateUser } from './Reputation';
 import { useState } from 'react';
 import * as api from '@/lib/api';
 import { state, emit, loadDating, closeChatLocal, statusOf, nameOf, isFriend, type Convo } from '@/lib/state';
@@ -149,6 +150,7 @@ export async function partnerProfile(convo: Convo) {
         <div className="pc-av"><Avatar seed={p.handle} label={nameOf(convo)} cls="xl" />{p.online ? <i /> : null}</div>
         {nameOf(convo) !== convo.other_handle ? <h2>{nameOf(convo)}<small className="pc-handle">{` · ${p.handle}`}</small></h2> : <h2>{p.handle}</h2>}
         <p className="pc-sub">{[p.age ? `${p.age} years` : null, GENDER_LABEL[p.gender], p.location].filter(Boolean).join(' · ')}</p>
+        <ProfileBadges convo={convo.conversation_id} />
         {active ? <span className={`pc-status ${p.online ? 'on' : ''}`}>{active}</span> : null}
         {isFriend(convo) && fs ? <p className="pc-friend-status">{`“${fs.body}”`}</p> : null}
         {convo.i_revealed && convo.they_revealed ? <span className="pc-revealed"><Icon name="check" cls="sm" />Revealed · you both shared first names</span> : null}
@@ -164,6 +166,7 @@ export async function partnerProfile(convo: Convo) {
         {ints.length ? <div className="chips">{ints.map((i) => <span key={i} className="chip static">{i}</span>)}</div> : null}
         {convo.i_revealed && convo.they_revealed ? null : <p className="tiny muted" style={{ marginTop: '10px' }}>🎭 Their real name stays hidden until you both reveal.</p>}
       </div>
+      {p.available ? <RateUser convo={convo.conversation_id} /> : null}
       <div className="sheet-actions"><button className="btn btn-soft btn-block" onClick={close}>Close</button></div>
     </>
   ), { label: `${p.handle}’s profile` });
