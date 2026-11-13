@@ -62,9 +62,9 @@ select throws_ok(format('select speed_signal(%L::uuid, %L::jsonb)', current_sett
 select pg_temp.login('00000000-0000-0000-0000-0000000000c1');
 select is(speed_ready(current_setting('test.s')::uuid) ->> 'status', 'connecting', 'One side connected: not started');
 select pg_temp.login('00000000-0000-0000-0000-0000000000c2');
-select is(speed_ready(current_setting('test.s')::uuid) ->> 'status', 'live', 'Both connected: the five minutes start');
+select is(speed_ready(current_setting('test.s')::uuid) ->> 'status', 'live', 'Both connected: the three minutes start');
 select pg_temp.admin();
-select is((select ends_at - started_at from speed_sessions where id = current_setting('test.s')::uuid), interval '5 minutes', 'Exactly five minutes');
+select is((select ends_at - started_at from speed_sessions where id = current_setting('test.s')::uuid), interval '3 minutes', 'Exactly three minutes');
 
 -- Bola can't join another queue or date meanwhile.
 select pg_temp.login('00000000-0000-0000-0000-0000000000c2');
