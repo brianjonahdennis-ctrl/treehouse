@@ -123,6 +123,7 @@ export const isInviteCode = (v: unknown): v is string => typeof v === 'string' &
 export const CHALLENGES: Record<string, { art: string; title: string; line: string; menu: string; what: string }> = {
   penalties: { art: '⚽', title: 'Penalty shootout', line: '⚽ Penalty shootout! I challenge you on Kickrs.', menu: 'Penalty challenge', what: 'Play' },
   trivia: { art: '🧠', title: 'Trivia duel', line: '🧠 Trivia duel! Think you know more than me? Play me on Kickrs.', menu: 'Trivia challenge', what: 'Quiz' },
+  crosswords: { art: '🔠', title: 'Crossword race', line: '🔠 Crossword race! Same puzzle, first to fill the grid wins. Play me on Kickrs.', menu: 'Crossword race', what: 'Race' },
 };
 export const challengeOf = (gameId: string) => CHALLENGES[gameId] || CHALLENGES.penalties;
 export const challengeText = (gameId: string, code: string) =>
