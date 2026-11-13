@@ -151,7 +151,7 @@ export function RateUser({ convo, handle }: { convo?: string; handle?: string })
 export function MyIdentity() {
   const s = useAppState();
   const [rep, setRep] = useState<any>(null);
-  useEffect(() => { api.myReputation().then(setRep).catch(() => {}); }, []);
+  useEffect(() => { loadMyRep().then(setRep); }, []);
   const b = s.bird;
   return (
     <div className="pf-identity below-hero">
@@ -171,11 +171,15 @@ export function MyIdentity() {
   );
 }
 
+// My own rating: fetched at most every 10 minutes and shared by Home and Profile (keeps start-up light).
+let myRep: { at: number; p: Promise<any> } | null = null;
+const loadMyRep = () => { if (!myRep || Date.now() - myRep.at > 600000) myRep = { at: Date.now(), p: api.myReputation().catch(() => { myRep = null; return null; }) }; return myRep.p; };
+
 /** Under my nickname on Home: my bird and my stars, each opening its page. */
 export function MyHomeBadges() {
   const s = useAppState();
   const [rep, setRep] = useState<any>(null);
-  useEffect(() => { api.myReputation().then(setRep).catch(() => {}); }, []);
+  useEffect(() => { loadMyRep().then(setRep); }, []);
   const b = s.bird;
   if (!b && !rep) return null;
   return (

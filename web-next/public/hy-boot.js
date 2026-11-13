@@ -38,8 +38,10 @@
     }
     box.appendChild(card);
     document.body.appendChild(box);
+    // The app may still finish starting (slow connection): then take the message away again.
+    var watch = setInterval(function () { if (window.__thBooted) { clearInterval(watch); if (box.parentNode) box.parentNode.removeChild(box); } }, 500);
   }
   // A script error before start-up usually means an outdated browser: say so sooner.
-  setTimeout(function () { if (errors.length) show(); }, 6000);
-  setTimeout(show, 20000);
+  setTimeout(function () { if (errors.length) show(); }, 8000);
+  setTimeout(show, 25000);
 })();
