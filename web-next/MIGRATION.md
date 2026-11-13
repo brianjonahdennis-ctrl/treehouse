@@ -88,6 +88,17 @@ a per-request nonce for Next.js's own scripts). Production builds use no inline 
 `X-Frame-Options: DENY`. Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 are needed, both already public.
 
+## Status: LIVE since 13 Nov 2026, 09:27 (Lagos time)
+
+treehouse.ng is served by the Railway service `treehouse-next` (this app, auto-deployed from the
+`nextjs` branch). `LEGACY_ORIGIN` is the old service's private address
+(`http://tell-hydra.railway.internal:8080`), and `app/route.ts` serves the landing page at `/`.
+The old service (`tell-hydra`) still runs behind it: every `/api/*`, push sending, `app.treehouse.ng`
+and `tell.brianjonahdennis.com`.
+
+**To switch back:** on Railway, remove `treehouse.ng` from `treehouse-next` and add it to `tell-hydra`;
+then set the Cloudflare `treehouse.ng` CNAME (proxied) to the target Railway shows. About 30 seconds.
+
 ## Before switching: test on real phones
 
 Nothing below has been tried with real accounts yet (the preview uses sample data). Test each on the
