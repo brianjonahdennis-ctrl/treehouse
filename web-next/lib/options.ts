@@ -4,8 +4,8 @@
 
 export const GENDERS: [string, string][] = [['female', 'Woman'], ['male', 'Man'], ['other', 'Non-binary / other']];
 export const GENDER_LABEL: Record<string, string> = { female: 'Woman', male: 'Man', other: 'Non-binary' };
-export const INTENTS: [string, string][] = [['fun', 'Something fun 😄'], ['love', 'A relationship ❤️'], ['marriage', 'Marriage 💍']];
-export const INTENT_LABEL: Record<string, string> = { fun: 'Fun 😄', love: 'Love ❤️', marriage: 'Marriage 💍' };
+export const INTENTS: [string, string][] = [['fun', 'Something fun 😄'], ['friendship', 'Friendship 🤝'], ['love', 'A relationship ❤️'], ['marriage', 'Marriage 💍']];
+export const INTENT_LABEL: Record<string, string> = { fun: 'Fun 😄', friendship: 'Friendship 🤝', love: 'Love ❤️', marriage: 'Marriage 💍' };
 export const INTERESTS = ['Music', 'Afrobeats', 'Football', 'Movies', 'Fashion', 'Food', 'Travel', 'Gaming', 'Fitness', 'Art', 'Books', 'Tech', 'Faith', 'Photography', 'Dancing', 'Comedy', 'Business', 'Anime', 'Nature', 'Cooking'];
 // Nigeria's 36 states and the FCT (must match dating_private.nigerian_states() in the database).
 export const STATES = ['Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno', 'Cross River', 'Delta',
