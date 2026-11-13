@@ -30,6 +30,8 @@ Block and report tables are **never** read by the rating calculation. A pgTAP te
 
 The level is stored, and it only ever goes up: `level = greatest(level, level_for(total))`.
 
+**Hydra's rule (13 Nov 2026):** members never see hours, the hour thresholds or how levels are earned. The app shows only the bird, the level number, a progress bar without numbers, and "Keep going to reach …".
+
 ### Live tracking (after launch)
 
 - **Who decides what counts.** The app calls `activity_ping()` once a minute. It only calls while the

@@ -1,6 +1,6 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// Bird Kingdom (levels from active hours) and Community Star Ratings (anonymous, from profiles).
+// Bird Kingdom (levels from active hours; hours and thresholds are never shown to members) and Community Star Ratings (anonymous, from profiles).
 // Two separate indicators, never combined. Rules and maths: REPUTATION.md. Everything is decided by the
 // database; this file only shows it and sends a once-a-minute "I'm active" ping.
 import { useEffect, useState } from 'react';
@@ -17,10 +17,9 @@ export const BIRDS = [
   { n: 5, name: 'Eagle', hours: 100, emoji: '🦅', c1: '#ffd866', c2: '#c48a00', text: 'Soaring high: a true treehouse regular.' },
   { n: 6, name: 'Owl', hours: 250, emoji: '🦉', c1: '#a99bff', c2: '#5141c9', text: 'Wise and seasoned. You’ve watched the treehouse grow.' },
   { n: 7, name: 'Falcon', hours: 500, emoji: '🦅', c1: '#8aa3bd', c2: '#2c3e57', text: 'Fast, loyal and rare: one of the dedicated few.' },
-  { n: 8, name: 'Phoenix', hours: 1000, emoji: '🔥', c1: '#ffcf4a', c2: '#e2362b', text: 'Legendary. Reborn from 1,000 hours in the treehouse.' },
+  { n: 8, name: 'Phoenix', hours: 1000, emoji: '🔥', c1: '#ffcf4a', c2: '#e2362b', text: 'Legendary. The rarest bird in the treehouse.' },
 ];
 export const bird = (level: number) => BIRDS[Math.min(Math.max((level || 1) - 1, 0), 7)];
-const hrs = (s: number) => Math.floor((s || 0) / 3600);
 
 export function Emblem({ level, size = 'md' }: { level: number; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
   const b = bird(level);
@@ -149,7 +148,7 @@ export function MyIdentity() {
         <Emblem level={b ? b.level : 1} size="lg" />
         <span className="grow"><span className="tiny muted">Bird Kingdom</span>
           <b>{b ? `Level ${b.level} — ${bird(b.level).name}` : 'Loading…'}</b>
-          <span className="tiny muted">{b ? `${hrs(b.seconds).toLocaleString()} active hours` : ''}</span></span>
+          <span className="tiny muted">{b ? (b.level < 8 ? `Next: ${bird(b.level + 1).name}` : 'Top of the kingdom') : ''}</span></span>
       </button>
       <button className="card pf-id-card" onClick={openReputation} aria-label="Open my reputation">
         <span className="rp-big">★</span>
@@ -179,11 +178,10 @@ function BirdKingdom({ close }: { close: () => void }) {
         <Emblem level={lvl} size="xl" />
         <h2>{`Level ${lvl} — ${cur.name}`}</h2>
         <p className="small muted">{cur.text}</p>
-        <p className="bk-hours"><b>{hrs(me.seconds).toLocaleString()}</b> active hours</p>
         {next ? (
           <>
             <div className="bk-bar" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${pct}%` }} /></div>
-            <p className="tiny muted">{`${Math.max(1, Math.ceil(next.hours - h)).toLocaleString()} more hour${Math.ceil(next.hours - h) === 1 ? '' : 's'} to Level ${next.n} — ${next.name}`}</p>
+            <p className="tiny muted">{`Keep going to reach Level ${next.n} — ${next.name}`}</p>
           </>
         ) : <p className="small">You’ve reached the top of the Bird Kingdom. 🔥</p>}
       </div>
@@ -191,13 +189,13 @@ function BirdKingdom({ close }: { close: () => void }) {
         {BIRDS.map((b) => (
           <div key={b.n} className={`bk-row ${b.n === lvl ? 'cur' : ''} ${b.n > lvl ? 'locked' : ''}`}>
             <Emblem level={b.n} size="md" />
-            <span className="grow"><b>{`Level ${b.n} — ${b.name}`}</b><span className="tiny muted">{b.n === 8 ? '1,000+ hours' : `${b.hours}–${BIRDS[b.n].hours - 1} hours`}{b.n > lvl ? ' · locked' : ''}</span>
+            <span className="grow"><b>{`Level ${b.n} — ${b.name}`}</b>{b.n > lvl ? <span className="tiny muted">Locked</span> : null}
               <span className="tiny">{b.text}</span></span>
             {b.n > lvl ? <span aria-label="Locked">🔒</span> : b.n === lvl ? <span className="bk-you">You</span> : <span aria-label="Reached">✓</span>}
           </div>
         ))}
       </div>
-      <p className="tiny muted">Levels come only from time you actively spend on treehouse: chatting, chatrooms, Discover, Nearby, games and Speed Dating. Idle or background time doesn’t count, and a level is never taken away.</p>
+      <p className="tiny muted">Your bird grows the more you take part in treehouse. A level is never taken away.</p>
       <div className="sheet-actions"><button className="btn btn-soft btn-block" onClick={close}>Close</button></div>
     </>
   );
