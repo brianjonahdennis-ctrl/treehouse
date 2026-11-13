@@ -15,6 +15,7 @@ import { Icon, Logo, EmptyState } from './ui';
 import { OverlayHost, openSheet, toast } from './overlay';
 import { Landing, NewPassword, Underage } from './Auth';
 import Onboarding from './Onboarding';
+import ForceUpdate from './ForceUpdate';
 import { deliverToOpenChat } from './chatBus';
 import { connectWaiting, rememberConnect } from '@/lib/kickrs';
 
@@ -62,7 +63,7 @@ export default function App({ children }: { children: ReactNode }) {
   else if (s.profile.dob_underage_at) screen = <Underage />;
   else screen = <Shell pathname={pathname}>{children}</Shell>;
 
-  return <div id="app">{screen}<OverlayHost /></div>;
+  return <div id="app">{screen}<OverlayHost /><ForceUpdate /></div>;
 }
 
 function Shell({ pathname, children }: { pathname: string; children: ReactNode }) {
