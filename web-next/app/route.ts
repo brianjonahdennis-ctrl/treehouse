@@ -35,5 +35,10 @@ function landing(req: Request): Promise<Response> {
   });
 }
 
-export function GET(req: Request) { return landing(req); }
-export async function HEAD(req: Request) { const r = await landing(req); return new Response(null, { status: r.status, headers: r.headers }); }
+// app.treehouse.ng is the member app's own address: its front page opens the app.
+const APP_HOSTS = new Set(['app.treehouse.ng']);
+const appHost = (req: Request) => APP_HOSTS.has((req.headers.get('host') || '').split(':')[0].toLowerCase());
+const toApp = () => new Response(null, { status: 302, headers: { Location: '/home', 'Cache-Control': 'no-store' } });
+
+export function GET(req: Request) { return appHost(req) ? toApp() : landing(req); }
+export async function HEAD(req: Request) { if (appHost(req)) return toApp(); const r = await landing(req); return new Response(null, { status: r.status, headers: r.headers }); }
