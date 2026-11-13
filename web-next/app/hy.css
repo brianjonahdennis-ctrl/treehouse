@@ -1820,3 +1820,7 @@ html, body { max-width: 100%; overflow-x: clip; }
 @media (prefers-reduced-motion: reduce) { .bk-phoenix, .bk-burst { animation: none; } }
 :root[data-theme="dark"] .rp-pill, :root[data-theme="dark"] .rp-big { background: #3a2f0a; color: #ffd166; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rp-pill, :root:not([data-theme="light"]) .rp-big { background: #3a2f0a; color: #ffd166; } }
+.hm-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.hm-badges .plain-btn { padding: 0; border-radius: 999px; }
+.hm-badges .bk-pill { background: rgba(255,255,255,.14); color: #fff; }
+.hm-badges .rp-pill.new { background: rgba(255,255,255,.14); color: #fff; }

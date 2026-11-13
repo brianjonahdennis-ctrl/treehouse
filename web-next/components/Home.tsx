@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Home: the hub (port of anon-inbox/public/hy-home.js). Who you are, the two ways in (Discover,
 // Chatrooms), your connections at a glance and recent activity. Pink = dating, blue = talking.
+import { MyHomeBadges } from './Reputation';
 import { useEffect, useState, type ReactNode } from 'react';
 import * as api from '@/lib/api';
 import { state, emit, useAppState, messageRequests, statusOf, isMatch, nameOf, friendsList, newNotifCount, type Convo } from '@/lib/state';
@@ -51,6 +52,7 @@ export default function Home() {
           <div className="grow">
             <p className="hm-greet">{firstName(profile.name) ? `${greeting()}, ${firstName(profile.name)} 👋` : `${greeting()} 👋`}</p>
             <h1>{shortName(profile.handle)}</h1>
+            <MyHomeBadges />
             <StatusPill />
           </div>
         </div>

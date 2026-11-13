@@ -154,8 +154,23 @@ export function MyIdentity() {
         <span className="rp-big">★</span>
         <span className="grow"><span className="tiny muted">Community rating</span>
           <b>{rep ? (rep.established ? `${Number(rep.score).toFixed(1)} / 5.0` : '5.0 · New member') : '…'}</b>
-          <span className="tiny muted">{rep ? (rep.established ? `${rep.ratings} ratings · ${rep.band === 'high' ? 'High priority' : 'Lower priority'}` : 'Not enough ratings yet') : ''}</span></span>
+          <span className="tiny muted">{rep ? (rep.established ? `${rep.ratings} ratings` : 'Not enough ratings yet') : ''}</span></span>
       </button>
+    </div>
+  );
+}
+
+/** Under my nickname on Home: my bird and my stars, each opening its page. */
+export function MyHomeBadges() {
+  const s = useAppState();
+  const [rep, setRep] = useState<any>(null);
+  useEffect(() => { api.myReputation().then(setRep).catch(() => {}); }, []);
+  const b = s.bird;
+  if (!b && !rep) return null;
+  return (
+    <div className="hm-badges">
+      {b ? <button className="plain-btn" onClick={openBirdKingdom} aria-label={`Bird Kingdom: Level ${b.level} — ${bird(b.level).name}`}><BirdBadge level={b.level} /></button> : null}
+      {rep ? <button className="plain-btn" onClick={openReputation} aria-label="My community rating"><StarPill rating={rep.established ? rep.score : null} ratings={rep.ratings} /></button> : null}
     </div>
   );
 }
@@ -205,9 +220,6 @@ function BirdKingdom({ close }: { close: () => void }) {
 export function openReputation() {
   openSheet((close) => <MyReputation close={close} />, { label: 'My reputation' });
 }
-const BAND = { high: ['High priority', 'You’re shown first in Nearby and get a head start in Speed Dating.'],
-  lower: ['Lower priority', 'You still appear in Nearby and Speed Dating, after people with 4.0 or more.'],
-  review: ['Lower priority', 'You still appear in Nearby and Speed Dating, after people with 4.0 or more.'] } as Record<string, string[]>;
 // Bars scaled to this person's own range, so small weekly changes are visible.
 function trendH(trend: any[], v: number) {
   const xs = trend.map((t) => Number(t.score)), lo = Math.min(...xs) - 0.2, hi = Math.max(...xs);
@@ -219,7 +231,6 @@ function MyReputation({ close }: { close: () => void }) {
   useEffect(() => { api.myReputation().then(setR).catch((e) => setErr(api.friendly(e))); }, []);
   if (err) return <><p className="error">{err}</p><div className="sheet-actions"><button className="btn btn-soft btn-block" onClick={close}>Close</button></div></>;
   if (!r) return <p className="muted center">Loading…</p>;
-  const band = BAND[r.band] || BAND.high;
   const dist = r.distribution || null;
   const total = dist ? Object.values(dist).reduce((a: number, b: any) => a + Number(b), 0) : 0;
   const trend: any[] = r.trend || [];
@@ -229,7 +240,6 @@ function MyReputation({ close }: { close: () => void }) {
         <div className="rp-score">{Number(r.score).toFixed(1)}<small>/ 5.0</small></div>
         <div className="rp-stars" aria-hidden="true">{[1, 2, 3, 4, 5].map((n) => <span key={n} className={n <= Math.round(r.score) ? 'on' : ''}>★</span>)}</div>
         <p className="small muted">{r.established ? `${r.ratings} valid rating${r.ratings === 1 ? '' : 's'} from ${r.raters} people` : 'New member · not enough ratings yet'}</p>
-        <span className={`pf-chip ${r.band === 'high' ? 'on' : ''}`}>{band[0]}</span>
       </div>
       {dist ? (
         <div className="rp-dist">{[5, 4, 3, 2, 1].map((n) => {
@@ -243,8 +253,6 @@ function MyReputation({ close }: { close: () => void }) {
         ))}</div></div>
       ) : null}
       <div className="settings-group rp-explain">
-        <div className="settings-row" style={{ cursor: 'default', alignItems: 'flex-start' }}><span style={{ fontSize: '20px' }}>📍</span><span className="grow">Nearby<span className="sub">People rated 4.0 or more are listed first. Your filters (age, gender, distance) always apply.</span></span></div>
-        <div className="settings-row" style={{ cursor: 'default', alignItems: 'flex-start' }}><span style={{ fontSize: '20px' }}>⚡</span><span className="grow">Speed Dating<span className="sub">4.0 or more gets a short head start in the queue. Waiting time and matching preferences still count, so nobody is skipped for long.</span></span></div>
         <div className="settings-row" style={{ cursor: 'default', alignItems: 'flex-start' }}><span style={{ fontSize: '20px' }}>🎭</span><span className="grow">Anonymous<span className="sub">{`You never see who rated you, and nobody sees who you rated. Each person can rate you once every ${r.cooldown_days} days.`}</span></span></div>
         <div className="settings-row" style={{ cursor: 'default', alignItems: 'flex-start' }}><span style={{ fontSize: '20px' }}>🛡️</span><span className="grow">Blocks and reports don’t touch your stars<span className="sub">Safety is handled separately by the treehouse team.</span></span></div>
       </div>
