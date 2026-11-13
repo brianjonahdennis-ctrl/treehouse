@@ -1824,3 +1824,7 @@ html, body { max-width: 100%; overflow-x: clip; }
 .hm-badges .plain-btn { padding: 0; border-radius: 999px; }
 .hm-badges .bk-pill { background: rgba(255,255,255,.14); color: #fff; }
 .hm-badges .rp-pill.new { background: rgba(255,255,255,.14); color: #fff; }
+.bk-compact { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 3px; }
+.bk-compact .rp-pill { padding: 2px 7px; font-size: 10.5px; }
+.bk-compact .bk-pill { font-size: 10.5px; }
+.swipe-card .bk-compact { margin: 2px 0 4px; }

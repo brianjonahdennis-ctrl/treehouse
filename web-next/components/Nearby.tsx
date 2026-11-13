@@ -5,6 +5,7 @@
 // Nearby on or refresh your area) and is reduced there to a protected point (~1 km grid + a secret
 // per-person offset). Everything here works from what the server returns: rounded distances and
 // protected map points, never raw GPS.
+import { HandleBadges, ProfileBadges } from './Reputation';
 import { useEffect, useRef, useState } from 'react';
 import * as api from '@/lib/api';
 import { state, loadDating } from '@/lib/state';
@@ -216,6 +217,7 @@ function PersonRow({ p, onOpen }: { p: any; onOpen: () => void }) {
         <b><span className="ellipsis">{shortName(p.handle)}</span>{` ${p.age}`}{p.online ? <i className="nb-online" aria-label="Online" /> : null}</b>
         {!p.online && act ? <span className="nb-sub">{act}</span> : null}
         <span className="nb-sub"><Icon name="pin" cls="sm" />{distText(p)}</span>
+        <HandleBadges handle={p.handle} />
         {p.liked_me ? <span className="nb-likes">💘 Likes you</span> : null}
       </span>
       <HeartButton p={p} cls="nb-heart" onDone={() => bump((n) => n + 1)} />
@@ -386,6 +388,7 @@ function fullProfile(p: any) {
         <div className="pc-av"><Avatar seed={p.handle} cls="xl" />{p.online ? <i /> : null}</div>
         <h2>{p.handle}</h2>
         <p className="pc-sub">{[`${p.age}`, GENDER_LABEL[p.gender], p.location].filter(Boolean).join(' · ')}</p>
+        <ProfileBadges dating={p.handle} />
         {act ? <span className={`pc-status ${p.online ? 'on' : ''}`}>{act}</span> : null}
       </div>
       <div className="pc-about">

@@ -35,8 +35,10 @@ export function BirdBadge({ level, compact = false }: { level?: number | null; c
   return <span className={`bk-pill ${b.n === 8 ? 'bk-pill-phoenix' : ''}`} title={`Level ${b.n} — ${b.name}`}><Emblem level={b.n} size="sm" />{compact ? b.name : `Level ${b.n} — ${b.name}`}</span>;
 }
 export function StarPill({ rating, ratings }: { rating?: number | null; ratings?: number | null }) {
-  if (rating == null) return <span className="rp-pill new" title="Not enough ratings yet">★ New member</span>;
-  return <span className="rp-pill" title={`${rating} out of 5 from ${ratings} ratings`}>{`★ ${Number(rating).toFixed(1)}`}<small>{` (${ratings})`}</small></span>;
+  const n = Number(ratings || 0);
+  const count = <small>{` (${n.toLocaleString()})`}</small>;
+  if (rating == null) return <span className="rp-pill new" title={`Not enough ratings yet · ${n} rating${n === 1 ? '' : 's'}`}>★ New member{count}</span>;
+  return <span className="rp-pill" title={`${rating} out of 5 from ${n} ratings`}>{`★ ${Number(rating).toFixed(1)}`}{count}</span>;
 }
 
 // ---- Badges for other people (cached for 10 minutes) -----------------------------------------
@@ -46,21 +48,21 @@ let tick = 0;
 const listeners = new Set<() => void>();
 function useCacheTick() { const [, set] = useState(0); useEffect(() => { const f = () => set(++tick); listeners.add(f); return () => { listeners.delete(f); }; }, []); }
 const pending = new Set<string>();
-const queued = { c: new Set<string>(), r: new Set<string>() };
+const queued = { c: new Set<string>(), r: new Set<string>(), h: new Set<string>() };
 let flushTimer: any = null;
 // Rows ask one by one; requests are grouped (one call per 30 ms burst, up to 200 at a time).
-function loadBadges(kind: 'c' | 'r', keys: string[]) {
+function loadBadges(kind: 'c' | 'r' | 'h', keys: string[]) {
   keys.forEach((k) => { if (k && fresh(`${kind}:${k}`) === undefined && !pending.has(`${kind}:${k}`)) queued[kind].add(k); });
   if (!flushTimer) flushTimer = setTimeout(flush, 30);
 }
 async function flush() {
   flushTimer = null;
-  for (const kind of ['c', 'r'] as const) {
+  for (const kind of ['c', 'r', 'h'] as const) {
     const want = [...queued[kind]].slice(0, 200);
     want.forEach((k) => { queued[kind].delete(k); pending.add(`${kind}:${k}`); });
     if (!want.length) continue;
     try {
-      const rows = kind === 'c' ? await api.badgesForConvos(want) : await api.badgesForRoom(want);
+      const rows = kind === 'c' ? await api.badgesForConvos(want) : kind === 'r' ? await api.badgesForRoom(want) : await api.badgesForHandles(want);
       const now = Date.now();
       want.forEach((k) => cache.set(`${kind}:${k}`, { at: now, b: null }));
       rows.forEach((r: any) => cache.set(`${kind}:${kind === 'c' ? r.conversation_id : r.handle}`, { at: now, b: r.badge }));
@@ -81,14 +83,23 @@ export function useRoomBadges(handles: string[]) {
   useEffect(() => { loadBadges('r', handles); }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   return (h: string) => fresh(`r:${h}`) || null;
 }
-/** Compact bird chip for lists and chat headers. */
-export function ConvoBird({ id }: { id: string }) { const b = useConvoBadges([id])(id); return b ? <BirdBadge level={b.level} compact /> : null; }
-export function RoomBird({ handle }: { handle: string }) { const b = useRoomBadges([handle])(handle); return b ? <BirdBadge level={b.level} compact /> : null; }
+export function useHandleBadges(handles: string[]) {
+  useCacheTick();
+  const key = handles.join('|');
+  useEffect(() => { loadBadges('h', handles); }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (h: string) => fresh(`h:${h}`) || null;
+}
+/** Compact bird + stars (with the number of ratings) for lists, cards and chat headers. */
+const Compact = ({ b }: { b: any }) => (b ? <span className="bk-compact"><BirdBadge level={b.level} compact /><StarPill rating={b.rating} ratings={b.ratings} /></span> : null);
+export function ConvoBird({ id }: { id: string }) { return <Compact b={useConvoBadges([id])(id)} />; }
+export function RoomBird({ handle }: { handle: string }) { return <Compact b={useRoomBadges([handle])(handle)} />; }
+export function HandleBadges({ handle }: { handle: string }) { return <Compact b={useHandleBadges([handle])(handle)} />; }
 /** The two identity indicators on someone's profile card. */
-export function ProfileBadges({ convo, handle }: { convo?: string; handle?: string }) {
+export function ProfileBadges({ convo, handle, dating }: { convo?: string; handle?: string; dating?: string }) {
   const byC = useConvoBadges(convo ? [convo] : []);
   const byR = useRoomBadges(handle ? [handle] : []);
-  const b = convo ? byC(convo) : handle ? byR(handle) : null;
+  const byH = useHandleBadges(dating ? [dating] : []);
+  const b = convo ? byC(convo) : handle ? byR(handle) : dating ? byH(dating) : null;
   if (!b) return null;
   return <div className="pc-badges"><BirdBadge level={b.level} /><StarPill rating={b.rating} ratings={b.ratings} /></div>;
 }
@@ -153,7 +164,7 @@ export function MyIdentity() {
       <button className="card pf-id-card" onClick={openReputation} aria-label="Open my reputation">
         <span className="rp-big">★</span>
         <span className="grow"><span className="tiny muted">Community rating</span>
-          <b>{rep ? (rep.established ? `${Number(rep.score).toFixed(1)} / 5.0` : '5.0 · New member') : '…'}</b>
+          <b>{rep ? (rep.established ? `${Number(rep.score).toFixed(1)} / 5.0 (${rep.ratings})` : `5.0 · New member (${rep.ratings})`) : '…'}</b>
           <span className="tiny muted">{rep ? (rep.established ? `${rep.ratings} ratings` : 'Not enough ratings yet') : ''}</span></span>
       </button>
     </div>

@@ -3,6 +3,7 @@
 // Discover (port of renderDiscover/renderDeck in anon-inbox/public/hy-dating.js): the dark card deck
 // with Pass / Like / message request, undo, the location and preference filters, and the match moment.
 // Speed Dating starts from the banner (components/speed.js). Not yet here: drag-to-swipe (buttons and ← → keys work).
+import { HandleBadges, ProfileBadges } from './Reputation';
 import { useEffect, useState } from 'react';
 import * as api from '@/lib/api';
 import { state, emit, subscribe, useAppState, loadDating, statusOf } from '@/lib/state';
@@ -249,6 +250,7 @@ function SwipeCard({ p, depth, leaving }: { p: any; depth: number; leaving: null
         <button className="card-more" aria-label={`View ${p.handle}’s profile`} onClick={(e) => { e.stopPropagation(); cardProfile(p); }}><Icon name="info" /></button>
         <h2>{`${shortName(p.handle)}, ${p.age}`}{p.online ? <i className="online-dot-inline" role="img" aria-label="Online" /> : null}</h2>
         {active ? <span className={`active-line ${p.online ? 'on' : ''}`}>{active}</span> : null}
+        <HandleBadges handle={p.handle} />
         <span className="where"><Icon name="pin" cls="sm" />{[p.location, GENDER_LABEL[p.gender]].filter(Boolean).join(' · ')}</span>
         {p.bio ? <p className="bio">{p.bio}</p> : null}
         <div className="chips">
@@ -287,6 +289,7 @@ function cardProfile(p: any) {
         <div className="pc-av"><Avatar seed={p.handle} cls="xl" />{p.online ? <i /> : null}</div>
         <h2>{p.handle}</h2>
         <p className="pc-sub">{[`${p.age}`, GENDER_LABEL[p.gender], p.location].filter(Boolean).join(' · ')}</p>
+        <ProfileBadges dating={p.handle} />
         {active ? <span className={`pc-status ${p.online ? 'on' : ''}`}>{active}</span> : null}
         {likesYou ? <span className="pc-likes">💘 Likes you</span> : null}
       </div>

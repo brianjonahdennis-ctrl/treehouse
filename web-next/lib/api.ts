@@ -447,3 +447,4 @@ export const rateConvo = (id: string, stars: number) => rpc('rate_convo', { p_co
 export const rateRoomMember = (handle: string, stars: number) => rpc('rate_room_member', { p_handle: handle, p_stars: stars });
 export const badgesForConvos = async (ids: string[]) => (await rpc('badges_for_convos', { p_ids: ids })) || [];
 export const badgesForRoom = async (handles: string[]) => (await rpc('badges_for_room', { p_handles: handles })) || [];
+export const badgesForHandles = async (handles: string[]) => (await rpc('badges_for_handles', { p_handles: handles })) || [];
