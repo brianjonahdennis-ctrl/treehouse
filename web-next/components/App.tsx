@@ -190,8 +190,13 @@ function startLive() {
       const open = state.openChat === n.c && !document.hidden;
       if (patchChat(n.c, { body: n.b != null ? n.b : n.m ? String(n.m.body || '').slice(0, 200) : '', at: n.at, fromMe: false, countUnread: !open, theyreOnline: true })) return;
     }
+    // A friend changed their status: fetch just the statuses, not the whole chat list.
+    if (n.k === 'status') {
+      api.friendStatuses().then((fs: any[]) => { state.friendStatus = Object.fromEntries(fs.map((f: any) => [f.conversation_id, f])); emit('status'); }).catch(() => {});
+      return;
+    }
     if (nudgeTimer) return;
-    const wait = Math.max(1500, 20000 - (Date.now() - lastNudgeLoad));
+    const wait = Math.max(1500, 45000 - (Date.now() - lastNudgeLoad));
     nudgeTimer = setTimeout(() => { nudgeTimer = null; lastNudgeLoad = Date.now(); if (!document.hidden) loadDating({ force: true }); }, wait);
   });
   setInterval(() => { if (!document.hidden) loadDating(); }, 600000);
@@ -207,7 +212,7 @@ function startLive() {
     } catch {}
   };
   setInterval(roomBeat, 180000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { roomBeat(); loadDating(); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { roomBeat(); loadDating({ minGap: 120000 }); } });
 }
 
 // Tapping a notification while treehouse is open: the background worker asks us to open that screen.

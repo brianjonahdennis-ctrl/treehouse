@@ -177,6 +177,7 @@ export function onInboxNudge(uid: string, cb: (n: any) => void) {
   const ch = sb.channel(`user:${uid}`, { config: { private: true } }).on('broadcast', { event: 'inbox' }, (e: any) => cb((e && e.payload) || {})).subscribe();
   return { leave() { sb.removeChannel(ch); } };
 }
+export const friendStatuses = async () => (await rpc('friend_statuses')) || [];
 export async function datingSummary(): Promise<any> {
   try {
     const d = await rpc('dating_summary');

@@ -58,9 +58,11 @@ export function markChatRead(id: string) {
 }
 
 let lastTouch = 0, lastLoad = 0, loading: Promise<void> | null = null;
-export async function loadDating({ force = false } = {}) {
+// Full chat-list reloads are the database's heaviest job, so they're spaced out: live signals keep the
+// list fresh in between (new messages are patched in directly).
+export async function loadDating({ force = false, minGap = 30000 } = {}) {
   if (loading) return loading;
-  if (!force && (api.backingOff() || Date.now() - lastLoad < 30000)) return;
+  if (!force && (api.backingOff() || Date.now() - lastLoad < minGap)) return;
   lastLoad = Date.now();
   if (Date.now() - lastTouch > 240000) { lastTouch = Date.now(); api.touchLastSeen().catch(() => {}); }
   if (!state.profile) return;
