@@ -485,7 +485,8 @@ img { max-width: 100%; display: block; }
 .ib-row.closed { opacity: .55; }
 .ib-row > .grow, .req-top > .grow, .act-row > .grow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; min-width: 0; }
 .ib-row .row-between > :first-child { flex: 1; min-width: 0; }
-.ib-row .row-between > :last-child { flex: none; }
+/* Only a real right-hand item (badge, Pending, Seen) keeps its size; a lone preview must shrink. */
+.ib-row .row-between > :last-child:not(:first-child) { flex: none; }
 .ib-row b { font-size: 15px; display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .ib-row .when { font-size: 12px; color: var(--muted); flex: none; }
 .ib-row .preview { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 13.5px; min-width: 0; }
