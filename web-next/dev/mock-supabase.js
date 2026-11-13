@@ -155,7 +155,9 @@
 const mockRated = new Set();
 const RPC = {
     my_pending_likes: () => likes.length,
-    dating_summary: () => ({ convos, requests: likes, pending: likes.length, my_status: myStatus,
+    // Preview only: sessionStorage mock-failchats=N makes the next N chat-list loads fail (tests the retry).
+    dating_summary: (...args) => { const left = Number(sessionStorage.getItem('mock-failchats') || 0); if (left > 0) { sessionStorage.setItem('mock-failchats', String(left - 1)); throw new Error('mock: Supabase did not answer'); } return RPC.__unused_dating_summary(...args); },
+    __unused_dating_summary: () => ({ convos, requests: likes, pending: likes.length, my_status: myStatus,
       friend_statuses: [{ conversation_id: 'c8', body: 'Weekend vibes already! 🎉', updated_at: ago(17) }, { conversation_id: 'c9', body: 'At work, hit me up later 💼', updated_at: ago(180) }] }),
     set_my_status: ({ p_body }) => { myStatus = { body: p_body, updated_at: new Date().toISOString() }; return [myStatus]; },
     clear_my_status: () => { myStatus = null; return null; },

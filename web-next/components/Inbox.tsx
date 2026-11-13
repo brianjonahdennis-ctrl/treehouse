@@ -9,7 +9,7 @@ import { state, emit, useAppState, loadDating, statusOf, messageRequests, matchF
 import { INTENT_LABEL } from '@/lib/options';
 import { go, openChat } from '@/lib/nav';
 import { ago } from '@/lib/util';
-import { Icon, Logo, Hero, Avatar, EmptyState } from './ui';
+import { Icon, Logo, Hero, Avatar, EmptyState, SkeletonList } from './ui';
 import { toast } from './overlay';
 import { BellButton, statusEditor } from './Home';
 import { meta, activeText, shortName, acceptRequest, declineRequest, cancelSent, cancelMatchAsk, askFriend, requestMenu, partnerProfile } from './convo';
@@ -55,7 +55,8 @@ export default function Inbox({ sub }: { sub: string | null }) {
             {tab('matches', 'Matches', 'heart', 'match', fresh.length + s.requests.length)}
           </div>
         </Hero>
-        <div className="below-hero ib-body" key={view}>{body}</div>
+        {s.convosFailing ? <div className="ib-reconnect" role="status"><span className="ib-spin" aria-hidden="true" />Reconnecting… your chats are safe and will update in a moment.</div> : null}
+        <div className="below-hero ib-body" key={view}>{s.convosLoaded || view !== 'chats' ? body : <SkeletonList n={5} />}</div>
         <p className="tiny muted center">🎭 Everyone stays anonymous until you both choose to reveal.</p>
       </div>
       {chatId ? <Chat id={chatId} key={chatId} /> : null}

@@ -1835,3 +1835,7 @@ html, body { max-width: 100%; overflow-x: clip; }
 .boot-fail-card p { color: #c7cbec; margin: 0 0 14px; }
 .boot-fail-card .btn { margin-top: 8px; }
 .boot-fail-small { font-size: 13px; margin-top: 14px !important; }
+.ib-reconnect { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 14px; background: var(--primary-soft); color: var(--ink-2); font-size: 13px; font-weight: 600; }
+.ib-spin { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid var(--primary); border-right-color: transparent; animation: ib-spin .8s linear infinite; }
+@keyframes ib-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ib-spin { animation: none; } }

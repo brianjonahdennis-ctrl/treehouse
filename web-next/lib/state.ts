@@ -19,6 +19,8 @@ export const state = {
   friendStatus: {} as Record<string, { body: string; updated_at: string }>,
   openChat: null as string | null,
   ready: false,
+  convosLoaded: false,      // the chat list has loaded at least once
+  convosFailing: false,     // the last chat-list load failed (we're retrying)
   booted: false,
   bootError: '' as string,
   onboarding: false,
@@ -77,8 +79,28 @@ async function loadDatingNow() {
     if (myStatus !== undefined) state.myStatus = myStatus;
     if (friendStatuses) state.friendStatus = Object.fromEntries(friendStatuses.map((f: any) => [f.conversation_id, f]));
     applyRevealedNames();
+    state.convosLoaded = true; state.convosFailing = false; retryN = 0;
     emit('dating');
-  } catch {}
+  } catch (e) {
+    // Supabase didn't answer: keep what's on screen, say we're reconnecting, and try again soon
+    // (3 s, 10 s, 30 s, then every minute) instead of waiting for the next scheduled reload.
+    state.convosFailing = true;
+    emit('dating');
+    reportLoadFail(e);
+    const wait = [3000, 10000, 30000][retryN] || 60000;
+    retryN++;
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = setTimeout(() => { retryTimer = null; loadDating({ force: true }); }, wait);
+  }
+}
+let retryN = 0, retryTimer: ReturnType<typeof setTimeout> | null = null, failReports = 0;
+// Counted on the server (Railway logs, "[boot-fail] chat-list"), never who it was.
+function reportLoadFail(e: any) {
+  if (failReports++ >= 3 || typeof navigator === 'undefined') return;
+  try {
+    const body = JSON.stringify({ reason: 'chat-list', errors: [String((e && (e.code || e.message)) || 'error').slice(0, 120)], ua: navigator.userAgent, t: Math.round(performance.now()) });
+    if (navigator.sendBeacon) navigator.sendBeacon('/api/boot-fail', body);
+  } catch { /* ignore */ }
 }
 
 // Once both people have revealed, the chat shows their first name (cached on this device).
