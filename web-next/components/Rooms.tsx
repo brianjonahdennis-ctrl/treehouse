@@ -3,6 +3,7 @@
 // Chatrooms list (port of renderRooms/roomRows in anon-inbox/public/hy-rooms.js): your state's room,
 // university rooms, rooms open to everyone, age rooms (blurred until a date of birth is saved) and
 // "just for you" rooms. Inside a room: components/Room.tsx.
+import { useRoomBan, RoomBanCard } from './RoomBan';
 import { useEffect, useState } from 'react';
 import * as api from '@/lib/api';
 import { state } from '@/lib/state';
@@ -95,6 +96,8 @@ export default function Rooms() {
     return () => { alive = false; clearInterval(tick); };
   }, []);
   const mine = rooms && rooms.find((r) => r.mine);
+  const banned = useRoomBan();
+  if (banned) return <div className="stack-lg cr-screen"><Hero title="Chatrooms" sub="Your state’s room, plus rooms for all of Nigeria." actions={<BellButton />} /><div className="below-hero"><RoomBanCard b={banned} /></div></div>;
   return (
     <div className="stack-lg cr-screen">
       <Hero title="Chatrooms" sub="Your state’s room, plus rooms for all of Nigeria. One room at a time." actions={<BellButton />}>

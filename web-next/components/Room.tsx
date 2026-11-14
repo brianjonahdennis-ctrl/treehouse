@@ -4,6 +4,7 @@
 // the room's private channel, with a safety-net check; replies (tap or swipe right), reactions, the
 // members dropdown and page, profile cards, hide / block / report, leave and invite, "N new messages",
 // and the 10-minute inactivity kick. Same database functions and the same rules as the live app.
+import { loadRoomBan, isRoomBanError } from './RoomBan';
 import { RoomBirthdayBanner } from './Birthday';
 import { ProfileBadges, RateUser, RoomBird } from './Reputation';
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
@@ -184,10 +185,10 @@ function RoomView({ target, restart }: { target: string; restart: () => void }) 
           // You'd been dropped after all: start the room fresh, without the old messages.
           if (!fresh.rejoined) { r.left = true; rejoinFor = target; r.handle = ''; restart(); return; }
           r.joined = fresh; setJoined(fresh);
-        }).catch((e: any) => { if (!isMine()) return; toast(api.friendly(e), 'x'); go('rooms', { replace: true }); });
+        }).catch((e: any) => { if (!isMine()) return; if (isRoomBanError(e)) { loadRoomBan(); go('rooms', { replace: true }); return; } toast(api.friendly(e), 'x'); go('rooms', { replace: true }); });
       } else {
         try { j = await api.joinRoom(target); }
-        catch (e) { if (!isMine()) return; setError(api.friendly(e)); setPhase('error'); return; }
+        catch (e) { if (!isMine()) return; if (isRoomBanError(e)) { await loadRoomBan(); go('rooms', { replace: true }); return; } setError(api.friendly(e)); setPhase('error'); return; }
       }
       if (!isMine() || !j) return;
       r.handle = j.handle; r.joined = j;
@@ -371,7 +372,9 @@ function RoomView({ target, restart }: { target: string; restart: () => void }) 
       setText(''); setReplyTo(null);
       if (input.current) input.current.style.height = '';
       if (m) api$.current.add({ ...m, mine: true, reply_handle: m.reply_handle ?? (quoted && quoted.handle), reply_body: m.reply_body ?? (quoted && quoted.body.slice(0, 140)) });
+      else if (await loadRoomBan()) { R.current.left = true; state.inRoom = false; setSending(false); go('rooms', { replace: true }); return; }
     } catch (e: any) {
+      if (isRoomBanError(e)) { R.current.left = true; state.inRoom = false; await loadRoomBan(); setSending(false); go('rooms', { replace: true }); return; }
       if (/join a room/i.test(e.message || '')) { api$.current.dropped(); setSending(false); return; }
       toast(api.friendly(e), 'x');
     }

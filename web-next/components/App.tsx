@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // The member app shell (port of anon-inbox/public/hy-app.js): start-up, sign-in gate, navigation
 // (bottom bar on phones, sidebar on desktop), live updates, Terms of Use check.
+import { loadRoomBan } from './RoomBan';
 import { startActivity } from './Reputation';
 import { useEffect, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
@@ -208,7 +209,7 @@ function startLive() {
       if (st) { state.inRoom = true; return; }
       const wasIn = state.inRoom === true;
       state.inRoom = false;
-      if (wasIn && !location.pathname.startsWith('/home/rooms')) toast('You were kicked out of your chatroom for inactivity', 'logout');
+      if (wasIn && !location.pathname.startsWith('/home/rooms')) { if (await loadRoomBan()) toast('You’ve been banned from chatrooms. Open Chatrooms to see why.', 'logout'); else toast('You were kicked out of your chatroom for inactivity', 'logout'); }
     } catch {}
   };
   setInterval(roomBeat, 180000);

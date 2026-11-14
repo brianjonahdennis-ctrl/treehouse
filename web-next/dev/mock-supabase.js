@@ -195,6 +195,8 @@ const RPC = {
     rate_room_member: () => ({ eligible: false, cooldown: true }),
     badges_for_convos: ({ p_ids }) => p_ids.map((id, i) => ({ conversation_id: id, badge: { birthday: i === 0, level: (i % 8) + 1, rating: i % 3 ? 4.3 + (i % 5) / 10 : null, ratings: i % 3 ? 7 + i : i % 4 } })),
     badges_for_room: ({ p_handles }) => p_handles.map((h, i) => ({ handle: h, badge: { level: ((h.length + i) % 8) + 1, rating: i % 2 ? 4.8 : null, ratings: i % 2 ? 12 : 2 } })),
+    // Preview only: sessionStorage mock-roomban=1 shows the 24-hour chatroom ban.
+    my_room_ban: () => (sessionStorage.getItem('mock-roomban') ? { until: new Date(Date.now() + 23.9 * 3600000).toISOString(), reason: 'You posted a link in a chatroom. Links aren\'t allowed in treehouse chatrooms.', now: new Date().toISOString() } : null),
     room_birthdays: () => [{ handle: roomPeople[1].handle }],
     badges_for_handles: ({ p_handles }) => p_handles.map((h, i) => ({ handle: h, badge: { level: (h.length % 8) + 1, rating: i % 2 ? null : 4.4, ratings: i % 2 ? 1 : 23 } })),
     room_profile: ({ p_handle }) => { const p = roomPeople.find((x) => x.handle === p_handle) || roomPeople[1]; return [{ handle: p.handle, room: 'Lagos', online: p.online, age: 25, gender: 'female', bio: 'Lagos babe, Afrobeats on repeat.', interests: ['Music', 'Fashion'], dating: p.dating, me: p.me, place: p.place }]; },
