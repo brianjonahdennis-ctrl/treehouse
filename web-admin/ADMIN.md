@@ -40,7 +40,7 @@ Roles live in the existing `announcement_staff` table (the announcements roles, 
 Everything below is a one-time job. Nothing here changes the member app until step 1 is done, and step 1
 only **adds** things (new tables, new functions, two safety triggers, one column on `room_reports`).
 
-1. **Database.** Apply `anon-inbox/supabase/migrations/20261114000091_staff_console.sql`
+1. **Database.** Apply `anon-inbox/supabase/migrations/20261114000091_staff_console.sql` and `20261114000092_invite_leaderboard.sql`
    (`supabase db push --remote --dry-run`, check, then without `--dry-run`). Tests:
    `anon-inbox/supabase/tests/staff_console.test.sql` (68 checks).
 2. **Make yourself Super Admin.** In Supabase → SQL editor, with your treehouse handle (and Boma's):
@@ -83,6 +83,22 @@ after 2 days, and bursts (many sign-ups in one hour) that suggest fake accounts.
 There are no rewards yet; the numbers are there when you decide on one.
 
 Member app: `app/r/[code]/route.ts`, `lib/referral.ts`, the Invite friends row in `components/Profile.tsx`.
+
+## Man & Woman of the Week
+
+Members see a weekly leaderboard of the top 50 inviters (`/home/invite`, also from a Home card and Profile → Invite friends).
+Weeks run Monday to Sunday, Lagos time. Every Monday at 12:00 the #1 of the week before is announced to **all members**
+through Product Announcements (with a push to people who allow treehouse updates) as **Man of the Week**,
+**Woman of the Week**, or **Star of the Week** for non-binary members, using their nickname only.
+
+- Only real invites count: the friend joined with the link that week, came back at least 12 hours after joining,
+  and isn't suspended or marked under 18. Ties go to whoever got there first.
+- Nobody is announced if the leader has fewer than the minimum (Settings → Invites needed to win, default 3).
+- Staff (Admins) can disqualify someone for the current or last week before the announcement (Referrals page),
+  with a reason that goes in the audit log. The panel shows "all joins" next to "counts" to make fake accounts easy to spot.
+- Settings → Announce Man & Woman of the Week turns the Monday announcement off.
+- Database: `20261114000092_invite_leaderboard.sql` (job `invite-of-the-week`, Mondays 11:00 UTC). Tests:
+  `invite_leaderboard.test.sql` (16 checks).
 
 ## Settings that act straight away
 
