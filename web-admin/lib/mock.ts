@@ -148,8 +148,20 @@ function rpc(fn: string, a: any): any {
       top: [{ code: 'k7mq2xa', handle: members[5].handle, active: true, clicks: 310, joined: 41, came_back: 30, suspended: 0, last_joined: iso(3 * H), max_in_an_hour: 4 },
         { code: 'p9xw3ze', handle: members[6].handle, active: true, clicks: 95, joined: 26, came_back: 3, suspended: 6, last_joined: iso(1 * H), max_in_an_hour: 18 }],
       campaigns: [{ code: 'unilagfair', campaign: 'UNILAG fair flyers', note: '2,000 flyers', active: true, clicks: 1420, joined: 212, came_back: 140, created_at: iso(10 * D) }] };
+    case 'staff_invite_week': {
+      const last = a.p_weeks_ago === 1;
+      const ws = new Date(now - ((new Date().getDay() + 6) % 7) * D - (last ? 7 * D : 0)).toISOString().slice(0, 10);
+      const we = new Date(Date.parse(ws) + 6 * D).toISOString().slice(0, 10);
+      const top = [['NobleOwl221', 'male', 14, 15], ['GentleFox610', 'female', 11, 12], ['HiddenTiger155', 'male', 9, 31], ['CalmLion412', 'female', 6, 6], ['SunnyKite87', 'other', 4, 5]]
+        .map(([h, g, c, all], i) => ({ rank: i + 1, handle: h, gender: g, invites: c, joined_all: all, reached_at: iso(i * H), title: g === 'male' ? 'Man of the Week' : g === 'female' ? 'Woman of the Week' : 'Star of the Week' }));
+      return { week_start: ws, week_end: we, current: !last, announce_at: new Date(Date.parse(we) + D + 11 * H).toISOString(), enabled: true, min: 3, top,
+        excluded: last ? [] : [{ handle: 'ShyGazelle895', reason: '20 sign-ups in one hour from the same phone model', by: H0, at: iso(5 * H) }],
+        winner: last ? { handle: 'GentleFox610', title: 'Woman of the Week', invites: 17, at: iso(5 * D) } : null,
+        winners: [{ week: days(14)[0], handle: 'GentleFox610', title: 'Woman of the Week', invites: 17 }, { week: days(21)[0], handle: 'BoldFalcon330', title: 'Man of the Week', invites: 12 }] };
+    }
+    case 'staff_invite_exclude': return null;
     case 'staff_referral_joined': return members.slice(40, 48).map((m) => ({ handle: m.handle, joined_at: m.created_at, last_seen_at: m.last_seen_at, suspended: m.suspended, state: m.state }));
-    case 'staff_settings': return { settings: { signups_paused: false, signups_paused_reason: '', ads_enabled: true, referrals_enabled: true }, filter_words: ['scam', 'whatsappme', 'paypal'],
+    case 'staff_settings': return { settings: { signups_paused: false, signups_paused_reason: '', ads_enabled: true, referrals_enabled: true, invite_winner_enabled: true, invite_winner_min: 3 }, filter_words: ['scam', 'whatsappme', 'paypal'],
       rating: [{ key: 'min_raters', value: 5, note: 'different raters needed before a score is "established"' }, { key: 'cooldown_days', value: 7, note: 'one rating per person per rolling N days' }] };
     case 'staff_team': return members.filter((m) => m.staff_role).map((m, i) => ({ handle: m.handle, role: m.staff_role, can_publish: i !== 1, added_at: iso((30 - i) * D), added_by: i ? H0 : null, authenticator: i !== 2, last_action_at: iso(i * H), email: st().role === 'super_admin' ? `staff${i}@treehouse.ng` : null }));
     case 'staff_audit_log': return a.p_before ? [] : audit.filter((x) => (!a.p_action || x.action === a.p_action) && (!a.p_actor || (x.actor || '').toLowerCase() === a.p_actor.toLowerCase()));
