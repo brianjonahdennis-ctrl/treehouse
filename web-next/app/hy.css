@@ -2027,3 +2027,25 @@ html, body { max-width: 100%; overflow-x: clip; }
 .ad-slot .ad-txt span { display: block; font-size: 13.5px; color: var(--muted); margin-top: 2px; }
 .cr-screen .ad-slot, .ib-body .ad-slot { margin-bottom: 16px; }
 .stack > .ad-slot { margin-top: 4px; }
+
+/* ---- Top inviters (Man / Woman of the Week) ---------------------------------------------------- */
+.hm-invite { border-color: rgba(245, 158, 11, .5); background: linear-gradient(135deg, rgba(245, 158, 11, .16), rgba(255, 63, 155, .12)), var(--surface); }
+.hm-invite .hg-kicker { color: #d97706; }
+.hm-invite .hg-go { background: linear-gradient(120deg, #f59e0b, #ff3f9b); }
+.iv-winner, .iv-me { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line); }
+.iv-winner { background: linear-gradient(135deg, rgba(245, 158, 11, .18), rgba(255, 63, 155, .12)), var(--surface); border-color: rgba(245, 158, 11, .45); }
+.iv-winner small, .iv-me small { display: block; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.iv-winner b, .iv-me b { display: block; font-family: var(--display); font-size: 19px; margin: 2px 0; }
+.iv-winner span span, .iv-me span { font-size: 13.5px; color: var(--muted); }
+.iv-trophy { font-size: 34px; }
+.iv-list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.iv-list li { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-top: 1px solid var(--line); }
+.iv-list li:first-child { border-top: 0; }
+.iv-list li.podium { background: linear-gradient(90deg, rgba(245, 158, 11, .08), transparent 60%); }
+.iv-list li.me { background: var(--primary-soft); }
+.iv-rank { width: 28px; text-align: center; font: 800 15px var(--display); color: var(--muted); flex: none; }
+.podium .iv-rank { font-size: 20px; }
+.iv-you { margin-left: 8px; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: var(--primary); color: #fff; }
+.iv-n { text-align: right; line-height: 1.1; }
+.iv-n b { display: block; font: 800 17px var(--display); }
+.iv-n small { font-size: 11.5px; color: var(--muted); }
