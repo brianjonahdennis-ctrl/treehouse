@@ -491,4 +491,5 @@ export async function annUploadImage(file: File): Promise<string> {
 export const adFor = (placement: string) => rpc('ad_for', { p_placement: placement });
 export const adEvent = (id: string, placement: string, kind: 'view' | 'tap') => rpc('ad_event', { p_ad: id, p_placement: placement, p_kind: kind });
 export const myReferral = () => rpc('my_referral');
+export const inviteLeaderboard = () => rpc('invite_leaderboard');
 export const claimReferral = (code: string) => rpc('claim_referral', { p_code: code });
