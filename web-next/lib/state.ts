@@ -3,6 +3,7 @@
 // Shared app state (port of anon-inbox/public/hy-state.js). Screens read it with useAppState(),
 // which re-renders them whenever something calls emit(). Same rules as the live app: the chat list
 // refreshes at most every 30 s unless forced, and backs off while the server struggles.
+import { claimReferralOnce } from './referral';
 import { useSyncExternalStore } from 'react';
 import * as api from './api';
 import { store } from './util';
@@ -153,6 +154,7 @@ export function closeChatLocal(id: string) {
 export async function loadAll() {
   state.profile = await api.myProfile();
   state.ready = true;
+  if (state.profile) claimReferralOnce();
   loadDating({ force: true });
   emit('all');
 }
