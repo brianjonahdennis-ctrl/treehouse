@@ -3,6 +3,8 @@
 // Profile: your dating card, privacy, appearance and account (port of anon-inbox/public/hy-profile.js).
 // Same rules: state changes once every 30 days, gender every 90, date of birth every 365 (the database
 // enforces these; the screen explains them).
+import { shareOrCopy } from '@/lib/util';
+import { inviteUrl } from '@/lib/referral';
 import { setBirthdayPublic } from './Birthday';
 import { MyIdentity } from './Reputation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -97,6 +99,8 @@ export default function Profile() {
         <Info emoji="🚩" title="Reporting" sub="Report anyone from a chat’s ⋯ menu, a request, or a chatroom message. Reported messages are hidden for you straight away, and we act on reports within 24 hours." />
         <a className="settings-row" href="mailto:support@treehouse.ng?subject=treehouse%20report"><Icon name="flag" /><span className="grow">Report a problem by email<span className="sub">support@treehouse.ng</span></span><span className="chev"><Icon name="chev" cls="sm" /></span></a>
       </Group>
+
+      <InviteGroup />
 
       <Group title="Notifications"><PushRow /><AnnPushRow /><InstallRow /></Group>
       <StaffRow />
@@ -303,5 +307,30 @@ function StaffRow() {
   const [me, setMe] = useState<any>(null);
   useEffect(() => { (staffCheck ||= api.annMe().catch(() => null)).then(setMe); }, []);
   if (!me) return null;
-  return <Group title="Staff"><Row ico="megaphone" title="Product Announcements" sub="Create, schedule and track official announcements" onClick={() => go('admin/announcements')} /></Group>;
+  return (
+    <Group title="Staff">
+      <a className="settings-row" href="https://admin.treehouse.ng" target="_blank" rel="noopener noreferrer"><Icon name="shield" /><span className="grow">Admin console<span className="sub">Reports, members, rooms, ads and referrals · admin.treehouse.ng</span></span><span className="chev"><Icon name="chev" cls="sm" /></span></a>
+      <Row ico="megaphone" title="Product Announcements" sub="Create, schedule and track official announcements" onClick={() => go('admin/announcements')} />
+    </Group>
+  );
+}
+
+let inviteCache: Promise<any> | null = null;
+function InviteGroup() {
+  const [r, setR] = useState<any>(null);
+  useEffect(() => { (inviteCache ||= api.myReferral().catch(() => null)).then(setR); }, []);
+  if (!r || !r.code || !r.enabled || !r.active) return null;
+  const url = inviteUrl(r.code);
+  const share = async () => {
+    const how = await shareOrCopy({ title: 'treehouse', text: 'Join me on treehouse: anonymous chats, chatrooms and dating for Nigeria.', url });
+    if (how === 'copied') toast('Invite link copied');
+    else if (how === 'failed') toast(url, 'link');
+  };
+  return (
+    <Group title="Invite friends">
+      <button className="settings-row" onClick={share}><Icon name="send" />
+        <span className="grow">Share your invite link<span className="sub">{url.replace('https://', '')}{r.joined ? ` · ${r.joined} joined with your link` : ''}</span></span>
+        <span className="chev"><Icon name="chev" cls="sm" /></span></button>
+    </Group>
+  );
 }

@@ -13,6 +13,7 @@ import { avatarBg, hash, initials } from '@/lib/util';
 import { useAvatarPicture } from '@/lib/avatars';
 import { Icon, Hero, HeroBtn, Avatar, EmptyState, vars } from './ui';
 import SpeedBanner from './SpeedBanner';
+import AdSlot from './AdSlot';
 import { openSheet, toast } from './overlay';
 import { editPrefs } from './Profile';
 import { meta, activeText, shortName } from './convo';
@@ -146,6 +147,7 @@ export default function Discover() {
       {!p.is_active ? <div className="notice"><Icon name="pause" cls="sm" /><span>Your dating profile is paused, so others can’t see you. Turn it on in Profile.</span></div> : null}
       <SpeedBanner />
       <div>{deckEl}</div>
+      <AdSlot placement="discover" />
     </div>
   );
 }

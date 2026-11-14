@@ -3,6 +3,7 @@
 // Chatrooms list (port of renderRooms/roomRows in anon-inbox/public/hy-rooms.js): your state's room,
 // university rooms, rooms open to everyone, age rooms (blurred until a date of birth is saved) and
 // "just for you" rooms. Inside a room: components/Room.tsx.
+import AdSlot from './AdSlot';
 import { useRoomBan, RoomBanCard } from './RoomBan';
 import { useEffect, useState } from 'react';
 import * as api from '@/lib/api';
@@ -121,7 +122,7 @@ export default function Rooms() {
       </Hero>
       <div className="below-hero">
         {error ? (error === 'soon' ? <EmptyState emoji="🚧" title="Chatrooms are opening soon" text="Check back in a little while." /> : <EmptyState emoji="📡" title="Couldn’t load chatrooms" text={error} />)
-          : rooms ? <RoomSections rooms={rooms} />
+          : rooms ? <><AdSlot placement="rooms" /><RoomSections rooms={rooms} /></>
           : <div className="cr-list">{Array.from({ length: 7 }, (_, i) => <div key={i} className="skeleton" style={{ height: '64px', borderRadius: '16px' }} />)}</div>}
       </div>
     </div>

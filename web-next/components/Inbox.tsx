@@ -16,6 +16,7 @@ import { toast } from './overlay';
 import { BellButton, statusEditor } from './Home';
 import { meta, activeText, shortName, acceptRequest, declineRequest, cancelSent, cancelMatchAsk, askFriend, requestMenu, partnerProfile } from './convo';
 import Chat from './Chat';
+import AdSlot from './AdSlot';
 import { AnnouncementsTab, AnnDetail } from './Announcements';
 
 const VIEWS = new Set(['requests', 'chats', 'likes', 'matches', 'friends', 'announcements']);
@@ -62,7 +63,7 @@ export default function Inbox({ sub, item = null }: { sub: string | null; item?:
           </div>
         </Hero>
         {s.convosFailing ? <div className="ib-reconnect" role="status"><span className="ib-spin" aria-hidden="true" />Reconnecting… your chats are safe and will update in a moment.</div> : null}
-        <div className="below-hero ib-body" key={view}>{s.convosLoaded || view !== 'chats' ? body : <SkeletonList n={5} />}</div>
+        <div className="below-hero ib-body" key={view}>{view === 'chats' ? <AdSlot placement="inbox" /> : null}{s.convosLoaded || view !== 'chats' ? body : <SkeletonList n={5} />}</div>
         <p className="tiny muted center">🎭 Everyone stays anonymous until you both choose to reveal.</p>
       </div>
       {chatId ? <Chat id={chatId} key={chatId} /> : null}
