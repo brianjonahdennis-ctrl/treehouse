@@ -1,7 +1,8 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Inbox (port of renderMatches and its tabs in anon-inbox/public/hy-dating.js): Chats, Requests,
-// Friends, Matches + Likes you. /home/matches/<chat id> opens the chat on top.
+// Friends, Matches + Likes you, Announcements (official news from treehouse). /home/matches/<chat id>
+// opens the chat on top; /home/matches/announcements/<id> opens one announcement.
 import { previewOf } from './Birthday';
 import { ConvoBird } from './Reputation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -15,14 +16,15 @@ import { toast } from './overlay';
 import { BellButton, statusEditor } from './Home';
 import { meta, activeText, shortName, acceptRequest, declineRequest, cancelSent, cancelMatchAsk, askFriend, requestMenu, partnerProfile } from './convo';
 import Chat from './Chat';
+import { AnnouncementsTab, AnnDetail } from './Announcements';
 
-const VIEWS = new Set(['requests', 'chats', 'likes', 'matches', 'friends']);
+const VIEWS = new Set(['requests', 'chats', 'likes', 'matches', 'friends', 'announcements']);
 
-export default function Inbox({ sub }: { sub: string | null }) {
+export default function Inbox({ sub, item = null }: { sub: string | null; item?: string | null }) {
   const s = useAppState();
   const chatId = sub && !VIEWS.has(sub) ? sub : null;
   const listSub = chatId ? null : sub;
-  const view = listSub === 'requests' ? 'requests' : listSub === 'friends' ? 'friends' : (listSub === 'matches' || listSub === 'likes') ? 'matches' : 'chats';
+  const view = listSub === 'requests' ? 'requests' : listSub === 'friends' ? 'friends' : (listSub === 'matches' || listSub === 'likes') ? 'matches' : listSub === 'announcements' ? 'announcements' : 'chats';
   const live = s.convos.filter((c) => !c.blocked);
   const requests = messageRequests();
   const chats = s.convos.filter((c) => c.blocked ? !!c.last_message : statusOf(c) === 'chat' && !!c.last_message);
@@ -31,10 +33,11 @@ export default function Inbox({ sub }: { sub: string | null }) {
   const friendsOn = friends.filter((f) => f.other_online).length;
   const unread = chats.reduce((n, c) => n + (c.unread ? 1 : 0), 0);
 
-  const tab = (id: string, label: string, ico: string, kind: string, badge: number, extra?: ReactNode) => (
-    <button key={id} className={`ib-tab t-${kind}`} role="tab" aria-selected={view === id} onClick={() => { if (view !== id) go(id === 'chats' ? 'matches' : `matches/${id}`); }}>
+  if (view === 'announcements' && item) return <AnnDetail id={item} key={item} />;
+  const tab = (id: string, label: string, ico: string, kind: string, badge: number, extra?: ReactNode, short?: string) => (
+    <button key={id} className={`ib-tab t-${kind}`} role="tab" aria-selected={view === id} aria-label={short ? label : undefined} onClick={() => { if (view !== id) go(id === 'chats' ? 'matches' : `matches/${id}`); }}>
       <span className="ib-tab-ico"><Icon name={ico} cls={id === 'matches' && view === id ? 'fill' : ''} /></span>
-      <span className="ib-tab-label">{label}</span>
+      {short ? <><span className="ib-tab-label ib-long">{label}</span><span className="ib-tab-label ib-short" aria-hidden="true">{short}</span></> : <span className="ib-tab-label">{label}</span>}
       {extra || null}
       {badge ? <span className={`badge ${kind === 'match' ? 'date' : 'talk'}`}>{badge > 99 ? '99+' : badge}</span> : null}
     </button>
@@ -43,17 +46,19 @@ export default function Inbox({ sub }: { sub: string | null }) {
   if (view === 'requests') body = <RequestsTab requests={requests} />;
   else if (view === 'matches') body = <MatchesTab fresh={fresh} focusLikes={listSub === 'likes'} />;
   else if (view === 'friends') body = <FriendsTab />;
+  else if (view === 'announcements') body = <AnnouncementsTab />;
   else body = <ChatsTab chats={chats} live={live} />;
   return (
     <>
       <div className="stack-lg inbox">
-        <Hero top={<Logo />} cls="inbox-hero" title="Inbox" sub="Messages, friends, requests and matches." actions={<BellButton />}>
+        <Hero top={<Logo />} cls="inbox-hero" title="Inbox" sub="Messages, friends, requests, matches and news from treehouse." actions={<BellButton />}>
           <div className="ib-tabs" role="tablist" aria-label="Inbox sections">
             {tab('chats', 'Chats', 'chat', 'chat', unread)}
             {tab('requests', 'Requests', 'send', 'req', requests.length + matchFriendAsks().length)}
             {tab('friends', 'Friends', 'rooms', 'friend', 0,
               <span className="ib-tab-count" aria-label={`${friendsOn} of ${friends.length} friends online`}>{friendsOn ? <i className="ib-tab-on" /> : null}{`${friendsOn} / ${friends.length}`}</span>)}
             {tab('matches', 'Matches', 'heart', 'match', fresh.length + s.requests.length)}
+            {tab('announcements', 'Announcements', 'megaphone', 'ann', s.annUnread, undefined, 'Updates')}
           </div>
         </Hero>
         {s.convosFailing ? <div className="ib-reconnect" role="status"><span className="ib-spin" aria-hidden="true" />Reconnecting… your chats are safe and will update in a moment.</div> : null}

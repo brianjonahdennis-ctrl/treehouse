@@ -5,7 +5,7 @@
 // enforces these; the screen explains them).
 import { setBirthdayPublic } from './Birthday';
 import { MyIdentity } from './Reputation';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import * as api from '@/lib/api';
 import { state, emit, useAppState, loadDating } from '@/lib/state';
 import { GENDERS, INTENTS, INTERESTS, STATES, stateLabel, GENDER_LABEL, INTENT_LABEL } from '@/lib/options';
@@ -19,6 +19,7 @@ import { PushRow, InstallRow } from './PushInstall';
 import { openAvatarPicker } from './AvatarEditor';
 import { openNearbySettings } from './Nearby';
 import * as push from '@/lib/push';
+import { go } from '@/lib/nav';
 
 
 function completion() {
@@ -97,7 +98,8 @@ export default function Profile() {
         <a className="settings-row" href="mailto:support@treehouse.ng?subject=treehouse%20report"><Icon name="flag" /><span className="grow">Report a problem by email<span className="sub">support@treehouse.ng</span></span><span className="chev"><Icon name="chev" cls="sm" /></span></a>
       </Group>
 
-      <Group title="Notifications"><PushRow /><InstallRow /></Group>
+      <Group title="Notifications"><PushRow /><AnnPushRow /><InstallRow /></Group>
+      <StaffRow />
 
       <Group title="Appearance">
         <div className="settings-row" style={{ cursor: 'default' }}><Icon name="moon" /><span className="grow">Theme</span><ThemePicker /></div>
@@ -281,4 +283,25 @@ function EditPrefs({ close }: { close: () => void }) {
       }}>Save</button></div>
     </>
   );
+}
+
+// "treehouse updates": push for non-essential announcements. Important and maintenance notices always
+// arrive in the Inbox (and push) whatever this says.
+function AnnPushRow() {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => { api.announcementPrefs().then((p: any) => setOn(p.push_updates !== false)).catch(() => setOn(true)); }, []);
+  return (
+    <div className="settings-row" style={{ cursor: 'default' }}><Icon name="megaphone" />
+      <span className="grow">treehouse updates<span className="sub">Push notifications for new features and events. Important and maintenance notices always reach your Inbox.</span></span>
+      {on == null ? null : <Toggle checked={on} label="treehouse updates notifications" onChange={async (v) => { try { await api.setAnnouncementPush(v); setOn(v); } catch (e) { toast(api.friendly(e), 'x'); throw e; } }} />}
+    </div>
+  );
+}
+// Staff only: a way into the announcements dashboard.
+let staffCheck: Promise<any> | null = null;   // asked once per visit
+function StaffRow() {
+  const [me, setMe] = useState<any>(null);
+  useEffect(() => { (staffCheck ||= api.annMe().catch(() => null)).then(setMe); }, []);
+  if (!me) return null;
+  return <Group title="Staff"><Row ico="megaphone" title="Product Announcements" sub="Create, schedule and track official announcements" onClick={() => go('admin/announcements')} /></Group>;
 }

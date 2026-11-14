@@ -26,6 +26,7 @@ export const state = {
   onboarding: false,
   recovering: false,
   inRoom: null as boolean | null,
+  annUnread: 0,             // unread treehouse announcements (Inbox → Announcements)
 };
 
 // ---- Change signal ------------------------------------------------------------------------------
@@ -51,7 +52,7 @@ export const friendsList = () => state.convos
   .filter((c) => c.kind === 'friend' && !c.blocked && statusOf(c) === 'chat')
   .map((c) => Object.assign(c, { friend_status: state.friendStatus[c.conversation_id] || null }));
 export const newMatches = () => state.convos.filter((c) => !c.blocked && statusOf(c) === 'chat' && !c.last_message && c.kind !== 'friend');
-export const inboxBadge = () => state.requests.length + messageRequests().length + matchFriendAsks().length + unreadChats() + newMatches().length;
+export const inboxBadge = () => state.requests.length + messageRequests().length + matchFriendAsks().length + unreadChats() + newMatches().length + (state.annUnread || 0);
 
 export function markChatRead(id: string) {
   const c = state.convos.find((x) => x.conversation_id === id);
@@ -73,7 +74,8 @@ export async function loadDating({ force = false, minGap = 30000 } = {}) {
 }
 async function loadDatingNow() {
   try {
-    const [{ convos, requests, pending, myStatus, friendStatuses }, asks] = await Promise.all([api.datingSummary(), api.myFriendAsks().catch(() => null)]);
+    const [{ convos, requests, pending, myStatus, friendStatuses }, asks, annUnread] = await Promise.all([api.datingSummary(), api.myFriendAsks().catch(() => null), api.announcementsUnread().catch(() => null)]);
+    if (annUnread != null) state.annUnread = annUnread;
     state.convos = convos; state.requests = requests; state.pendingLikes = pending || 0;
     if (asks) { const by = new Map(asks.map((a: any) => [a.conversation_id, a.who])); convos.forEach((c: Convo) => { c.friendAsk = by.get(c.conversation_id) || null; }); }
     if (myStatus !== undefined) state.myStatus = myStatus;

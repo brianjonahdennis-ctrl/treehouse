@@ -449,3 +449,40 @@ export const badgesForRoom = async (handles: string[]) => (await rpc('badges_for
 export const myRoomBan = () => rpc('my_room_ban');
 export const roomBirthdays = async () => (await rpc('room_birthdays')) || [];
 export const badgesForHandles = async (handles: string[]) => (await rpc('badges_for_handles', { p_handles: handles })) || [];
+
+// ---- Announcements (official messages from treehouse; see ANNOUNCEMENTS.md) ----------------------------
+export const myAnnouncements = async (filter = 'all', before: string | null = null, limit = 20) => (await rpc('my_announcements', { p_filter: filter, p_before: before, p_limit: limit })) || [];
+export const announcementsUnread = async (): Promise<number> => (await rpc('my_announcements_unread')) || 0;
+export const openAnnouncement = (id: string) => rpc('open_announcement', { p_id: id });
+export const markAnnouncement = (id: string, action: 'read' | 'unread' | 'archive' | 'unarchive' | 'click') => rpc('mark_announcement', { p_id: id, p_action: action });
+export const markAllAnnouncementsRead = () => rpc('mark_all_announcements_read');
+export const announcementPrefs = async () => (await rpc('my_announcement_prefs')) || { push_updates: true };
+export const setAnnouncementPush = (on: boolean) => rpc('set_announcement_push', { p_on: on });
+// Staff (the database checks the role on every call).
+export const annMe = async (): Promise<null | { role: string; can_publish: boolean }> => (await rpc('ann_me')) || null;
+export const annOverview = () => rpc('ann_overview');
+export const annList = async (a: { status?: string; category?: string | null; query?: string | null; from?: string | null; to?: string | null; offset?: number; limit?: number }) =>
+  (await rpc('ann_list', { p_status: a.status || 'all', p_category: a.category || null, p_query: a.query || null, p_from: a.from || null, p_to: a.to || null, p_offset: a.offset || 0, p_limit: a.limit || 20 })) || [];
+export const annGet = (id: string) => rpc('ann_get', { p_id: id });
+export const annEstimate = (audience: unknown): Promise<number> => rpc('ann_estimate', { p_audience: audience });
+export const annSave = (id: string | null, fields: Record<string, unknown>): Promise<string> => rpc('ann_save', { p_id: id, p_fields: fields });
+export const annPublish = (id: string, when: string | null = null) => rpc('ann_publish', { p_id: id, p_when: when });
+export const annCancel = (id: string) => rpc('ann_cancel', { p_id: id });
+export const annArchive = (id: string, on = true) => rpc('ann_archive', { p_id: id, p_on: on });
+export const annCorrection = (id: string): Promise<string> => rpc('ann_correction', { p_id: id });
+export const annDeleteDraft = (id: string) => rpc('ann_delete_draft', { p_id: id });
+export const annAnalytics = (id: string) => rpc('ann_analytics', { p_id: id });
+export const annAudit = async (id: string | null = null, limit = 50) => (await rpc('ann_audit_log', { p_id: id, p_limit: limit })) || [];
+export const annStaff = async () => (await rpc('ann_staff')) || [];
+export const annSetStaff = (handle: string, role: string | null, canPublish = false) => rpc('ann_set_staff', { p_handle: handle, p_role: role, p_can_publish: canPublish });
+/** Upload a cover or inline image (JPEG/PNG/WebP, max 2 MB). Returns its public https address. */
+export async function annUploadImage(file: File): Promise<string> {
+  const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' } as Record<string, string>)[file.type];
+  if (!ext) throw new Error('Use a JPEG, PNG or WebP image.');
+  if (file.size > 2 * 1024 * 1024) throw new Error('Images must be 2 MB or smaller.');
+  const d = new Date();
+  const path = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await sb.storage.from('announcement-images').upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw error;
+  return sb.storage.from('announcement-images').getPublicUrl(path).data.publicUrl;
+}

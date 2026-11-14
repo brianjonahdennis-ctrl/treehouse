@@ -152,6 +152,27 @@
     np('Velvet Ray 222', 22, 'female', null, null, null, true, { map_lat: null, map_lng: null }),
   ];
   let mockBird = { level: 4, seconds: 61 * 3600 + 1200, historical_seconds: 60 * 3600, launch_level: 4, leveled_at: null, now: new Date().toISOString() };
+  // Announcements preview data (dev only).
+  const annCover = (c1, c2) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="160" height="90" fill="url(#g)"/><circle cx="120" cy="20" r="30" fill="#fff" opacity=".12"/></svg>`);
+  const annBase = { audience: { base: 'active' }, send_push: true, cta_label: null, cta_url: null, cover_url: null, delivered_count: 0, read_count: 0, click_count: 0, push_count: 0, eligible_count: null, scheduled_for: null, published_at: null, delivered_at: null, was_published: false, revises: null, expires_at: null };
+  const anns = empty ? [] : [
+    { ...annBase, id: 'a0000000-0000-4000-8000-000000000001', title: 'Introducing Nearby! 🎉', preview: 'Discover interesting people around you and connect with Treehouse users in your area.', category: 'feature_launch', status: 'published', cover_url: annCover('#7c3aed', '#ff3f9b'),
+      body: 'We’re excited to launch **Nearby** on Treehouse! 🎉\n\nWith Nearby, you can:\n- See active users around you\n- Filter by your preferences\n- Start meaningful conversations\n- Meet new friends, dates and more\n\nNearby only shows your approximate area, and it’s off until you switch it on. Read more in [Profile](/home/profile).',
+      cta_label: 'Explore Nearby', cta_url: '/home/discover/nearby', published_at: ago(60), delivered_at: ago(58), created_at: ago(200), was_published: true, eligible_count: 1840, delivered_count: 1840, read_count: 1212, click_count: 431 },
+    { ...annBase, id: 'a0000000-0000-4000-8000-000000000002', title: 'Treehouse Beach Hangout', preview: 'Join us for a day of games, music and new connections at Ibeno Beach!', category: 'event', status: 'published', cover_url: annCover('#f97316', '#db2777'),
+      body: '## Saturday at Ibeno Beach\nGames, music, suya and good vibes. Bring a friend!\n\n1. Arrive from 12 noon\n2. Find the treehouse tent\n3. Say hi 👋', audience: { base: 'all', states: ['Akwa Ibom', 'Rivers'] },
+      cta_label: 'Learn More', cta_url: 'https://treehouse.ng', published_at: ago(60 * 24 * 4), delivered_at: ago(60 * 24 * 4), created_at: ago(60 * 24 * 5), was_published: true, eligible_count: 320, delivered_count: 320, read_count: 216, click_count: 41 },
+    { ...annBase, id: 'a0000000-0000-4000-8000-000000000003', title: 'Scheduled Maintenance', preview: 'Treehouse will be offline on Nov 15 from 2:00 AM – 4:00 AM (WAT) for important updates.', category: 'maintenance', status: 'published',
+      body: 'We’re upgrading our servers to make treehouse faster.\n\n- **When:** Sunday 15 November, 2:00–4:00 AM (WAT)\n- **What:** chats and chatrooms will be unavailable\n\nThanks for your patience. 💜', audience: { base: 'all' },
+      published_at: ago(60 * 24 * 6), delivered_at: ago(60 * 24 * 6), created_at: ago(60 * 24 * 6), was_published: true, eligible_count: 2104, delivered_count: 2104, read_count: 1500, click_count: 0 },
+    { ...annBase, id: 'a0000000-0000-4000-8000-000000000004', title: 'Safety Update', preview: 'New tools to keep your conversations and connections safer on Treehouse.', category: 'product_update', status: 'published',
+      body: 'You can now report a photo straight from the chat, and links in chatrooms are blocked to stop scams.', cta_label: 'Open Treehouse', cta_url: '/home', published_at: ago(60 * 24 * 9), delivered_at: ago(60 * 24 * 9), created_at: ago(60 * 24 * 9), was_published: true, eligible_count: 1700, delivered_count: 1700, read_count: 990, click_count: 120 },
+    { ...annBase, id: 'a0000000-0000-4000-8000-000000000005', title: 'Kickrs game night', preview: 'Play Penalty with your friends this Friday.', category: 'community', status: 'scheduled', scheduled_for: new Date(Date.now() + 2 * 864e5).toISOString(), created_at: ago(30), audience: { base: 'recent', days: 14, platforms: ['android-play', 'ios-app'] }, cta_label: 'Play Now', cta_url: '/home/games' },
+    { ...annBase, id: 'a0000000-0000-4000-8000-000000000006', title: 'Welcome to treehouse 👋', preview: 'Here’s how to get the most out of your first week.', category: 'community', status: 'draft', created_at: ago(15), audience: { base: 'new', days: 7 }, body: '- Add a status\n- Join your state’s chatroom' },
+  ];
+  const annMine = empty ? {} : { 'a0000000-0000-4000-8000-000000000003': { read_at: ago(60 * 24 * 5) }, 'a0000000-0000-4000-8000-000000000004': { read_at: ago(60 * 24 * 8) } };
+  let annPush = true;
+  const annRow = (a) => ({ id: a.id, title: a.title, preview: a.preview, category: a.category, cover_url: a.cover_url, cta_label: a.cta_label, cta_url: a.cta_url, published_at: a.published_at, delivered_at: a.delivered_at, read_at: annMine[a.id]?.read_at || null, archived_at: annMine[a.id]?.archived_at || null });
 const mockRated = new Set();
 const RPC = {
     my_pending_likes: () => likes.length,
@@ -256,6 +277,39 @@ const RPC = {
     unblock_conversation_partner: ({ p_conversation }) => { const c = convos.find((x) => x.conversation_id === p_conversation); if (c) { c.blocked = false; c.i_blocked = false; } },
     delete_conversation: () => null, mark_conversation_read: () => null,
     edit_dating_message: () => null, unsend_dating_message: () => null, hide_dating_message: () => null,
+    // ---- Announcements (preview data only) ----
+    my_announcements: ({ p_filter, p_before, p_limit }) => anns.filter((a) => a.status === 'published').map(annRow)
+      .filter((a) => (p_filter === 'unread' ? !a.read_at && !a.archived_at : p_filter === 'read' ? a.read_at && !a.archived_at : p_filter === 'archived' ? a.archived_at : !a.archived_at))
+      .filter((a) => !p_before || a.delivered_at < p_before).slice(0, p_limit || 20),
+    my_announcements_unread: () => anns.filter((a) => a.status === 'published' && !annMine[a.id]?.read_at && !annMine[a.id]?.archived_at).length,
+    open_announcement: ({ p_id }) => { const a = anns.find((x) => x.id === p_id && x.status === 'published'); if (!a) { const e = new Error('Announcement not found.'); e.code = 'P0002'; throw e; } annMine[p_id] = { ...annMine[p_id], read_at: annMine[p_id]?.read_at || new Date().toISOString() }; return { ...annRow(a), body: a.body, revises: a.revises || null, revised_by: anns.find((x) => x.revises === a.id && x.status === 'published')?.id || null }; },
+    mark_announcement: ({ p_id, p_action }) => { const m = annMine[p_id] = { ...annMine[p_id] }; const now = new Date().toISOString();
+      if (p_action === 'read' || p_action === 'click') m.read_at = m.read_at || now; if (p_action === 'unread') m.read_at = null;
+      if (p_action === 'archive') m.archived_at = now; if (p_action === 'unarchive') m.archived_at = null; },
+    mark_all_announcements_read: () => { let n = 0; anns.forEach((a) => { if (a.status === 'published' && !annMine[a.id]?.read_at) { annMine[a.id] = { ...annMine[a.id], read_at: new Date().toISOString() }; n++; } }); return n; },
+    my_announcement_prefs: () => ({ push_updates: annPush }), set_announcement_push: ({ p_on }) => { annPush = p_on; },
+    ann_me: () => ({ role: 'super_admin', can_publish: true }),
+    ann_overview: () => ({ total: anns.length, published: anns.filter((a) => a.status === 'published').length, scheduled: anns.filter((a) => a.status === 'scheduled').length,
+      drafts: anns.filter((a) => a.status === 'draft').length, archived: anns.filter((a) => a.status === 'archived').length,
+      delivered: anns.reduce((n, a) => n + (a.delivered_count || 0), 0), recipients: 1840, reads: anns.reduce((n, a) => n + (a.read_count || 0), 0), read_rate: 64.2, clicks: anns.reduce((n, a) => n + (a.click_count || 0), 0) }),
+    ann_list: ({ p_status, p_category, p_query }) => { const l = anns.filter((a) => (p_status === 'all' || (p_status === 'published' ? ['published', 'publishing'].includes(a.status) : a.status === p_status))
+      && (!p_category || a.category === p_category) && (!p_query || a.title.toLowerCase().includes(p_query.toLowerCase()))); return l.map((a) => ({ ...a, total: l.length })); },
+    ann_get: ({ p_id }) => { const a = anns.find((x) => x.id === p_id); if (!a) throw new Error('Announcement not found.'); return { ...a, created_by_handle: 'Lucky Dolphin 214', published_by_handle: a.published_at ? 'Lucky Dolphin 214' : null }; },
+    ann_estimate: ({ p_audience }) => { const a = p_audience || {}; let n = { all: 2104, active: 1840, new: 212, recent: 990, inactive: 264 }[a.base] || 1840; if (a.states && a.states.length) n = Math.round(n * Math.min(1, a.states.length * 0.11)); if (a.platforms && a.platforms.length) n = Math.round(n * 0.4 * a.platforms.length); return Math.max(n, 0); },
+    ann_save: ({ p_id, p_fields }) => { if (p_id) { Object.assign(anns.find((x) => x.id === p_id), p_fields); return p_id; } const id = crypto.randomUUID(); anns.unshift({ id, status: 'draft', created_at: new Date().toISOString(), delivered_count: 0, read_count: 0, click_count: 0, push_count: 0, eligible_count: null, ...p_fields }); return id; },
+    ann_publish: ({ p_id, p_when }) => { const a = anns.find((x) => x.id === p_id); if (p_when && new Date(p_when) > new Date()) { a.status = 'scheduled'; a.scheduled_for = p_when; return { status: 'scheduled' }; }
+      Object.assign(a, { status: 'published', published_at: new Date().toISOString(), delivered_at: new Date().toISOString(), was_published: true, eligible_count: 1840, delivered_count: 1840 }); return { status: 'published', eligible: 1840 }; },
+    ann_cancel: ({ p_id }) => { Object.assign(anns.find((x) => x.id === p_id), { status: 'draft', scheduled_for: null }); },
+    ann_archive: ({ p_id, p_on }) => { const a = anns.find((x) => x.id === p_id); a.status = p_on ? 'archived' : (a.was_published ? 'published' : 'draft'); },
+    ann_correction: ({ p_id }) => { const a = anns.find((x) => x.id === p_id); const id = crypto.randomUUID(); anns.unshift({ ...a, id, status: 'draft', title: 'Update: ' + a.title, revises: a.id, was_published: false, published_at: null, delivered_at: null, delivered_count: 0, read_count: 0, click_count: 0, eligible_count: null }); return id; },
+    ann_delete_draft: ({ p_id }) => { const i = anns.findIndex((x) => x.id === p_id); if (i >= 0) anns.splice(i, 1); },
+    ann_analytics: ({ p_id }) => { const a = anns.find((x) => x.id === p_id) || {}; const d = a.delivered_count || 0, r = a.read_count || 0, c = a.click_count || 0;
+      return { status: a.status, targeted: a.eligible_count || 1840, delivered: d, pending: 0, failed: 0, push_queued: Math.round(d * 0.13), reads: r, unread: d - r, read_rate: d ? Math.round(r * 1000 / d) / 10 : 0, clicks: c, click_rate: d ? Math.round(c * 1000 / d) / 10 : 0, archived: Math.round(d * 0.02),
+        by_day: a.published_at ? [0, 1, 2, 3].map((i) => ({ day: new Date(Date.now() - i * 864e5).toISOString().slice(0, 10), reads: Math.round(r / (i + 1.6)), clicks: Math.round(c / (i + 1.6)) })) : [] }; },
+    ann_audit_log: ({ p_id }) => [{ at: new Date(Date.now() - 3600000).toISOString(), action: 'published', actor_handle: 'Lucky Dolphin 214', announcement_id: p_id, title: 'Introducing Nearby!', meta: {} },
+      { at: new Date(Date.now() - 7200000).toISOString(), action: 'created', actor_handle: 'Lucky Dolphin 214', announcement_id: p_id, title: 'Introducing Nearby!', meta: {} }],
+    ann_staff: () => [{ handle: 'Lucky Dolphin 214', role: 'super_admin', can_publish: true, added_at: ago(9000) }, { handle: 'Quiet Comet 118', role: 'editor', can_publish: false, added_at: ago(3000) }],
+    ann_set_staff: () => null,
   };
 
   let mockAvatars = [];
@@ -312,6 +366,7 @@ const RPC = {
           upload: (path, blob) => { mockFiles.set(path, URL.createObjectURL(blob)); return result({ path }); },
           createSignedUrl: (path) => result({ signedUrl: mockFiles.get(path) || '/lp-chatroom.jpg' }),
           remove: () => result(null),
+          getPublicUrl: (path) => ({ data: { publicUrl: mockFiles.get(path) || '/lp-chatroom.jpg' } }),
         }) },
         auth: {
           getSession: () => result({ session }), onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; },

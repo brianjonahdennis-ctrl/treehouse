@@ -20,6 +20,7 @@ import Onboarding from './Onboarding';
 import ForceUpdate from './ForceUpdate';
 import { deliverToOpenChat } from './chatBus';
 import { connectWaiting, rememberConnect } from '@/lib/kickrs';
+import { loadAnnUnread } from '@/lib/announcements';
 
 // Discover sits in the raised centre, Games next to it. Profile is your avatar at the top right of
 // every screen (and the last item in the desktop sidebar).
@@ -31,7 +32,7 @@ const TABS: { route: string; label: string; icon: string; center?: boolean; badg
   { route: 'matches', label: 'Inbox', icon: 'mail', badge: true },
   { route: 'profile', label: 'Profile', icon: 'user', sideOnly: true },
 ];
-const TITLES: Record<string, string> = { rooms: 'Chatrooms', home: 'Home', games: 'Games', discover: 'Discover', matches: 'Inbox', profile: 'Profile', notifications: 'Notifications', connect: 'Kickrs' };
+const TITLES: Record<string, string> = { rooms: 'Chatrooms', home: 'Home', games: 'Games', discover: 'Discover', matches: 'Inbox', profile: 'Profile', notifications: 'Notifications', connect: 'Kickrs', admin: 'Admin' };
 
 export function applyTheme(t: string = store.get('hy-theme', 'system') || 'system') {
   if (t === 'system') document.documentElement.removeAttribute('data-theme');
@@ -224,6 +225,7 @@ function watchServiceWorker() {
     const path = new URL(e.data.url, location.origin).pathname.replace(/^\/home\/?/, '');
     const chat = path.match(/^matches\/([0-9a-f-]{36})$/);
     if (chat) openChat(chat[1]); else go(path || 'home');
+    if (path.startsWith('matches/announcements')) loadAnnUnread({ force: true });
   });
 }
 
