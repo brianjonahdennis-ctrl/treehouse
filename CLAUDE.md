@@ -6,6 +6,7 @@ This folder holds several of Hydra's (Brian Jonah Dennis) apps. Most work here i
 |---|---|
 | `anon-inbox/` | **treehouse** — the live website and backend (see `anon-inbox/CLAUDE.md`) |
 | `web-next/` | **Branch `nextjs` only:** the member app rebuilt in Next.js/React (not live yet; see `web-next/MIGRATION.md`) |
+| `web-admin/` | **admin.treehouse.ng**: the staff console (reports, members, rooms, announcements, ads, referrals, settings, staff, audit log; see `web-admin/ADMIN.md`) |
 | `tell-hydra-app/` | treehouse's Android/iOS app: a Capacitor shell that opens https://treehouse.ng/home |
 | `brand/` | treehouse logo and mark (SVG + PNG previews) |
 | `hydra/` | Earlier Next.js site (launch config `hydra`, port 3000) |
@@ -14,7 +15,7 @@ This folder holds several of Hydra's (Brian Jonah Dennis) apps. Most work here i
 
 Dev servers are defined in `.claude/launch.json`: `anon-inbox` (4000, real Supabase), `treehouse-preview`
 (4010, mock data, no database), `hydra`, `hydra-earn-api`, and on the `nextjs` branch `treehouse-next`
-(4020, the Next.js app with mock data).
+(4020, the Next.js app with mock data) and `treehouse-admin` (4030, the staff console with sample data; code 123456).
 
 ## GitHub
 - **treehouse** repo (private) = this whole folder: `anon-inbox`, `tell-hydra-app`, `avatars-site`, `brand`.
