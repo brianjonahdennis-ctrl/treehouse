@@ -293,6 +293,10 @@ const RPC = {
     ad_event: () => null,
     my_referral: () => ({ code: 'k7mq2xa', enabled: true, active: true, joined: 3 }),
     claim_referral: () => false,
+    invite_leaderboard: () => ({ enabled: true, week_start: '2026-11-09', week_end: '2026-11-15', ends_at: new Date(Date.now() + 30 * 3600e3).toISOString(), min: 3,
+      top: [['Noble Owl 221', 14], ['Mellow Sparrow 799', 11], ['Hidden Tiger 155', 9], ['Calm Lion 412', 6], ['Sunny Kite 87', 4], ['Bold Falcon 330', 3], ['Quiet River 18', 2]]
+        .map(([h, n], i) => ({ rank: i + 1, handle: h, invites: n, me: i === 4 })),
+      me: { rank: 5, invites: 4 }, last_winner: { handle: 'Gentle Fox 610', title: 'Woman of the Week', invites: 17 } }),
     ann_overview: () => ({ total: anns.length, published: anns.filter((a) => a.status === 'published').length, scheduled: anns.filter((a) => a.status === 'scheduled').length,
       drafts: anns.filter((a) => a.status === 'draft').length, archived: anns.filter((a) => a.status === 'archived').length,
       delivered: anns.reduce((n, a) => n + (a.delivered_count || 0), 0), recipients: 1840, reads: anns.reduce((n, a) => n + (a.read_count || 0), 0), read_rate: 64.2, clicks: anns.reduce((n, a) => n + (a.click_count || 0), 0) }),
