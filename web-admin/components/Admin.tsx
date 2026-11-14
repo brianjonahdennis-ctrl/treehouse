@@ -43,6 +43,15 @@ export function SettingsPage() {
             <Switch label="Show ads" on={v.ads_enabled !== false} disabled={!manage} onChange={(on) => set('ads_enabled', on, on ? 'Ads on.' : 'Ads off.')} />
           </div>
           <div className="set-row">
+            <div><b>Announce Man & Woman of the Week</b><p className="muted">Every Monday at noon, last week’s top inviter is announced to all members.</p></div>
+            <Switch label="Announce Man & Woman of the Week" on={v.invite_winner_enabled !== false} disabled={!manage} onChange={(on) => set('invite_winner_enabled', on, on ? 'Weekly winner on.' : 'Weekly winner off.')} />
+          </div>
+          <div className="set-row">
+            <div><b>Invites needed to win</b><p className="muted">Fewer than this and nobody is announced that week.</p></div>
+            <input className="num" type="number" min={1} max={1000} disabled={!manage} defaultValue={Number(v.invite_winner_min ?? 3)}
+              onBlur={(e) => { const x = Number(e.target.value); if (x && x !== Number(v.invite_winner_min ?? 3)) set('invite_winner_min', x, 'Saved.'); }} aria-label="Invites needed to win" />
+          </div>
+          <div className="set-row">
             <div><b>Credit referrals</b><p className="muted">When off, invite links still work but nobody is credited.</p></div>
             <Switch label="Credit referrals" on={v.referrals_enabled !== false} disabled={!manage} onChange={(on) => set('referrals_enabled', on, on ? 'Referrals on.' : 'Referrals off.')} />
           </div>

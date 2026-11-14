@@ -6,7 +6,7 @@ import { ago, date, dayLabel, n, pct } from '@/lib/fmt';
 import { Bars } from './charts';
 import { useMe } from './Gate';
 import { useGo } from './Shell';
-import { Btn, Card, Empty, ErrorBox, Field, Modal, PageHead, Pill, Spinner, Switch, toast, useAsync } from './ui';
+import { Ask, Btn, Card, Empty, ErrorBox, Field, Modal, PageHead, Pill, Spinner, Switch, Tabs, toast, useAsync } from './ui';
 
 type Top = { code: string; handle: string | null; active: boolean; clicks: number; joined: number; came_back: number; suspended: number; last_joined: string; max_in_an_hour: number };
 type Camp = { code: string; campaign: string; note: string; active: boolean; clicks: number; joined: number; came_back: number; created_at: string };
@@ -42,6 +42,7 @@ export default function Referrals() {
           <div className="kpi"><span className="kpi-l">Member invite links</span><div className="kpi-v"><b>{n(x.codes)}</b></div></div>
           <div className="kpi"><span className="kpi-l">Campaign codes</span><div className="kpi-v"><b>{n(x.campaigns.length)}</b></div></div>
         </div>
+        <WeekBoard />
         <Card title="New members from invites" sub={`Per day, last ${days} days`}>
           <Bars height={200} labels={x.daily.map((r) => dayLabel(r.day))} series={[{ name: 'Joined', color: '#ff3f9b', values: x.daily.map((r) => r.joined) }]} />
         </Card>
@@ -112,5 +113,65 @@ function JoinedList({ code, onClose }: { code: string; onClose: () => void }) {
               <td className="muted">{date(j.joined_at)}</td><td className="muted">{ago(j.last_seen_at)}</td><td>{j.suspended && <Pill tone="red">Suspended</Pill>}</td></tr>))}</tbody></table>
       ))}
     </Modal>
+  );
+}
+
+type WRow = { rank: number; handle: string; gender: string; invites: number; title: string; reached_at: string; joined_all: number };
+type Week = { week_start: string; week_end: string; current: boolean; announce_at: string; enabled: boolean; min: number; top: WRow[];
+  excluded: { handle: string | null; reason: string; by: string | null; at: string }[];
+  winner: { handle: string; title: string; invites: number; at: string } | null; winners: { week: string; handle: string; title: string; invites: number }[] };
+
+function WeekBoard() {
+  const { me } = useMe();
+  const go = useGo();
+  const [wk, setWk] = useState('0');
+  const w = useAsync(() => rpc<Week>('staff_invite_week', { p_weeks_ago: Number(wk) }), [wk]);
+  const [dq, setDq] = useState<string | null>(null);
+  const manage = allows(me.role, 'manage');
+  const x = w.data;
+  const leader = x?.top[0];
+  return (
+    <Card title="Man & Woman of the Week" sub={x ? `${dayLabel(x.week_start)} – ${dayLabel(x.week_end)} · winner announced to everyone ${date(x.announce_at)}${x.enabled ? '' : ' (switched off in Settings)'}` : 'Weekly invite leaderboard'}
+      action={<Tabs value={wk} onChange={setWk} items={[['0', 'This week'], ['1', 'Last week']]} />} pad={false}>
+      {w.error && <ErrorBox text={w.error} retry={w.reload} />}
+      {w.loading && !x && <Spinner />}
+      {x && (
+        <>
+          <div className="week-head">
+            {x.winner ? <div className="week-win"><span>🏆</span><div><small>Announced {date(x.winner.at)}</small><b>{x.winner.title}: {x.winner.handle}</b><p className="muted">{n(x.winner.invites)} friends joined</p></div></div>
+              : leader && leader.invites >= x.min ? <div className="week-win"><span>🥇</span><div><small>{x.current ? 'Leading now' : 'Will be announced'}</small><b>{leader.title}: {leader.handle}</b><p className="muted">{n(leader.invites)} friends that count</p></div></div>
+              : <div className="week-win"><span>⏳</span><div><small>No winner yet</small><b>Needs at least {x.min} invites that count</b></div></div>}
+            <p className="muted">Counts friends who joined with the link that week, came back at least 12 hours later and aren’t suspended. Compare with “all joins” to spot fake accounts.</p>
+          </div>
+          {x.top.length === 0 ? <Empty text="Nobody on the board for this week." icon="gift" /> : (
+            <table className="tbl"><thead><tr><th>#</th><th>Member</th><th>Counts</th><th>All joins</th><th>Title</th><th /></tr></thead>
+              <tbody>{x.top.map((r) => (
+                <tr key={r.handle}>
+                  <td><b>{r.rank <= 3 ? ['🥇', '🥈', '🥉'][r.rank - 1] : r.rank}</b></td>
+                  <td><button className="link" onClick={() => go(`/members/${encodeURIComponent(r.handle)}`)}><b>{r.handle}</b></button></td>
+                  <td><b>{n(r.invites)}</b></td>
+                  <td>{r.joined_all > r.invites * 2 ? <Pill tone="amber">{n(r.joined_all)}</Pill> : n(r.joined_all)}</td>
+                  <td className="muted">{r.title}</td>
+                  <td>{manage && !x.winner && Number(wk) <= 1 && <Btn small kind="ghost" icon="ban" onClick={() => setDq(r.handle)}>Disqualify</Btn>}</td>
+                </tr>))}</tbody></table>
+          )}
+          {x.excluded.length > 0 && (
+            <div className="week-ex">
+              <h4>Disqualified this week</h4>
+              {x.excluded.map((e) => (
+                <p key={e.handle || e.at}><b>{e.handle || '—'}</b> · {e.reason} <span className="muted">({e.by || '—'}, {date(e.at)})</span>
+                  {manage && !x.winner && e.handle && <Btn small kind="ghost" onClick={async () => { try { await rpc('staff_invite_exclude', { p_handle: e.handle, p_weeks_ago: Number(wk), p_exclude: false }); toast('Back on the board.'); w.reload(); } catch (er) { toast((er as Error).message, true); } }}>Undo</Btn>}</p>
+              ))}
+            </div>
+          )}
+          {x.winners.length > 0 && (
+            <div className="week-ex"><h4>Past winners</h4>
+              <div className="chips">{x.winners.map((v) => <span key={v.week} className="chip">{dayLabel(v.week)} · {v.title}: <b>{v.handle}</b> ({v.invites})</span>)}</div></div>
+          )}
+        </>
+      )}
+      {dq && <Ask title={`Disqualify ${dq} for this week?`} text="They drop off the board and can’t be announced for this week. Their invites still count for the people who joined." confirm="Disqualify" danger reason
+        onDone={async (why) => { await rpc('staff_invite_exclude', { p_handle: dq, p_weeks_ago: Number(wk), p_exclude: true, p_reason: why }); toast(`${dq} disqualified.`); w.reload(); }} onClose={() => setDq(null)} />}
+    </Card>
   );
 }
