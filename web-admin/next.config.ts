@@ -3,6 +3,9 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  async rewrites() {
+    return { beforeFiles: [], afterFiles: [{ source: '/:path((?!_next/|api/).+)', destination: '/' }], fallback: [] };
+  },
   async headers() {
     return [{
       source: '/:path*',
