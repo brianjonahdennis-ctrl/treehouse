@@ -9,10 +9,24 @@ set lock_timeout = '5s';
 create or replace function dating_private.norm_text(p_text text) returns text
 language sql immutable as $$ select lower(regexp_replace(btrim(coalesce(p_text, '')), '\s+', ' ', 'g')) $$;
 
+-- Every ban is logged (who is never shown: the owner's Stats only count them).
+create table if not exists dating_private.room_ban_log (
+  id bigserial primary key,
+  user_id uuid references auth.users(id) on delete set null,
+  kind text not null check (kind in ('link', 'repeat', 'other')),
+  at timestamptz not null default now()
+);
+create index if not exists room_ban_log_at on dating_private.room_ban_log (at);
+revoke all on dating_private.room_ban_log from public, anon, authenticated;
+-- The one link ban issued before this log existed.
+insert into dating_private.room_ban_log (user_id, kind, at)
+select user_id, 'link', created_at from dating_private.room_bans;
+
 -- Ban someone from every chatroom (a longer ban already in place is never shortened).
-create or replace function dating_private.room_ban(p_user uuid, p_for interval, p_reason text) returns void
+create or replace function dating_private.room_ban(p_user uuid, p_for interval, p_reason text, p_kind text default 'other') returns void
 language plpgsql security definer set search_path = public, dating_private as $$
 begin
+  insert into room_ban_log (user_id, kind) values (p_user, p_kind);
   insert into room_bans (user_id, until, reason) values (p_user, now() + p_for, p_reason)
   on conflict (user_id) do update
     set until = greatest(room_bans.until, excluded.until),
@@ -20,7 +34,7 @@ begin
         created_at = now();
   delete from room_members where user_id = p_user;
 end $$;
-revoke all on function dating_private.norm_text(text), dating_private.room_ban(uuid, interval, text) from public, anon, authenticated;
+revoke all on function dating_private.norm_text(text), dating_private.room_ban(uuid, interval, text, text) from public, anon, authenticated;
 
 -- Bans already running get the new wording.
 update dating_private.room_bans set reason = 'Your account was banned from chatrooms for posting links in the group.'
@@ -47,7 +61,7 @@ begin
   -- Links aren't allowed in chatrooms: no warning, the message isn't posted, and the sender is banned
   -- from every chatroom for 24 hours. (No error is raised, so the ban is kept; the app then shows it.)
   if dating_private.has_link(p_body) then
-    perform dating_private.room_ban(uid, interval '24 hours', 'Your account was banned from chatrooms for posting links in the group.');
+    perform dating_private.room_ban(uid, interval '24 hours', 'Your account was banned from chatrooms for posting links in the group.', 'link');
     return;
   end if;
   -- The same text over and over (3rd time within 30 minutes, 10+ characters): 48 hours out of every room.
@@ -55,7 +69,7 @@ begin
      and (select count(*) from room_messages x
           where x.user_id = uid and x.created_at > now() - interval '30 minutes'
             and dating_private.norm_text(x.body) = dating_private.norm_text(p_body)) >= 2 then
-    perform dating_private.room_ban(uid, interval '48 hours', 'Your account was banned from chatrooms for 48 hours for posting the same message repeatedly in the group.');
+    perform dating_private.room_ban(uid, interval '48 hours', 'Your account was banned from chatrooms for 48 hours for posting the same message repeatedly in the group.', 'repeat');
     return;
   end if;
   select * into m from room_members r where r.user_id = uid and room_active(r.last_seen_at);
