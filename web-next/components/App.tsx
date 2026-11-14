@@ -32,7 +32,7 @@ const TABS: { route: string; label: string; icon: string; center?: boolean; badg
   { route: 'matches', label: 'Inbox', icon: 'mail', badge: true },
   { route: 'profile', label: 'Profile', icon: 'user', sideOnly: true },
 ];
-const TITLES: Record<string, string> = { rooms: 'Chatrooms', home: 'Home', games: 'Games', discover: 'Discover', matches: 'Inbox', profile: 'Profile', notifications: 'Notifications', connect: 'Kickrs', admin: 'Admin' };
+const TITLES: Record<string, string> = { rooms: 'Chatrooms', home: 'Home', games: 'Games', discover: 'Discover', matches: 'Inbox', profile: 'Profile', notifications: 'Notifications', connect: 'Kickrs', admin: 'Admin', invite: 'Top inviters' };
 
 export function applyTheme(t: string = store.get('hy-theme', 'system') || 'system') {
   if (t === 'system') document.documentElement.removeAttribute('data-theme');

@@ -331,6 +331,7 @@ function InviteGroup() {
       <button className="settings-row" onClick={share}><Icon name="send" />
         <span className="grow">Share your invite link<span className="sub">{url.replace('https://', '')}{r.joined ? ` · ${r.joined} joined with your link` : ''}</span></span>
         <span className="chev"><Icon name="chev" cls="sm" /></span></button>
+      <Row ico="sparkles" title="Top inviters this week" sub="The #1 is announced as Man or Woman of the Week every Monday" onClick={() => go('invite')} />
     </Group>
   );
 }
