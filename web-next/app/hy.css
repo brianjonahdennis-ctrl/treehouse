@@ -2017,3 +2017,13 @@ html, body { max-width: 100%; overflow-x: clip; }
 .ann-bar .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: -2px; padding: 2px; }
 .ann-bar .chips::-webkit-scrollbar { display: none; }
 .ann-bar .chip { flex: none; }
+
+/* ---- Sponsored cards (ads set up in admin.treehouse.ng) ---------------------------------------- */
+.ad-slot { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 12px 14px 14px; }
+.ad-slot .ad-tag { display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.ad-slot a { display: grid; grid-template-columns: 1fr auto; gap: 10px 12px; align-items: center; color: inherit; text-decoration: none; }
+.ad-slot img { grid-column: 1 / -1; width: 100%; max-height: 190px; object-fit: cover; border-radius: var(--r-md); }
+.ad-slot .ad-txt b { display: block; font-family: var(--display); font-size: 16px; }
+.ad-slot .ad-txt span { display: block; font-size: 13.5px; color: var(--muted); margin-top: 2px; }
+.cr-screen .ad-slot, .ib-body .ad-slot { margin-bottom: 16px; }
+.stack > .ad-slot { margin-top: 4px; }
