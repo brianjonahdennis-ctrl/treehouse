@@ -11,6 +11,7 @@ import { ConvoBird } from './Reputation';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as api from '@/lib/api';
+import * as live from '@/lib/livestats';
 import { state, useAppState, loadDating, patchChat, markChatRead, statusOf, nameOf, isMatch, isFriend, rememberRevealedName, type Convo } from '@/lib/state';
 import { go } from '@/lib/nav';
 import { clock, dayLabel } from '@/lib/util';
@@ -170,7 +171,33 @@ function ChatView({ convo }: { convo: Convo }) {
       if (c && statusOf(c) !== 'chat') refreshChatState();
     };
     setOpenChatHandler(id, incoming);
+    // Catch up: fetch the latest messages and add any the live connection missed (and fresh unsend/
+    // played/edit states). Runs when the live connection rejoins and when treehouse comes back on screen.
+    let catching = false;
+    const catchUp = async () => {
+      if (!alive || catching || document.hidden) return;
+      catching = true;
+      try {
+        const rows: Msg[] = await api.messagesLatest(id, 30);
+        if (!alive) return;
+        const have = new Map(msgsRef.current.map((x) => [x.id, x]));
+        const fresh = rows.filter((r) => !have.has(r.id));
+        rows.forEach((r) => { const o = have.get(r.id); if (o && (o.deleted_at !== r.deleted_at || o.edited_at !== r.edited_at || o.body !== r.body || o.voice_played_at !== r.voice_played_at)) update(r); });
+        if (fresh.length) {
+          live.missed(fresh.filter((r) => r.sender_id !== me).length);
+          fresh.forEach(add);
+          setMsgs((list) => [...list].sort((x, y) => (x.pending ? 1 : 0) - (y.pending ? 1 : 0) || x.created_at.localeCompare(y.created_at)));
+          scroll();
+          if (fresh.some((r) => r.sender_id !== me)) { markChatRead(id); channel.current?.read(); }
+        }
+      } catch { /* the next rejoin or return tries again */ }
+      catching = false;
+    };
+    let awayAt = 0;
+    const onVis = () => { if (document.hidden) awayAt = Date.now(); else if (awayAt && Date.now() - awayAt > 3000) catchUp(); };
+    document.addEventListener('visibilitychange', onVis);
     channel.current = api.joinChat(id, me, {
+      onReconnect: catchUp,
       onMessage: incoming,
       onUpdate: (m) => update(m),
       onTyping: () => { setTyping(true); scroll(); if (typingTimer.current) clearTimeout(typingTimer.current); typingTimer.current = setTimeout(() => setTyping(false), 3500); },
@@ -204,6 +231,7 @@ function ChatView({ convo }: { convo: Convo }) {
     return () => {
       alive = false;
       clearInterval(poll);
+      document.removeEventListener('visibilitychange', onVis);
       channel.current?.leave(); channel.current = null;
       setOpenChatHandler(null);
       state.openChat = null;

@@ -4,6 +4,7 @@
 // (bottom bar on phones, sidebar on desktop), live updates, Terms of Use check.
 import { loadRoomBan } from './RoomBan';
 import { startActivity } from './Reputation';
+import { startLiveStats } from '@/lib/livestats';
 import { useEffect, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -175,6 +176,7 @@ export async function afterSignIn() {
 let live = false;
 function startLive() {
   startActivity();
+  startLiveStats();
   if (live || !state.profile) return;
   live = true;
   // Push notifications: find out if they're set up, and keep this device linked to this account.
@@ -200,7 +202,7 @@ function startLive() {
     if (nudgeTimer) return;
     const wait = Math.max(1500, 45000 - (Date.now() - lastNudgeLoad));
     nudgeTimer = setTimeout(() => { nudgeTimer = null; lastNudgeLoad = Date.now(); if (!document.hidden) loadDating({ force: true }); }, wait);
-  });
+  }, () => loadDating({ minGap: 15000 }));   // live connection came back: catch up on missed messages
   setInterval(() => { if (!document.hidden) loadDating(); }, 600000);
   // Chatrooms kick people inactive for 10 minutes; while treehouse is on screen, keep the seat.
   const roomBeat = async () => {
@@ -214,7 +216,14 @@ function startLive() {
     } catch {}
   };
   setInterval(roomBeat, 180000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { roomBeat(); loadDating({ minGap: 120000 }); } });
+  // Back on screen: phones pause treehouse in the background (the Android app most of all), so the live
+  // connection may have missed messages. Away more than 10 s: refresh the chat list (at most every 20 s).
+  let awayAt = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { awayAt = Date.now(); return; }
+    roomBeat();
+    loadDating({ minGap: awayAt && Date.now() - awayAt > 10000 ? 20000 : 120000 });
+  });
 }
 
 // Tapping a notification while treehouse is open: the background worker asks us to open that screen.

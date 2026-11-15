@@ -345,6 +345,8 @@ const RPC = {
             const extra = Array.from({ length: 200 }, (_, i) => ({ id: `old-${i}`, sender_id: i % 2 ? ME : 'them', body: `Older message #${200 - i}`, created_at: new Date(t0 - (i + 1) * 60000).toISOString(), reply_to: null, edited_at: null, deleted_at: null, photo: null }));
             all = [...extra.reverse(), ...all];
           }
+          // Preview only: window.__mockMissed[conv] = messages that "arrived while the live connection was down".
+          if (window.__mockMissed && window.__mockMissed[convId]) all = [...all, ...window.__mockMissed[convId]];
           let desc = all.slice().reverse();
           if (before) desc = desc.filter((m) => m.created_at < before);
           data = lim ? desc.slice(0, lim) : desc;
