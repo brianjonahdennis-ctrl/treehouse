@@ -2019,3 +2019,4 @@ html:has(.game-stage), body:has(.game-stage) { overflow: hidden; overscroll-beha
 .ann-bar .chips::-webkit-scrollbar { display: none; }
 .ann-bar .chip { flex: none; }
 .sd-camrule { padding: 10px 12px; border-radius: 14px; background: rgba(255,63,155,.14); box-shadow: inset 0 0 0 1px rgba(255,63,155,.5); font-size: 13.5px; line-height: 1.4; }
+.chat-older { text-align: center; font-size: 12px; color: var(--muted); padding: 8px 0 4px; }

@@ -192,6 +192,13 @@ export async function datingSummary(): Promise<any> {
 }
 
 const MSG_COLS = 'id, sender_id, body, created_at, reply_to, edited_at, deleted_at, photo, photo_w, photo_h';
+// Older history, 80 at a time (scrolling up in a chat). Same rules as the first load.
+export async function messagesBefore(conversationId: string, before: string) {
+  const { data, error } = await sb.from('dating_messages').select(MSG_COLS)
+    .eq('conversation_id', conversationId).lt('created_at', before).order('created_at', { ascending: false }).limit(80);
+  if (error) throw error;
+  return (data || []).reverse();
+}
 export async function messages(conversationId: string) {
   const { data, error } = await sb.from('dating_messages').select(MSG_COLS)
     .eq('conversation_id', conversationId).order('created_at', { ascending: false }).limit(80);

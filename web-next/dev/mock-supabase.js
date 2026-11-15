@@ -319,7 +319,7 @@ const RPC = {
     let rows = [];
     if (table === 'dating_profiles') rows = profile;
     if (table === 'dating_messages') rows = [];
-    let convId = null, single = false;
+    let convId = null, single = false, before = null, lim = null;
     const b = {
       select() { return b; }, insert(v) { if (table === 'dating_messages') rows = { id: Date.now(), sender_id: ME, body: v.photo ? '📷 Photo' : v.body, created_at: new Date().toISOString(), reply_to: v.reply_to || null, edited_at: null, deleted_at: null, photo: v.photo || null, photo_w: v.photo_w || null, photo_h: v.photo_h || null }; return b; },
       update(v) {
@@ -332,12 +332,23 @@ const RPC = {
           }
         }
         return b;
-      }, delete() { return b; }, order() { return b; }, limit() { return b; },
+      }, delete() { return b; }, order() { return b; }, limit(n) { lim = n; return b; }, lt(col, v) { if (col === 'created_at') before = v; return b; },
       eq(col, v) { if (col === 'conversation_id') convId = v; return b; },
       maybeSingle() { single = true; return b; }, single() { single = true; return b; },
       then(ok, bad) {
         let data = rows;
-        if (table === 'dating_messages' && convId && !single) data = messages(convId).reverse();
+        if (table === 'dating_messages' && convId && !single) {
+          let all = messages(convId);
+          // Preview only: sessionStorage mock-longchat=1 gives chat c1 200 extra older messages.
+          if (convId === 'c1' && sessionStorage.getItem('mock-longchat')) {
+            const t0 = new Date(all[0] ? all[0].created_at : Date.now()).getTime();
+            const extra = Array.from({ length: 200 }, (_, i) => ({ id: `old-${i}`, sender_id: i % 2 ? ME : 'them', body: `Older message #${200 - i}`, created_at: new Date(t0 - (i + 1) * 60000).toISOString(), reply_to: null, edited_at: null, deleted_at: null, photo: null }));
+            all = [...extra.reverse(), ...all];
+          }
+          let desc = all.slice().reverse();
+          if (before) desc = desc.filter((m) => m.created_at < before);
+          data = lim ? desc.slice(0, lim) : desc;
+        }
         if (table === 'link_messages') data = [];
         return result(data).then(ok, bad);
       },

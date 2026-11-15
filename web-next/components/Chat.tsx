@@ -83,6 +83,7 @@ function ChatView({ convo }: { convo: Convo }) {
   const id = convo.conversation_id as string;
   const me = state.user.id as string;
   const [msgs, setMsgs] = useState<Msg[]>([]);
+  useEffect(() => { msgsRef.current = msgs; });
   const [loaded, setLoaded] = useState(false);
   const [typing, setTyping] = useState(false);
   const [present, setPresent] = useState(false);
@@ -101,6 +102,16 @@ function ChatView({ convo }: { convo: Convo }) {
   const sinceCheck = useRef(0);
   const [unblurred, setUnblurred] = useState(0);   // bumps when a photo is tapped to view
   const [older, setOlder] = useState<Record<string, Msg>>({});   // quoted messages from before what's loaded
+  // Earlier history: the first load shows the latest 80; scrolling near the top loads 80 more each time.
+  const msgsRef = useRef<Msg[]>([]);
+  const hasMore = useRef(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [reachedStart, setReachedStart] = useState(false);
+  const restore = useRef<{ prevH: number; prevTop: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = body.current, r = restore.current;
+    if (el && r) { el.scrollTop = el.scrollHeight - r.prevH + r.prevTop; restore.current = null; }
+  });
 
   const scroll = useCallback(() => requestAnimationFrame(() => { const b = body.current; if (b) b.scrollTop = b.scrollHeight; }), []);
   const checkPhotos = useCallback(() => {
@@ -118,6 +129,23 @@ function ChatView({ convo }: { convo: Convo }) {
     if (!lastMsg.current || new Date(m.created_at) >= new Date(lastMsg.current.created_at)) lastMsg.current = m;
   }, [me, checkPhotos]);
   const update = useCallback((m: Partial<Msg> & { id: string }) => setMsgs((list) => list.map((x) => (x.id === m.id ? { ...x, ...m } : x))), []);
+  const loadOlder = useCallback(async () => {
+    const first = msgsRef.current.find((x) => !x.pending);
+    if (!hasMore.current || !first || loadingOlder) return;
+    hasMore.current = false;   // one request at a time
+    setLoadingOlder(true);
+    const b = body.current;
+    const prevH = b ? b.scrollHeight : 0, prevTop = b ? b.scrollTop : 0;
+    try {
+      const rows: Msg[] = await api.messagesBefore(id, first.created_at);
+      setMsgs((list) => [...rows.filter((r) => !list.some((x) => x.id === r.id)), ...list]);
+      hasMore.current = rows.length >= 80;
+      if (!hasMore.current) setReachedStart(true);
+      // Keep my place: the new messages appear above what I was reading (applied right after they render).
+      restore.current = { prevH, prevTop };
+    } catch (e: any) { hasMore.current = true; toast(api.friendly(e), 'x'); }
+    setLoadingOlder(false);
+  }, [id, loadingOlder]);
 
   // A request becomes a chat when someone replies, etc.: refresh this chat's state from the list.
   const refreshChatState = useCallback(async () => {
@@ -131,7 +159,7 @@ function ChatView({ convo }: { convo: Convo }) {
   useEffect(() => {
     state.openChat = id;
     let alive = true;
-    api.messages(id).then((rows: Msg[]) => { if (!alive) return; rows.forEach(add); setLoaded(true); scroll(); }).catch((e: any) => { setLoaded(true); toast(api.friendly(e), 'x'); });
+    api.messages(id).then((rows: Msg[]) => { if (!alive) return; hasMore.current = rows.length >= 80; rows.forEach(add); setLoaded(true); scroll(); }).catch((e: any) => { setLoaded(true); toast(api.friendly(e), 'x'); });
     markChatRead(id);
     const incoming = (m: Msg) => {
       if (!m || !m.id) return;
@@ -391,7 +419,8 @@ function ChatView({ convo }: { convo: Convo }) {
       </div>
       {convo.blocked || statusOf(convo) !== 'chat' ? null : <ChatBirthdayBanner convoId={convo.conversation_id} name={shortName(nameOf(convo))} onCard={() => openCardPicker(shortName(nameOf(convo)), sendCard)} />}
 
-      <div ref={body} className="chat-body" role="log" aria-live="polite" onScroll={(e) => { const b = e.currentTarget; b.dataset.pinned = b.scrollHeight - b.scrollTop - b.clientHeight < 80 ? '1' : '0'; }}>
+      <div ref={body} className="chat-body" role="log" aria-live="polite" onScroll={(e) => { const b = e.currentTarget; b.dataset.pinned = b.scrollHeight - b.scrollTop - b.clientHeight < 80 ? '1' : '0'; if (b.scrollTop < 200) loadOlder(); }}>
+        {loadingOlder ? <div className="chat-older">Loading earlier messages…</div> : reachedStart ? <div className="chat-older">Start of your chat</div> : null}
         {loaded && !msgs.length ? (
           <div className="empty" style={{ padding: '30px 10px' }}><div className="empty-art"><span>👋</span></div><h3>Say hi!</h3>
             <p>{st === 'sent' ? 'Your request is waiting for them to accept.' : isMatch(convo) ? 'You matched. Neither of you knows who the other is yet: start with something fun.' : 'Request accepted. You’re both anonymous: start with something fun.'}</p></div>
