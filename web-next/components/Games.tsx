@@ -11,7 +11,41 @@ import { Avatar, EmptyState, Hero, Icon, SkeletonList } from './ui';
 import { BellButton } from './Home';
 import { confirmSheet, openSheet, toast } from './overlay';
 
-const ART: Record<string, string> = { penalties: '⚽', ludo: '🎲', chess: '♟️', dice: '🎯', crosswords: '🔠', trivia: '🧠' };
+const ART: Record<string, string> = { penalties: '⚽', ludo: '🎲', chess: '♟️', treedoku: '🦅', crosswords: '🔠', trivia: '🧠' };
+
+const WhiteKnight = () => (
+  <svg viewBox="0 0 45 45" width="36" height="36" aria-hidden="true">
+    <g fill="#fff" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round">
+      <rect x="10.5" y="34" width="24" height="5" rx="1.6" />
+      <path d="M14 34c0-5 2.5-8 4.5-10.5 1.2-1.5 1-3-.5-3.6l-3.3 2.3c-1.6 1.1-3.8.5-4.4-1.3-.4-1.2 0-2.4.8-3.4L17 10.5 17.5 6l2.8 3c6 .5 11.5 5.5 11.5 14 0 4-.5 7.5-.3 11z" />
+    </g>
+    <circle cx="17.5" cy="13.5" r="1.3" fill="#090d2b" />
+  </svg>
+);
+
+const DraughtsBoard = () => (
+  <svg viewBox="0 0 44 44" width="38" height="38" aria-hidden="true">
+    <rect width="44" height="44" rx="5" fill="#3A2416" />
+    <rect x="3" y="3" width="38" height="38" fill="#EBCB98" />
+    {Array.from({ length: 32 }, (_, i) => {
+      const r = Math.floor(i / 4);
+      const x = 3 + (2 * (i % 4) + (r % 2)) * 4.75;
+      const y = 3 + r * 4.75;
+      const black = r < 3;
+      return (
+        <g key={i}>
+          <rect x={x} y={y} width="4.75" height="4.75" fill="#4A2D1C" />
+          {(r < 3 || r > 4) && (
+            <>
+              <circle cx={x + 2.375} cy={y + 2.375} r="1.85" fill={black ? '#2E2E30' : '#F4F4F2'} stroke={black ? '#151516' : '#BDBDB8'} strokeWidth=".35" />
+              <circle cx={x + 2.375} cy={y + 2.375} r="1.05" fill="none" stroke={black ? '#5A5A5E' : '#D2D2CC'} strokeWidth=".3" />
+            </>
+          )}
+        </g>
+      );
+    })}
+  </svg>
+);
 const FILTERS = [['all', 'All Games'], ['multi', 'Multiplayer'], ['quick', 'Quick Play']] as const;
 const playing = (n: number | null) => (!n ? '' : n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K playing` : `${n} playing`);
 const BLOCKED: Record<string, string> = {
@@ -20,13 +54,16 @@ const BLOCKED: Record<string, string> = {
 };
 
 let gamesCache: KickrsGame[] | null = null;
+const byPlayers = (games: KickrsGame[]) => games.map((g, i) => ({ g, i })).sort((a, b) => Number(b.g.status === 'live') - Number(a.g.status === 'live') || (b.g.playing ?? 0) - (a.g.playing ?? 0) || a.i - b.i).map(({ g }) => g);
 function useGames() {
   const [games, setGames] = useState<KickrsGame[] | null>(gamesCache);
   const [error, setError] = useState('');
   useEffect(() => {
     let live = true;
-    kickrsGames().then((g) => { gamesCache = g; if (live) setGames(g); }).catch((e) => { if (live && !gamesCache) setError(e.message); });
-    return () => { live = false; };
+    const load = () => kickrsGames().then((g) => { gamesCache = byPlayers(g); if (live) setGames(gamesCache); }).catch((e) => { if (live && !gamesCache) setError(e.message); });
+    void load();
+    const t = window.setInterval(load, 30000);
+    return () => { live = false; window.clearInterval(t); };
   }, []);
   return { games, error };
 }
@@ -72,7 +109,7 @@ export function GamesHub() {
             <div className="gm-grid">
               {shown.map((g) => (
                 <button key={g.id} className={`gm-tile ${g.status}`} disabled={g.status !== 'live'} onClick={() => go(`games/${g.id}`)} aria-label={g.status === 'live' ? `Play ${g.name}` : `${g.name}, coming soon`}>
-                  <span className="gm-art" aria-hidden="true">{ART[g.id] || '🎮'}</span>
+                  <span className="gm-art" aria-hidden="true">{g.id === 'chess' ? <WhiteKnight /> : g.id === 'draughts' ? <DraughtsBoard /> : ART[g.id] || '🎮'}</span>
                   <b>{g.name.replace(/^Kickrs /, '')}</b>
                   <span className="gm-meta">{g.status === 'live' ? <><i className="gm-live" />{playing(g.playing) || g.players}</> : 'Coming soon'}</span>
                 </button>
