@@ -2037,3 +2037,56 @@ html:has(.game-stage), body:has(.game-stage) { overflow: hidden; overscroll-beha
 .vn-dot.on { background: #ff3b3b; animation: vn-blink 1s steps(2) infinite; }
 @keyframes vn-blink { 50% { opacity: .2; } }
 @media (prefers-reduced-motion: reduce) { .vn-dot.on { animation: none; } }
+
+/* ---- Inbox hub (Nov 2026): Chats first, then Matches / Friends / Nearby / Requests, Updates ---------- */
+.ih-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.ih-card { --tc: #FF3F9B; position: relative; display: flex; align-items: center; gap: 11px; min-height: 70px; padding: 12px 14px; text-align: left;
+  border-radius: 18px; border: 1px solid color-mix(in srgb, var(--tc) 40%, transparent); background: color-mix(in srgb, var(--tc) 12%, rgba(255,255,255,.03));
+  color: #fff; cursor: pointer; font: inherit; transition: transform .15s var(--ease), box-shadow .2s, background-color .2s; min-width: 0; }
+.ih-card:hover { background: color-mix(in srgb, var(--tc) 18%, rgba(255,255,255,.04)); }
+.ih-card:active { transform: scale(.97); }
+.ih-card:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.ih-card.wide { grid-column: 1 / -1; }
+.ih-card.ih-chats { min-height: 78px; border-color: transparent; background: linear-gradient(120deg, #FF3F9B, #b832d8 62%, #6d28d9);
+  box-shadow: 0 14px 30px -14px #FF3F9B, inset 0 1px 0 rgba(255,255,255,.25); }
+.ih-card.ih-match { --tc: #b46cff; } .ih-card.ih-friend { --tc: #12B9F5; } .ih-card.ih-near { --tc: #ff6fb4; }
+.ih-card.ih-req { --tc: #12B9F5; } .ih-card.ih-ann { --tc: #8b7bff; min-height: 62px; }
+.ih-ico { flex: none; display: grid; place-items: center; color: var(--tc); }
+.ih-ico .icon { width: 28px; height: 28px; }
+.ih-chats .ih-ico { color: #fff; } .ih-chats .ih-ico .icon { width: 32px; height: 32px; }
+.ih-text { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.ih-text b { font-size: 15.5px; font-weight: 800; letter-spacing: -.01em; }
+.ih-chats .ih-text b { font-size: 18px; }
+.ih-text > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12.5px; line-height: 1.3; color: rgba(255,255,255,.74); }
+.ih-chats .ih-text > span { color: rgba(255,255,255,.9); }
+.ih-card .badge { position: absolute; top: -6px; right: -4px; box-shadow: 0 0 0 2px var(--navy); }
+.ih-card.wide .badge { position: static; box-shadow: none; }
+.ih-chats .badge { background: #fff; color: #d61f7b; }
+.ih-chev { flex: none; color: rgba(255,255,255,.75); display: grid; }
+.ih-dot { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; background: var(--muted); vertical-align: 1px; }
+.ih-dot.on { background: var(--online); box-shadow: 0 0 6px var(--online); }
+@media (max-width: 360px) { .ih-grid { gap: 8px; } .ih-card { padding: 10px; gap: 8px; } .ih-ico .icon { width: 24px; height: 24px; } .ih-text b { font-size: 14px; } .ih-text > span { font-size: 11.5px; } }
+
+.ih-online .section-head { justify-content: flex-start; align-items: center; }
+.ih-count { display: inline-flex; align-items: center; font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.ih-seeall { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; font-size: 14px; }
+
+.ih-sub .hero-top { align-items: center; }
+.ih-subtop { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ih-subtop h1 { margin: 0; font-size: 28px; }
+.ih-subline { margin: 8px 0 0; font-size: 14px; color: rgba(255,255,255,.75); }
+
+.ih-filters { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px 1px 4px; }
+.ih-filters::-webkit-scrollbar { display: none; }
+.ih-filter { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 42px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink-2); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: background-color .2s, color .2s; }
+.ih-filter[aria-selected="true"] { border-color: transparent; color: #fff; background: linear-gradient(120deg, #FF3F9B, #c026d3); box-shadow: 0 8px 20px -10px #FF3F9B; }
+.ih-fn { min-width: 20px; height: 20px; padding: 0 6px; display: inline-grid; place-items: center; border-radius: 999px; font-size: 11.5px; font-weight: 800; background: var(--pink); color: #fff; }
+.ih-filter[aria-selected="true"] .ih-fn { background: #fff; color: #d61f7b; }
+
+.ih-tags { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; flex: none; }
+.ih-tags .ib-friend { margin-left: 0; }
+.ih-near-tag { display: inline-grid; color: var(--blue); }
+.ih-near-tag .icon { width: 14px; height: 14px; }
+.ih-note-btn { width: 100%; border: 0; cursor: pointer; text-align: left; font: inherit; align-items: center; }
+.ih-note-btn > span:nth-child(2) { flex: 1; }

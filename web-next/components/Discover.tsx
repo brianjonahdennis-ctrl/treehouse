@@ -317,8 +317,8 @@ async function likeOnly(p: any) {
 }
 
 // Message request (or friend request) with a first message.
-export function composeTo(p: any, { friend = false } = {}) { openSheet((close) => <Compose p={p} friend={friend} close={close} />, { label: `Message ${p.handle}` }); }
-function Compose({ p, friend, close }: { p: any; friend: boolean; close: () => void }) {
+export function composeTo(p: any, { friend = false, origin = null as string | null } = {}) { openSheet((close) => <Compose p={p} friend={friend} origin={origin} close={close} />, { label: `Message ${p.handle}` }); }
+function Compose({ p, friend, origin, close }: { p: any; friend: boolean; origin: string | null; close: () => void }) {
   const [text, setText] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -339,7 +339,7 @@ function Compose({ p, friend, close }: { p: any; friend: boolean; close: () => v
           if (!body) return setErr('Write a message first.');
           setBusy(true);
           try {
-            const conv = friend ? await api.startFriend(p.handle) : await api.startChat(p.handle);
+            const conv = friend ? await api.startFriend(p.handle) : await api.startChatFrom(p.handle, origin);
             await api.sendMessage(conv, body);
             await loadDating({ force: true });
             close();

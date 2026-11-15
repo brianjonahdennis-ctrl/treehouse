@@ -195,7 +195,7 @@ export const friendStatuses = async () => (await rpc('friend_statuses')) || [];
 export async function datingSummary(): Promise<any> {
   try {
     const d = await rpc('dating_summary');
-    return { convos: d.convos || [], requests: d.requests || [], pending: d.pending || 0, myStatus: d.my_status || null, friendStatuses: d.friend_statuses || [] };
+    return { convos: d.convos || [], requests: d.requests || [], pending: d.pending || 0, myStatus: d.my_status || null, friendStatuses: d.friend_statuses || [], origins: d.origins || {} };
   } catch (e) {
     if (!/could not find the function|PGRST202/i.test(String((e as any)?.message || (e as any)?.code || ''))) throw e;
     const [convos, requests, pending] = await Promise.all([conversations(), incomingRequests(), pendingLikes()]);
@@ -320,6 +320,13 @@ export const stateCounts = async () => {
 };
 export const startChat = (handle: string) => rpc('start_conversation', { p_handle: handle });
 export const startFriend = (handle: string) => rpc('start_friend_request', { p_handle: handle });
+/** A message request that says where it started ('nearby'), so the Inbox can file it under Nearby. */
+export async function startChatFrom(handle: string, origin: string | null) {
+  if (!origin) return startChat(handle);
+  try { return await rpc('start_conversation_from', { p_handle: handle, p_origin: origin }); }
+  catch (e) { if (missingFn(e)) return startChat(handle); throw e; }
+}
+export const removeFriend = (conversationId: string) => rpc('remove_friend', { p_conversation: conversationId });
 export const askFriend = (conversationId: string, on = true) => rpc('ask_friend', { p_conversation: conversationId, p_on: on });
 
 let asksMissing = false;
