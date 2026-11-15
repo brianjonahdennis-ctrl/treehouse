@@ -7,7 +7,7 @@
 // Photos are blurred until tapped; swipe a message right to reply.
 import { openRecorder, VoiceBubble } from './Voice';
 import { BirthdayCardBubble, ChatBirthdayBanner, openCardPicker, parseBirthdayCard } from './Birthday';
-import { ConvoBird } from './Reputation';
+import { ConvoBird, ChatRatePrompt } from './Reputation';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as api from '@/lib/api';
@@ -504,6 +504,8 @@ function ChatView({ convo }: { convo: Convo }) {
           <div className="grow"><b>Request pending</b><p>They’ll see it in their Requests. Once they accept, you can chat freely. You can send up to 3 messages until then.</p></div>
           <button className="btn btn-ghost btn-sm" onClick={() => cancelSent(convo)}>Cancel request</button></div>
       ) : null}
+
+      {canTalk && st === 'chat' ? <ChatRatePrompt convo={id} name={shortName(nameOf(convo))} tick={msgs.length} /> : null}
 
       {convo.blocked ? <div className="chat-closed">This chat is closed. Neither of you can send messages.</div>
         : st === 'request' ? (

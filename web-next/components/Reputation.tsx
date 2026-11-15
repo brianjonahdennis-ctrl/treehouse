@@ -331,3 +331,47 @@ export function startActivity() {
   setInterval(ping, 180000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') mark(); });
 }
+
+// ---- "Rate this user" card inside a chat ----------------------------------------------------------
+// Shows once the chat has more than 10 messages (the database decides: rating_prompt). "Not now" hides it
+// until 20 more messages; after a rating it waits for the once-a-week rule. `tick` changes when messages
+// arrive, so the card can appear mid-chat.
+export function ChatRatePrompt({ convo, name, tick }: { convo: string; name: string; tick: number }) {
+  const [show, setShow] = useState(false);
+  const [stars, setStars] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (done) return;
+    let alive = true;
+    const t = setTimeout(() => { api.ratingPrompt(convo).then((r: any) => { if (alive) setShow(!!(r && r.show)); }).catch(() => {}); }, tick ? 2500 : 600);
+    return () => { alive = false; clearTimeout(t); };
+  }, [convo, tick, done]);
+  if (done) return <div className="rate-prompt done" role="status"><span aria-hidden="true">⭐</span> Thanks! Your rating was submitted anonymously.</div>;
+  if (!show) return null;
+  const later = async () => { setShow(false); try { await api.ratingPromptLater(convo); } catch { /* shows again next time */ } };
+  const submit = async () => {
+    if (!stars) return;
+    setBusy(true);
+    try {
+      await api.rateConvo(convo, stars);
+      cache.clear(); myRep = null; listeners.forEach((f) => f());
+      setDone(true); setTimeout(() => { setDone(false); setShow(false); setStars(0); }, 4000);
+    } catch (e) { toast(api.friendly(e), 'x'); setShow(false); } finally { setBusy(false); }
+  };
+  return (
+    <div className="rate-prompt" role="group" aria-label={`Rate ${name}`}>
+      <div className="rp-head"><b>{`How’s your chat with ${name}?`}</b><span>Rate them anonymously: they never see who rated.</span></div>
+      <div className="rate-stars sm" role="radiogroup" aria-label="Your rating">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button key={n} type="button" role="radio" aria-checked={stars === n} aria-label={`${n} star${n === 1 ? '' : 's'}`}
+            className={`rate-star ${n <= stars ? 'on' : ''}`} onClick={() => setStars(n)}>★</button>
+        ))}
+      </div>
+      <div className="rp-actions">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={later}>Not now</button>
+        <button type="button" className="btn btn-primary btn-sm" disabled={!stars || busy} onClick={submit}>Rate</button>
+      </div>
+    </div>
+  );
+}

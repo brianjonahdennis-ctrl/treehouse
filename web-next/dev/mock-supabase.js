@@ -178,6 +178,7 @@
   const annRow = (a) => ({ id: a.id, title: a.title, preview: a.preview, category: a.category, cover_url: a.cover_url, cta_label: a.cta_label, cta_url: a.cta_url, published_at: a.published_at, delivered_at: a.delivered_at, read_at: annMine[a.id]?.read_at || null, archived_at: annMine[a.id]?.archived_at || null });
 const mockRated = new Set();
 let mockUsername = null; // usernames (sample: 'ada' can be added as a friend, 'taken' is taken)
+const mockLater = new Set(); // chats where "Not now" was tapped on the rating card
 const RPC = {
     my_pending_likes: () => likes.length,
     // Preview only: sessionStorage mock-failchats=N makes the next N chat-list loads fail (tests the retry).
@@ -217,6 +218,9 @@ const RPC = {
       : { eligible: true, now: new Date().toISOString() }),
     rating_status_room: ({ p_handle }) => (p_handle === roomPeople[0].handle ? { eligible: false, self: true } : { eligible: true, now: new Date().toISOString() }),
     rate_convo: ({ p_conversation }) => { mockRated.add(p_conversation); return { eligible: false, cooldown: true }; },
+    // "Rate this user" card: every sample chat qualifies until rated or Not now.
+    rating_prompt: ({ p_conversation }) => ({ show: !mockRated.has(p_conversation) && !mockLater.has(p_conversation), messages: 14, next_at: 11 }),
+    rating_prompt_later: ({ p_conversation }) => { mockLater.add(p_conversation); return null; },
     rate_room_member: () => ({ eligible: false, cooldown: true }),
     badges_for_convos: ({ p_ids }) => p_ids.map((id, i) => ({ conversation_id: id, badge: { birthday: i === 0, level: (i % 8) + 1, rating: i % 3 ? 4.3 + (i % 5) / 10 : null, ratings: i % 3 ? 7 + i : i % 4 } })),
     badges_for_room: ({ p_handles }) => p_handles.map((h, i) => ({ handle: h, badge: { level: ((h.length + i) % 8) + 1, rating: i % 2 ? 4.8 : null, ratings: i % 2 ? 12 : 2 } })),
