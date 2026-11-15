@@ -54,7 +54,15 @@ export default function Inbox({ sub, item = null }: { sub: string | null; item?:
 
 // ---- Shared lists -----------------------------------------------------------------------------------
 const recent = (c: Convo) => new Date(c.last_at).getTime() || 0;
-const byRecent = (a: Convo, b: Convo) => recent(b) - recent(a);
+// Hydra's order (15 Nov): unread chats first (online or not, newest first); once read, people online
+// now, then everyone else by who was online most recently.
+const seenAgo = (c: Convo) => (c.other_online ? -1 : (c.other_active_hours ?? 1e9));
+const byInbox = (a: Convo, b: Convo) => {
+  const ua = a.unread && !a.blocked ? 1 : 0, ub = b.unread && !b.blocked ? 1 : 0;
+  if (ua !== ub) return ub - ua;
+  if (ua) return recent(b) - recent(a);
+  return seenAgo(a) - seenAgo(b) || recent(b) - recent(a);
+};
 /** Private conversations you can open (accepted chats with messages, plus closed ones with history). */
 const allChats = () => state.convos.filter((c) => (c.blocked ? !!c.last_message : statusOf(c) === 'chat' && !!c.last_message));
 const live = () => state.convos.filter((c) => !c.blocked && statusOf(c) === 'chat');
@@ -180,7 +188,7 @@ function ChatsScreen() {
   const [f, setF] = useState<Filter>(chatFilter);
   const [q, setQ] = useState(chatQuery);
   const [searching, setSearching] = useState(!!chatQuery);
-  const all = allChats().sort(byRecent);
+  const all = allChats().sort(byInbox);
   const lists: Record<Filter, Convo[]> = {
     all, friends: all.filter(isFriend), matches: all.filter(isMatch), nearby: all.filter(isNearby),
   };
@@ -279,7 +287,7 @@ let nearQuery = '';
 function NearbyScreen() {
   const s = useAppState();
   const [q, setQ] = useState(nearQuery);
-  const chats = nearbyChats().sort(byRecent);
+  const chats = nearbyChats().sort(byInbox);
   const waiting = state.convos.filter((c) => !c.blocked && statusOf(c) === 'sent' && isNearby(c));
   const incoming = messageRequests().filter(isNearby).length;
   const query = q.trim().toLowerCase();
@@ -399,7 +407,7 @@ function FriendsScreen() {
   const [q, setQ] = useState(friendQuery);
   const query = q.trim().toLowerCase();
   const list = all.filter((f) => !query || nameOf(f).toLowerCase().includes(query) || f.other_handle.toLowerCase().includes(query))
-    .slice().sort((a, b) => (b.other_online ? 1 : 0) - (a.other_online ? 1 : 0) || (a.other_active_hours ?? 1e9) - (b.other_active_hours ?? 1e9));
+    .slice().sort(byInbox);
   return (
     <SubScreen title="Friends" sub="People who accepted your friend request, or whose request you accepted."
       actions={<button className="hero-btn" aria-label="Add a friend by username" onClick={addFriendSheet}><Icon name="userplus" /></button>}>
@@ -500,7 +508,7 @@ function MatchesScreen({ focusLikes }: { focusLikes: boolean }) {
   const s = useAppState();
   const [tab, setTab] = useState<'matches' | 'likes'>(focusLikes ? 'likes' : matchTab);
   const fresh = newMatchList();
-  const chats = allChats().filter((c) => isMatch(c) && !c.blocked).sort(byRecent);
+  const chats = allChats().filter((c) => isMatch(c) && !c.blocked).sort(byInbox);
   const seg = (id: 'matches' | 'likes', label: string, n: number) => (
     <button className={`ih-filter f-matches`} role="tab" aria-selected={tab === id} onClick={() => { matchTab = id; setTab(id); }}>{label}{n ? <span className="ih-fn">{n99(n)}</span> : null}</button>
   );

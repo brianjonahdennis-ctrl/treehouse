@@ -61,8 +61,7 @@ export async function askFriend(convo: Convo, on: boolean) {
     if (res === 'friends') { toast('You’re now friends 🎉', 'userplus'); await loadDating({ force: true }); return; }
     loadDating({ force: true }).catch(() => {});
     if (on && res === 'asked') {
-      // A short note in the chat, so they see it (and get notified) even if they don't open the menu.
-      api.sendMessage(id, '👋 I sent you a friend request. Tap the add-friend icon at the top of this chat to accept.').catch(() => {});
+      // No chat message: they see "Accept friend" beside your nickname in this chat (and get notified).
       toast('Friend request sent', 'userplus');
     } else if (!on) toast('Friend request cancelled', 'x');
   } catch (e) { toast(api.friendly(e), 'x'); }
