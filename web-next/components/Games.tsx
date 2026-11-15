@@ -22,6 +22,14 @@ const WhiteKnight = () => (
     <circle cx="17.5" cy="13.5" r="1.3" fill="#090d2b" />
   </svg>
 );
+
+const WhiteDisc = () => (
+  <svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true">
+    <circle cx="20" cy="20" r="16" fill="#fff" />
+    <circle cx="20" cy="20" r="11" fill="none" stroke="#090d2b" strokeOpacity=".25" strokeWidth="1.6" />
+    <circle cx="20" cy="20" r="6" fill="none" stroke="#090d2b" strokeOpacity=".25" strokeWidth="1.2" />
+  </svg>
+);
 const FILTERS = [['all', 'All Games'], ['multi', 'Multiplayer'], ['quick', 'Quick Play']] as const;
 const playing = (n: number | null) => (!n ? '' : n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K playing` : `${n} playing`);
 const BLOCKED: Record<string, string> = {
@@ -85,7 +93,7 @@ export function GamesHub() {
             <div className="gm-grid">
               {shown.map((g) => (
                 <button key={g.id} className={`gm-tile ${g.status}`} disabled={g.status !== 'live'} onClick={() => go(`games/${g.id}`)} aria-label={g.status === 'live' ? `Play ${g.name}` : `${g.name}, coming soon`}>
-                  <span className="gm-art" aria-hidden="true">{g.id === 'chess' ? <WhiteKnight /> : ART[g.id] || '🎮'}</span>
+                  <span className="gm-art" aria-hidden="true">{g.id === 'chess' ? <WhiteKnight /> : g.id === 'draughts' ? <WhiteDisc /> : ART[g.id] || '🎮'}</span>
                   <b>{g.name.replace(/^Kickrs /, '')}</b>
                   <span className="gm-meta">{g.status === 'live' ? <><i className="gm-live" />{playing(g.playing) || g.players}</> : 'Coming soon'}</span>
                 </button>
