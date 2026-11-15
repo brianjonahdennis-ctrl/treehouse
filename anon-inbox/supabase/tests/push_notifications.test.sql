@@ -31,10 +31,10 @@ $$;
 
 -- Ada and Bolu both have dating profiles.
 select pg_temp.login('00000000-0000-0000-0000-0000000000a6');
-select create_my_profile('Ada Push', 'female', 24, 'Lagos', 'love');
+select create_my_profile('Ada Push', 'female', (current_date - interval '24 years 1 month')::date, 'Lagos', 'love');
 update dating_profiles set interested_in = '{male}' where user_id = '00000000-0000-0000-0000-0000000000a6';
 select pg_temp.login('00000000-0000-0000-0000-0000000000b6');
-select create_my_profile('Bolu Push', 'male', 26, 'Lagos', 'love');
+select create_my_profile('Bolu Push', 'male', (current_date - interval '26 years 1 month')::date, 'Lagos', 'love');
 select pg_temp.admin();
 select set_config('test.ha', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000a6'), true);
 select set_config('test.hb', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000b6'), true);

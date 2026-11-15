@@ -25,17 +25,17 @@ end $$;
 
 -- Amy (f, 26) likes men; Ben (m, 28) likes women; Cy (m, 40) likes women; Dee (f, 24) likes women.
 select pg_temp.login('00000000-0000-0000-0000-0000000000a2');
-select create_my_profile('Amy Secret', 'female', 26, 'Lagos', 'love');
+select create_my_profile('Amy Secret', 'female', (current_date - interval '26 years 1 month')::date, 'Lagos', 'love');
 update dating_profiles set interested_in = '{male}', bio = 'Jollof critic', interests = '{music,food}', max_age = 35
   where user_id = '00000000-0000-0000-0000-0000000000a2';
 select pg_temp.login('00000000-0000-0000-0000-0000000000b2');
-select create_my_profile('Ben Secret', 'male', 28, 'Abuja', 'love');
+select create_my_profile('Ben Secret', 'male', (current_date - interval '28 years 1 month')::date, 'Abuja', 'love');
 update dating_profiles set interested_in = '{female}' where user_id = '00000000-0000-0000-0000-0000000000b2';
 select pg_temp.login('00000000-0000-0000-0000-0000000000c2');
-select create_my_profile('Cy Secret', 'male', 40, 'Kano', 'fun');
+select create_my_profile('Cy Secret', 'male', (current_date - interval '40 years 1 month')::date, 'Kano', 'fun');
 update dating_profiles set interested_in = '{female}' where user_id = '00000000-0000-0000-0000-0000000000c2';
 select pg_temp.login('00000000-0000-0000-0000-0000000000d2');
-select create_my_profile('Dee Secret', 'female', 24, 'Enugu', 'fun');
+select create_my_profile('Dee Secret', 'female', (current_date - interval '24 years 1 month')::date, 'Enugu', 'fun');
 update dating_profiles set interested_in = '{female}' where user_id = '00000000-0000-0000-0000-0000000000d2';
 select pg_temp.admin();
 update dating_profiles set last_seen_at = now() where user_id in (select id from auth.users where email like '%@test.invalid');  -- test people rank first in Discover

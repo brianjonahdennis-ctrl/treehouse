@@ -23,13 +23,13 @@ end $$;
 
 -- Ada (f) in Lagos looking for men; Bolu (m) in Lagos; Chuks (m) in Rivers
 select pg_temp.login('00000000-0000-0000-0000-0000000000a4');
-select create_my_profile('Ada Hidden', 'female', 24, 'Lagos', 'love');
+select create_my_profile('Ada Hidden', 'female', (current_date - interval '24 years 1 month')::date, 'Lagos', 'love');
 update dating_profiles set state = 'Lagos', pref_state = 'Lagos', interested_in = '{male}' where user_id = '00000000-0000-0000-0000-0000000000a4';
 select pg_temp.login('00000000-0000-0000-0000-0000000000b4');
-select create_my_profile('Bolu Hidden', 'male', 26, 'Lagos', 'love');
+select create_my_profile('Bolu Hidden', 'male', (current_date - interval '26 years 1 month')::date, 'Lagos', 'love');
 update dating_profiles set state = 'Lagos', pref_state = 'Lagos' where user_id = '00000000-0000-0000-0000-0000000000b4';
 select pg_temp.login('00000000-0000-0000-0000-0000000000c4');
-select create_my_profile('Chuks Hidden', 'male', 27, 'Rivers', 'love');
+select create_my_profile('Chuks Hidden', 'male', (current_date - interval '27 years 1 month')::date, 'Rivers', 'love');
 update dating_profiles set state = 'Rivers', pref_state = 'Rivers' where user_id = '00000000-0000-0000-0000-0000000000c4';
 select throws_ok($$ update dating_profiles set state = 'Atlantis' where user_id = '00000000-0000-0000-0000-0000000000c4' $$,
   '23514', null, 'Only Nigerian states are accepted');

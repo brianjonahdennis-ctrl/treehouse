@@ -22,11 +22,11 @@ begin
 end $$;
 
 select pg_temp.login('00000000-0000-0000-0000-0000000000a8');
-select create_my_profile('Ama Secret', 'female', 25, 'Lagos', 'love');
+select create_my_profile('Ama Secret', 'female', (current_date - interval '25 years 1 month')::date, 'Lagos', 'love');
 select pg_temp.login('00000000-0000-0000-0000-0000000000b8');
-select create_my_profile('Bayo Secret', 'male', 27, 'Abuja', 'love');
+select create_my_profile('Bayo Secret', 'male', (current_date - interval '27 years 1 month')::date, 'Abuja', 'love');
 select pg_temp.login('00000000-0000-0000-0000-0000000000c8');
-select create_my_profile('Chi Secret', 'male', 30, 'Enugu', 'fun');
+select create_my_profile('Chi Secret', 'male', (current_date - interval '30 years 1 month')::date, 'Enugu', 'fun');
 select pg_temp.admin();
 update dating_profiles set bio = 'I love jollof', interests = '{music,food}' where user_id = '00000000-0000-0000-0000-0000000000b8';
 select set_config('test.ha', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000a8'), true);

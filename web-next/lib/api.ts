@@ -157,9 +157,11 @@ export async function myProfile() {
   if (error) throw error;
   return data;
 }
-export const createProfile = (p: any) => rpc('create_my_profile', {
-  p_name: p.name, p_gender: p.gender, p_age: Number(p.age), p_location: p.location || '', p_intent: p.intent,
-});
+// The date of birth is required and saved in the same step (the database works out the age from it).
+export const createProfile = (p: any) => {
+  if (!p.birth) return Promise.reject(new Error('Enter your date of birth.'));
+  return rpc('create_my_profile', { p_name: p.name, p_gender: p.gender, p_birth_date: p.birth, p_location: p.location || '', p_intent: p.intent });
+};
 export async function updateProfile(handle: string, fields: Record<string, unknown>) {
   const { error } = await sb.from('dating_profiles').update(fields).eq('handle', handle);
   if (error) throw error;

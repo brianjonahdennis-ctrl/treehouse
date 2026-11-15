@@ -29,9 +29,9 @@ end $$;
 insert into dating_private.admin_key values (encode(extensions.digest('test-admin-key', 'sha256'), 'hex'));
 
 select pg_temp.login('00000000-0000-0000-0000-0000000000f1');
-select create_my_profile('Fola Private', 'female', 25, 'Ibadan', 'love');
+select create_my_profile('Fola Private', 'female', (current_date - interval '25 years 1 month')::date, 'Ibadan', 'love');
 select pg_temp.login('00000000-0000-0000-0000-0000000000f2');
-select create_my_profile('Gbenga Private', 'male', 30, 'Lagos', 'love');
+select create_my_profile('Gbenga Private', 'male', (current_date - interval '30 years 1 month')::date, 'Lagos', 'love');
 select pg_temp.admin();
 select set_config('test.hf', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000f1'), true);
 select set_config('test.hg', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000f2'), true);

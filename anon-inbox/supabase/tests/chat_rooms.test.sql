@@ -23,7 +23,7 @@ end $$;
 
 -- Ada has a dating profile; Bolu and Chi don't.
 select pg_temp.login('00000000-0000-0000-0000-0000000000a7');
-select create_my_profile('Ada Roomtest', 'female', 24, 'Lagos', 'love');
+select create_my_profile('Ada Roomtest', 'female', (current_date - interval '24 years 1 month')::date, 'Lagos', 'love');
 select pg_temp.admin();
 select set_config('test.ha', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000a7'), true);
 

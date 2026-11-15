@@ -22,9 +22,9 @@ begin
 end $$;
 
 select pg_temp.login('00000000-0000-0000-0000-0000000000ac');
-select create_my_profile('Ama Edit', 'female', 25, 'Lagos', 'love');
+select create_my_profile('Ama Edit', 'female', (current_date - interval '25 years 1 month')::date, 'Lagos', 'love');
 select pg_temp.login('00000000-0000-0000-0000-0000000000bc');
-select create_my_profile('Bayo Edit', 'male', 27, 'Lagos', 'love');
+select create_my_profile('Bayo Edit', 'male', (current_date - interval '27 years 1 month')::date, 'Lagos', 'love');
 select pg_temp.admin();
 select set_config('test.ha', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000ac'), true);
 select set_config('test.hb', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000bc'), true);

@@ -11,7 +11,7 @@ insert into auth.users (id, email, aud, role, email_confirmed_at, created_at, up
 
 select set_config('role', 'authenticated', true);
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a5","role":"authenticated"}', true);
-select create_my_profile('Stella Secretname', 'female', 27, 'Port Harcourt', 'marriage');
+select create_my_profile('Stella Secretname', 'female', (current_date - interval '27 years 1 month')::date, 'Port Harcourt', 'marriage');
 select set_config('role', 'postgres', true);
 select set_config('test.h', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000a5'), true);
 
