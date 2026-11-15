@@ -2151,3 +2151,9 @@ html:has(.game-stage), body:has(.game-stage) { overflow: hidden; overscroll-beha
 .rate-prompt .rp-actions { display: flex; gap: 6px; }
 .rate-prompt.done { display: block; text-align: center; font-size: 13.5px; font-weight: 600; box-shadow: none; }
 @media (max-width: 380px) { .rate-prompt { grid-template-columns: 1fr; } .rate-prompt .rp-actions { justify-content: flex-end; } }
+
+/* Offline people look greyed out so you can tell at a glance who's online (Hydra, 15 Nov).
+   Look only: rows, profiles and Message buttons stay fully tappable and at full strength. */
+.av-off .avatar, .av-off .room-av, .avatar.av-off, .pin-off .nb-pin-av .avatar { filter: grayscale(1); opacity: .55; transition: filter .2s, opacity .2s; }
+.name-off, b.name-off { color: var(--muted) !important; }
+.swipe-card.is-off .swipe-art, .person-tile.is-off .pt-art { filter: grayscale(.85); }

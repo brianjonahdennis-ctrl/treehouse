@@ -451,7 +451,7 @@ function ChatView({ convo }: { convo: Convo }) {
         {/* The whole name area opens the profile; the friend label beside the nickname is its own button. */}
         <div className="chat-who">
           <button className="chat-who-hit" aria-label={`View ${convo.other_handle}’s profile`} onClick={() => partnerProfile(convo)} />
-          <Avatar seed={convo.other_handle} label={nameOf(convo)} />
+          <Avatar seed={convo.other_handle} label={nameOf(convo)} cls={online ? '' : 'av-off'} />
           <span className="grow">
             <span className="cw-name"><b className="ellipsis name-dot">{nameOf(convo)}<span className="name-dot-slot">{online ? <i className="online-dot-inline" role="img" aria-label="Online" /> : null}</span></b><FriendChip convo={convo} /></span>
             <span className="status">{online ? <><i />Online</> : (active ? `${active} · ${metaText}` : metaText)}</span>
