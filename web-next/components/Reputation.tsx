@@ -26,19 +26,20 @@ export function Emblem({ level, size = 'md' }: { level: number; size?: 'sm' | 'm
   const b = bird(level);
   return (
     <span className={`bk-emblem bk-${size} ${b.n === 8 ? 'bk-phoenix' : ''}`} style={vars({ '--b1': b.c1, '--b2': b.c2 })} aria-hidden="true">
-      <span className="bk-glyph">{b.emoji}</span><span className="bk-num">{b.n}</span>
+      <span className="bk-glyph">{b.emoji}</span>
     </span>
   );
 }
 export function BirdBadge({ level, compact = false }: { level?: number | null; compact?: boolean }) {
   if (!level) return null;
   const b = bird(level);
-  return <span className={`bk-pill ${b.n === 8 ? 'bk-pill-phoenix' : ''}`} title={`Level ${b.n} — ${b.name}`}><Emblem level={b.n} size="sm" />{compact ? b.name : `Level ${b.n} — ${b.name}`}</span>;
+  return <span className={`bk-pill ${b.n === 8 ? 'bk-pill-phoenix' : ''}`} title={b.name}><Emblem level={b.n} size="sm" />{b.name}</span>;
 }
 export function StarPill({ rating, ratings }: { rating?: number | null; ratings?: number | null }) {
   const n = Number(ratings || 0);
   const count = <small>{` (${n.toLocaleString()})`}</small>;
-  if (rating == null) return <span className="rp-pill new" title={`Not enough ratings yet · ${n} rating${n === 1 ? '' : 's'}`}>★ New member{count}</span>;
+  // Everyone is 5.0 until real ratings move it; only the number of ratings is shown with it.
+  if (rating == null) return <span className="rp-pill" title={`5.0 out of 5 · ${n} rating${n === 1 ? '' : 's'}`}>★ 5.0{count}</span>;
   return <span className="rp-pill" title={`${rating} out of 5 from ${n} ratings`}>{`★ ${Number(rating).toFixed(1)}`}{count}</span>;
 }
 
@@ -159,14 +160,14 @@ export function MyIdentity() {
       <button className="card pf-id-card" onClick={openBirdKingdom} aria-label="Open the Bird Kingdom">
         <Emblem level={b ? b.level : 1} size="lg" />
         <span className="grow"><span className="tiny muted">Bird Kingdom</span>
-          <b>{b ? `Level ${b.level} — ${bird(b.level).name}` : 'Loading…'}</b>
-          <span className="tiny muted">{b ? (b.level < 8 ? `Next: ${bird(b.level + 1).name}` : 'Top of the kingdom') : ''}</span></span>
+          <b>{b ? bird(b.level).name : 'Loading…'}</b>
+          <span className="tiny muted">{b ? 'Your Bird Kingdom level' : ''}</span></span>
       </button>
       <button className="card pf-id-card" onClick={openReputation} aria-label="Open my reputation">
         <span className="rp-big">★</span>
         <span className="grow"><span className="tiny muted">Community rating</span>
-          <b>{rep ? (rep.established ? `${Number(rep.score).toFixed(1)} / 5.0 (${rep.ratings})` : `5.0 · New member (${rep.ratings})`) : '…'}</b>
-          <span className="tiny muted">{rep ? (rep.established ? `${rep.ratings} ratings` : 'Not enough ratings yet') : ''}</span></span>
+          <b>{rep ? `${rep.established ? Number(rep.score).toFixed(1) : '5.0'} / 5.0 (${rep.ratings})` : '…'}</b>
+          <span className="tiny muted">{rep ? `${rep.ratings} rating${rep.ratings === 1 ? '' : 's'}` : ''}</span></span>
       </button>
     </div>
   );
@@ -186,7 +187,7 @@ export function MyHomeBadges() {
   return (
     <div className="hm-badges">
       {isMyBirthday() ? <span className="bday-pill">🎂 Happy birthday to you! 🎉</span> : null}
-      {b ? <button className="plain-btn" onClick={openBirdKingdom} aria-label={`Bird Kingdom: Level ${b.level} — ${bird(b.level).name}`}><BirdBadge level={b.level} /></button> : null}
+      {b ? <button className="plain-btn" onClick={openBirdKingdom} aria-label={`Bird Kingdom: ${bird(b.level).name}`}><BirdBadge level={b.level} /></button> : null}
       {rep ? <button className="plain-btn" onClick={openReputation} aria-label="My community rating"><StarPill rating={rep.established ? rep.score : null} ratings={rep.ratings} /></button> : null}
     </div>
   );
@@ -208,12 +209,11 @@ function BirdKingdom({ close }: { close: () => void }) {
     <>
       <div className="bk-head">
         <Emblem level={lvl} size="xl" />
-        <h2>{`Level ${lvl} — ${cur.name}`}</h2>
+        <h2>{cur.name}</h2>
         <p className="small muted">{cur.text}</p>
         {next ? (
           <>
             <div className="bk-bar" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${pct}%` }} /></div>
-            <p className="tiny muted">{`Keep going to reach Level ${next.n} — ${next.name}`}</p>
           </>
         ) : <p className="small">You’ve reached the top of the Bird Kingdom. 🔥</p>}
       </div>
@@ -221,7 +221,7 @@ function BirdKingdom({ close }: { close: () => void }) {
         {BIRDS.map((b) => (
           <div key={b.n} className={`bk-row ${b.n === lvl ? 'cur' : ''} ${b.n > lvl ? 'locked' : ''}`}>
             <Emblem level={b.n} size="md" />
-            <span className="grow"><b>{`Level ${b.n} — ${b.name}`}</b>{b.n > lvl ? <span className="tiny muted">Locked</span> : null}
+            <span className="grow"><b>{b.name}</b>{b.n > lvl ? <span className="tiny muted">Locked</span> : null}
               <span className="tiny">{b.text}</span></span>
             {b.n > lvl ? <span aria-label="Locked">🔒</span> : b.n === lvl ? <span className="bk-you">You</span> : <span aria-label="Reached">✓</span>}
           </div>
@@ -256,7 +256,7 @@ function MyReputation({ close }: { close: () => void }) {
       <div className="rp-head">
         <div className="rp-score">{Number(r.score).toFixed(1)}<small>/ 5.0</small></div>
         <div className="rp-stars" aria-hidden="true">{[1, 2, 3, 4, 5].map((n) => <span key={n} className={n <= Math.round(r.score) ? 'on' : ''}>★</span>)}</div>
-        <p className="small muted">{r.established ? `${r.ratings} valid rating${r.ratings === 1 ? '' : 's'} from ${r.raters} people` : 'New member · not enough ratings yet'}</p>
+        <p className="small muted">{`${r.ratings} rating${r.ratings === 1 ? '' : 's'}`}</p>
       </div>
       {dist ? (
         <div className="rp-dist">{[5, 4, 3, 2, 1].map((n) => {
@@ -295,12 +295,12 @@ function Celebrate({ level, title, text, close }: { level: number; title: string
 }
 function showLevelUp(level: number) {
   const b = bird(level);
-  openSheet((close) => <Celebrate level={level} close={close} title={`Level ${b.n} — ${b.name}!`} text={`You’ve earned the ${b.name} emblem. ${b.text}`} />, { label: 'Level up' });
+  openSheet((close) => <Celebrate level={level} close={close} title={`You’re now a ${b.name}!`} text={`You’ve earned the ${b.name} emblem. ${b.text}`} />, { label: 'Level up' });
 }
 function showLaunch(level: number) {
   const b = bird(level);
   openSheet((close) => <Celebrate level={level} close={close} title="Your treehouse journey has been recognised!"
-    text={`Based on your previous activity, you’ve been awarded Level ${b.n} — ${b.name}.`} />,
+    text={`Based on your previous activity, you’re a ${b.name}.`} />,
   { label: 'Bird Kingdom', onClose: () => { api.birdLaunchSeen().catch(() => {}); } });
 }
 
