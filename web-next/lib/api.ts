@@ -547,3 +547,16 @@ export async function annUploadImage(file: File): Promise<string> {
   if (error) throw error;
   return sb.storage.from('announcement-images').getPublicUrl(path).data.publicUrl;
 }
+
+// ---- Ads and invites (staff console: admin.treehouse.ng) --------------------------------------------
+export const adFor = (placement: string) => rpc('ad_for', { p_placement: placement });
+export const adEvent = (id: string, placement: string, kind: 'view' | 'tap') => rpc('ad_event', { p_ad: id, p_placement: placement, p_kind: kind });
+export const myReferral = () => rpc('my_referral');
+export const inviteLeaderboard = () => rpc('invite_leaderboard');
+export const claimReferral = (code: string) => rpc('claim_referral', { p_code: code });
+
+// ---- Usernames (20261115000110_usernames.sql) -------------------------------------------------------
+export const myUsername = () => rpc('my_username');
+export const checkUsername = (name: string) => rpc('check_username', { p_username: name });
+export const setUsername = (name: string) => rpc('set_username', { p_username: name });
+export const addFriendByUsername = (name: string) => rpc('add_friend_by_username', { p_username: name });

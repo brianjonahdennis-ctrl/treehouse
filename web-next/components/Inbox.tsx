@@ -15,6 +15,8 @@ import { toast, openSheet, confirmSheet } from './overlay';
 import { BellButton, statusEditor } from './Home';
 import { meta, activeText, shortName, acceptRequest, declineRequest, cancelSent, cancelMatchAsk, askFriend, requestMenu, partnerProfile } from './convo';
 import Chat from './Chat';
+import AdSlot from './AdSlot';
+import { addFriendSheet } from './Username';
 import { AnnouncementsTab, AnnDetail } from './Announcements';
 
 const VIEWS = new Set(['requests', 'chats', 'likes', 'matches', 'friends', 'announcements', 'nearby', 'online']);
@@ -211,6 +213,7 @@ function ChatsScreen() {
       <div className="ih-filters" role="tablist" aria-label="Show chats">{chip('all', 'All Chats')}{chip('friends', 'Friends')}{chip('matches', 'Matches')}{chip('nearby', 'Nearby')}</div>
       {searching ? <SearchBox placeholder="Search conversations" value={q} onChange={(v) => { chatQuery = v; setQ(v); }} /> : null}
       {f === 'all' && !query ? <WhoOnline /> : null}
+      {f === 'all' && !query ? <AdSlot placement="inbox" /> : null}
       <section className="stack">
         <div className="section-head"><h2>{f === 'all' ? 'All Conversations' : f === 'friends' ? 'Friend Chats' : f === 'matches' ? 'Match Chats' : 'Nearby Chats'}</h2>
           <span className="small muted">{`(${lists[f].length})`}</span></div>
@@ -233,6 +236,7 @@ function newChatSheet() {
       <p className="small muted">On treehouse, chats start with a request, a match or a friendship, so nobody gets messages they didn’t agree to.</p>
       <div className="menu-list" style={{ marginTop: '10px' }}>
         <button className="menu-item" onClick={() => { close(); go('matches/friends'); }}><Icon name="rooms" />Message a friend</button>
+        <button className="menu-item" onClick={() => { close(); addFriendSheet(); }}><Icon name="userplus" />Add a friend by username</button>
         <button className="menu-item" onClick={() => { close(); go('discover'); }}><Icon name="flame" />Find someone in Discover</button>
         <button className="menu-item" onClick={() => { close(); go('discover/nearby'); }}><Icon name="pin" />Meet people Nearby</button>
         <button className="menu-item" onClick={() => { close(); go('rooms'); }}><Icon name="userplus" />Add friends in Chatrooms</button>
@@ -405,10 +409,12 @@ function FriendsScreen() {
   const list = all.filter((f) => !query || nameOf(f).toLowerCase().includes(query) || f.other_handle.toLowerCase().includes(query))
     .slice().sort(byInbox);
   return (
-    <SubScreen title="Friends" sub="People who accepted your friend request, or whose request you accepted.">
+    <SubScreen title="Friends" sub="People who accepted your friend request, or whose request you accepted."
+      actions={<button className="hero-btn" aria-label="Add a friend by username" onClick={addFriendSheet}><Icon name="userplus" /></button>}>
       {!s.convosLoaded ? <SkeletonList n={4} /> : !all.length ? (
-        <EmptyState emoji="👋" title="No Friends Yet" text="People who accept your friend requests will appear here. Meet people in Chatrooms: tap someone’s name, then Add friend.">
-          <button className="btn btn-primary" onClick={() => go('rooms')}><Icon name="rooms" cls="sm" />Go to Chatrooms</button>
+        <EmptyState emoji="👋" title="No Friends Yet" text="People who accept your friend requests will appear here. Add a friend by their username, or meet people in Chatrooms: tap someone’s name, then Add friend.">
+          <button className="btn btn-primary" onClick={addFriendSheet}><Icon name="userplus" cls="sm" />Add by username</button>
+          <button className="btn btn-soft" onClick={() => go('rooms')}><Icon name="rooms" cls="sm" />Go to Chatrooms</button>
         </EmptyState>
       ) : (
         <>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#05051f"/>
+  <g transform="translate(256 260) scale(0.78) translate(-256 -255)">
+    <defs>
+    <linearGradient id="th-grad" x1="96" y1="70" x2="420" y2="450" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff2d9b"/>
+      <stop offset=".5" stop-color="#a95cff"/>
+      <stop offset="1" stop-color="#12a9ff"/>
+    </linearGradient>
+    <mask id="th-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="#fff"/>
+      <g stroke="#000" stroke-width="16" stroke-linecap="butt">
+        <path d="M232 40V244M280 40V244"/>
+        <path d="M256 296L96 136M256 296L416 136"/>
+        <path d="M190 296L96 202M322 296L416 202"/>
+      </g>
+    </mask>
+  </defs>
+  <g fill="url(#th-grad)">
+    <path mask="url(#th-cut)" d="M106 296V216A150 150 0 0 1 406 216V296Z"/>
+    <rect x="106" y="310" width="300" height="14" rx="7"/>
+  </g>
+  <g stroke="url(#th-grad)" stroke-width="16" stroke-linecap="round" fill="none">
+    <path d="M256 338V444"/>
+    <path d="M250 352L188 414M262 352L324 414"/>
+    <path d="M176 336L142 370M336 336L370 370"/>
+  </g>
+  </g>
+</svg>

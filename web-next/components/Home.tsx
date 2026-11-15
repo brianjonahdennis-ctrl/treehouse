@@ -15,6 +15,8 @@ import { useAvatarPicture } from '@/lib/avatars';
 import { openSheet, toast } from './overlay';
 import { HomeAppCard } from './PushInstall';
 import { GamesCard } from './Games';
+import AdSlot from './AdSlot';
+import { InviteCard } from './InviteBoard';
 
 const firstName = (n: string) => String(n || '').trim().split(/\s+/)[0].slice(0, 24);
 function greeting() {
@@ -72,6 +74,10 @@ export default function Home() {
       </div>
 
       <GamesCard />
+
+      <InviteCard />
+
+      <AdSlot placement="home" />
 
       <section>
         <div className="section-head"><h2>Your connections</h2></div>

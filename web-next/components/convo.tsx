@@ -140,6 +140,9 @@ export async function partnerProfile(convo: Convo) {
   let p: any = null;
   try { p = await api.chatPartnerProfile(convo.conversation_id); } catch (e) { return toast(api.friendly(e), 'x'); }
   if (!p) return toast('This profile isn’t available anymore', 'x');
+  // Usernames are private: only shown once you've both revealed.
+  let username: string | null = null;
+  if (convo.i_revealed && convo.they_revealed) { try { username = ((await api.revealedDetails(convo.conversation_id)) || {}).username || null; } catch { /* name still shows */ } }
   const active = p.available ? activeText(p.online, p.active_hours) : null;
   const ints: string[] = p.interests || [];
   const fs = state.friendStatus[convo.conversation_id];
@@ -152,7 +155,8 @@ export async function partnerProfile(convo: Convo) {
         <ProfileBadges convo={convo.conversation_id} />
         {active ? <span className={`pc-status ${p.online ? 'on' : ''}`}>{active}</span> : null}
         {isFriend(convo) && fs ? <p className="pc-friend-status">{`“${fs.body}”`}</p> : null}
-        {convo.i_revealed && convo.they_revealed ? <span className="pc-revealed"><Icon name="check" cls="sm" />Revealed · you both shared first names</span> : null}
+        {convo.i_revealed && convo.they_revealed ? <span className="pc-revealed"><Icon name="check" cls="sm" />Revealed · you both shared first names and usernames</span> : null}
+        {username ? <p className="pc-username">@{username}</p> : null}
         {p.available ? null : <p className="tiny muted">This chat is closed.</p>}
       </div>
       <div className="pc-about">
