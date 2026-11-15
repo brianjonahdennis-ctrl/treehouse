@@ -87,7 +87,7 @@ export function Shell({ children }: { children: ReactNode }) {
           {allows(me.role, 'moderate') ? (
             <form className="search" onSubmit={(e) => { e.preventDefault(); if (q.trim()) go(`/members?q=${encodeURIComponent(q.trim())}`); }}>
               <Icon name="search" size={17} />
-              <input placeholder={allows(me.role, 'manage') ? 'Find a member by handle or email…' : 'Find a member by handle…'} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a member" />
+              <input placeholder={allows(me.role, 'manage') ? 'Find a member by handle, @username or email…' : 'Find a member by handle or @username…'} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a member" />
               <kbd>Enter</kbd>
             </form>
           ) : <div className="search-spacer" />}

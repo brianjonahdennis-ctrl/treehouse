@@ -182,7 +182,7 @@ select is(claim_referral(current_setting('test.code')), false, 'only once');
 select pg_temp.login('00000000-0000-0000-0000-0000000c0003');
 select throws_ok($$ select staff_referral_campaign('lagosfair', 'Lagos fair flyers') $$, '42501', 'Your role doesn’t allow this.', 'moderators can''t make campaign codes');
 select pg_temp.login('00000000-0000-0000-0000-0000000c0002');
-select is((staff_referrals(30) -> 'top' -> 0 ->> 'joined')::int, 1, 'staff see who brought people in');
+select is((select (e ->> 'joined')::int from jsonb_array_elements(staff_referrals(30) -> 'top') e where e ->> 'code' = 'sctestinv'), 1, 'staff see who brought people in');
 
 -- ---- Settings and staff ------------------------------------------------------------------------
 select lives_ok($$ select staff_setting_set('signups_paused', 'true') $$, 'admin pauses sign-ups');
