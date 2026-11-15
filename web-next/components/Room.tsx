@@ -720,10 +720,10 @@ function MembersPage({ target, people: all, onClose, onCard }: { target: string;
 }
 
 // Age rooms need a date of birth (port of askBirthday in hy-onboard.js).
-export function askBirthday(onDone?: () => void) {
-  openSheet((close) => <BirthdayForm close={close} onDone={onDone} />, { label: 'Add your date of birth' });
+export function askBirthday(onDone?: () => void, why?: string) {
+  openSheet((close) => <BirthdayForm close={close} onDone={onDone} why={why} />, { label: 'Add your date of birth' });
 }
-function BirthdayForm({ close, onDone }: { close: () => void; onDone?: () => void }) {
+function BirthdayForm({ close, onDone, why }: { close: () => void; onDone?: () => void; why?: string }) {
   const [dob, setDob] = useState<Dob>({ d: '', m: '', y: '' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -747,7 +747,7 @@ function BirthdayForm({ close, onDone }: { close: () => void; onDone?: () => voi
   return (
     <>
       <h2>🎂 Add your date of birth</h2>
-      <p className="muted">Age rooms are for people the same age as you. Your date of birth is private: nobody else sees it. Your age updates on your birthday, so you move up an age room by yourself.</p>
+      <p className="muted">{why || 'Age rooms are for people the same age as you. Your date of birth is private: nobody else sees it. Your age updates on your birthday, so you move up an age room by yourself.'}</p>
       <div className="field"><span>Date of birth</span><DobPicker value={dob} onChange={setDob} /></div>
       <p className="small muted">You can only change your date of birth after 365 days.</p>
       <p className="error" role="alert">{err}</p>
