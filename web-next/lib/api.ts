@@ -413,6 +413,8 @@ export const speedSignal = (id: string, data: unknown) => rpc('speed_signal', { 
 // The other person's call-setup messages from the mailbox (after message number `after`).
 export const speedPull = (id: string, after = 0) => rpc('speed_pull', { p_session: id, p_after: after });
 export const speedEnd = (id: string) => rpc('speed_end', { p_session: id });
+export const speedCameraOff = (id: string) => rpc('speed_camera_off', { p_session: id });
+export const speedReportCamera = (id: string) => rpc('speed_report_camera', { p_session: id });
 export const speedDecide = (id: string, like: boolean) => rpc('speed_decide', { p_session: id, p_like: like });
 export const speedReport = (id: string, reason: string | null, details = '', block = false) => rpc('speed_report', { p_session: id, p_reason: reason, p_details: details, p_block: block });
 // Relay passwords for the video call (from our server, only while on a live date).

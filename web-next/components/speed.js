@@ -36,6 +36,7 @@ const loadConfig = () => (config ? Promise.resolve(config) : api.speedConfig().t
 const loadQuota = () => api.speedQuota().catch(() => null);
 const coolingDown = (q) => !!(q && q.available_at);
 const matchBreak = (q) => coolingDown(q) && q.reason === 'match';
+const cameraBanned = (q) => coolingDown(q) && q.reason === 'camera';
 function untilText(q, clockOffset = 0) {
   const ms = Math.max(0, new Date(q.available_at).getTime() - (Date.now() + clockOffset));
   const s = Math.ceil(ms / 1000);
@@ -72,7 +73,7 @@ export function speedBanner() {
       el.classList.add('cool');
       tag.replaceChildren(icon('clock', 'sm'), 'Cooling down'); tag.classList.add('off');
       const left = h('b', { class: 'sd-count' });
-      sub.replaceChildren(matchBreak(q) ? 'You matched recently 💞 Next speed date in ' : `You’ve had your ${q.limit} speed dates for today. Next date in `, left);
+      sub.replaceChildren(cameraBanned(q) ? 'Banned for turning your camera off. Speed Dating opens in ' : matchBreak(q) ? 'You matched recently 💞 Next speed date in ' : `You’ve had your ${q.limit} speed dates for today. Next date in `, left);
       countdown(left, q, () => { el.replaceWith(speedBanner() || h('span')); });
       cta.replaceChildren('See details', icon('chev', 'sm'));
       return;
@@ -131,7 +132,14 @@ export async function openSpeedDating() {
   let primary;
   if (c.enabled && coolingDown(q)) {
     const left = h('b', { class: 'sd-count' });
-    primary = matchBreak(q)
+    primary = cameraBanned(q)
+      ? h('div', { class: 'stack' },
+        h('div', { class: 'sd-break' },
+          h('span', { class: 'sd-break-ico' }, '📵'),
+          h('b', {}, 'You’re banned from Speed Dating for 24 hours'),
+          h('p', {}, q.ban_reason || 'Your camera went off while you were connected to a speed date.')),
+        h('button', { class: 'btn btn-block sd-go cool', disabled: true, 'aria-disabled': 'true' }, icon('clock', 'sm'), 'Speed Dating opens in ', left))
+      : matchBreak(q)
       ? h('div', { class: 'stack' },
         h('div', { class: 'sd-break' },
           h('span', { class: 'sd-break-ico' }, '💞'),
@@ -163,6 +171,7 @@ export async function openSpeedDating() {
         waitingEl),
       h('div', { class: 'sd-steps' },
         step('🎥', 'A 3-minute video date', 'One-on-one, with someone whose preferences match yours.'),
+        step('📵', 'Camera on, always', 'Turn it off while connected and you’re banned from Speed Dating for 24 hours.'),
         step('❤️', 'Like or pass, privately', 'Nobody sees your choice. Only two likes make a match.'),
         step('💬', 'Match? Keep talking', 'You’ll find each other in Matches, still anonymous.')),
       h('section', { class: 'sd-card' },
@@ -222,7 +231,8 @@ async function openCheck() {
       h('div', { class: 'sd-mictest' }, h('small', {}, 'Say something to test your microphone'), meter),
       help,
       h('p', { class: 'small muted' }, 'Your camera and microphone are needed for the video date. They’re only on while you’re in Speed Dating.'),
-      h('label', { class: 'check' }, agree, h('span', {}, 'I understand the other person will see and hear me, and I’ll keep my face on camera for the whole date. I won’t share personal details, and I won’t screenshot or record the date.')),
+      h('div', { class: 'sd-camrule', role: 'note' }, h('b', {}, '📵 Your camera must stay on. '), 'If your camera goes off while you’re connected to a date, you’ll be banned from Speed Dating for 24 hours, immediately. There’s no warning during the date.'),
+      h('label', { class: 'check' }, agree, h('span', {}, 'I understand the other person will see and hear me, and I’ll keep my camera on and my face on camera for the whole date. If my camera goes off, I’ll be banned from Speed Dating for 24 hours. I won’t share personal details, and I won’t screenshot or record the date.')),
       next,
       h('button', { class: 'btn btn-soft btn-block', onclick: () => { stopFlow(); openSpeedDating(); } }, 'Not now')));
   try {
@@ -342,7 +352,6 @@ async function startDate(s) {
   // recording shows who made it.
   const mark = h('div', { class: 'sd-watermark', 'aria-hidden': 'true' });
   // Camera must stay on: a warning for you if yours is covered or off, a notice if theirs is.
-  const camWarn = h('div', { class: 'sd-camwarn', hidden: true, role: 'alert' });
   const theirCam = h('div', { class: 'sd-camnote', hidden: true }, icon('videooff', 'sm'), 'Their camera is off. The date ends if it doesn’t come back.');
   const drawMark = () => {
     const t = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Lagos', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date());
@@ -367,9 +376,9 @@ async function startDate(s) {
       h('span', { class: 'sd-who' }, avatar(other.handle, other.handle, 'sm'), h('span', {}, h('b', {}, other.handle || 'Your date'), h('small', {}, [other.age, other.state ? stateLabel(other.state) : ''].filter(Boolean).join(' · ')))),
       h('span', { class: 'sd-call-meta' }, quality, timer)),
     local,
-    camWarn, theirCam,
+    theirCam,
     h('div', { class: 'sd-controls' }, micBtn, moreBtn, endBtn)));
-  flow.ui = { remote, local, timer, overlay, quality, camWarn, theirCam };
+  flow.ui = { remote, local, timer, overlay, quality, theirCam };
   flow.markTimer = setInterval(drawMark, 30000);
 
   // Live channel: call setup messages and "ended".
@@ -517,15 +526,12 @@ function onTrouble(st) {
   setTimeout(() => { if (flow && !flow.ended && !flow.connected && Date.now() - flow.troubleSince >= 19000) { api.speedEnd(flow.session.id).catch(() => {}); finishCall(); } }, 20000);
 }
 // ---- Camera must stay on --------------------------------------------------------------------------------
-// Every 2 s: is my camera live and showing something (not stopped, not covered/black)? If not for
-// 6 s, warn me (and tell the other person); if still not after 15 s more, the date ends.
-const CAM_WARN_AFTER = 6, CAM_END_AFTER = 21;
+// Warned once, before starting (see openCheck). While connected: camera switched off/blocked = banned for
+// 24 hours (after one quick restart attempt, in case it was a glitch); lens covered/black for ~6 s =
+// banned. No warning during the date. Leaving the app (a call, switching apps) is not judged.
+// Also: if THEIR video stays dark for ~10 s, report it (2 reports from different people = their ban).
 let camCanvas = null;
-function cameraLooksOff() {
-  const t = flow.stream && flow.stream.getVideoTracks()[0];
-  if (!t || t.readyState === 'ended' || !t.enabled) return 'stopped';
-  if (t.muted) return 'stopped';
-  const v = flow.ui && flow.ui.local;
+function darkness(v) {
   if (!v || v.readyState < 2 || !v.videoWidth) return null;   // still starting: don't judge yet
   try {
     camCanvas = camCanvas || Object.assign(document.createElement('canvas'), { width: 32, height: 24 });
@@ -535,32 +541,38 @@ function cameraLooksOff() {
     let sum = 0, sq = 0; const n = px.length / 4;
     for (let i = 0; i < px.length; i += 4) { const y = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]; sum += y; sq += y * y; }
     const mean = sum / n, sd = Math.sqrt(Math.max(0, sq / n - mean * mean));
-    if (mean < 12 || (mean < 28 && sd < 4)) return 'covered';   // black, or a flat dark blank: lens covered
-  } catch {}
-  return null;
+    return mean < 12 || (mean < 28 && sd < 4);   // black, or a flat dark blank: lens covered
+  } catch { return null; }
+}
+function cameraLooksOff() {
+  const t = flow.stream && flow.stream.getVideoTracks()[0];
+  if (!t || t.readyState === 'ended' || !t.enabled || t.muted) return 'stopped';
+  return darkness(flow.ui && flow.ui.local) ? 'covered' : null;
 }
 async function watchCamera() {
   if (!flow || flow.ended || !flow.connected) return;
+  // Not on screen, or just came back: phones pause the camera then. Don't judge.
+  if (document.hidden) { flow.camBad = 0; flow.hiddenAt = Date.now(); return; }
+  if (flow.hiddenAt && Date.now() - flow.hiddenAt < 4000) return;
+  // Their side: a dark picture for ~10 s while connected → report once.
+  if (!flow.reportedCam && darkness(flow.ui && flow.ui.remote)) {
+    flow.theirDark = (flow.theirDark || 0) + 2;
+    if (flow.theirDark >= 10) { flow.reportedCam = true; api.speedReportCamera(flow.session.id).catch(() => {}); }
+  } else flow.theirDark = 0;
   const bad = cameraLooksOff();
-  if (!bad) {
-    if (flow.camBad) { flow.camBad = 0; flow.ui.camWarn.hidden = true; sendSignal({ t: 'cam', on: true }); }
-    return;
-  }
+  if (!bad) { if (flow.camBad) { flow.camBad = 0; sendSignal({ t: 'cam', on: true }); } return; }
   flow.camBad = (flow.camBad || 0) + 2;
-  if (bad === 'stopped' && flow.camBad === 2) restartCamera();   // try to get it back first
-  if (flow.camBad >= CAM_WARN_AFTER) {
-    if (flow.camBad === CAM_WARN_AFTER) sendSignal({ t: 'cam', on: false });
-    const left = Math.max(0, CAM_END_AFTER - flow.camBad);
-    flow.ui.camWarn.hidden = false;
-    flow.ui.camWarn.replaceChildren(icon('video', 'sm'), h('span', {}, h('b', {}, bad === 'covered' ? 'Your camera looks covered. ' : 'Your camera is off. '),
-      `Keep your face on camera: Speed Dating is video only. The date ends in ${left}s.`));
-  }
-  if (flow.camBad >= CAM_END_AFTER) {
-    flow.ended = true;
-    api.speedEnd(flow.session.id).catch(() => {});
-    stopMedia();
-    neutralEnd('Date ended', 'Your camera has to stay on for the whole date. Speed Dating is video only: keep your face on camera next time.');
-  }
+  if (bad === 'stopped' && flow.camBad === 2) { restartCamera(); return; }   // one quick try first
+  if (bad === 'stopped' || flow.camBad >= 6) cameraBan();
+}
+async function cameraBan() {
+  if (!flow || flow.ended) return;
+  flow.ended = true;
+  sendSignal({ t: 'cam', on: false });
+  const id = flow.session.id;
+  stopMedia();
+  try { await api.speedCameraOff(id); } catch { api.speedEnd(id).catch(() => {}); }
+  neutralEnd('Banned from Speed Dating for 24 hours', 'Your camera went off while you were connected to a date. Speed Dating is video only, so it’s closed for you for the next 24 hours.');
 }
 
 function setQuality(n) { if (flow && flow.ui) flow.ui.quality.dataset.level = String(n); }
