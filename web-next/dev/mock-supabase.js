@@ -155,7 +155,7 @@
     np('Cobalt Owl 341', 34, 'male', 3.4, 0.01, 0.03, false, { map_lat: null, map_lng: null }),
     np('Velvet Ray 222', 22, 'female', null, null, null, true, { map_lat: null, map_lng: null }),
   ];
-  let mockBird = { level: 4, seconds: 61 * 3600 + 1200, historical_seconds: 60 * 3600, launch_level: 4, leveled_at: null, now: new Date().toISOString() };
+  let mockBird = { invites: 2, level: 4, seconds: 61 * 3600 + 1200, historical_seconds: 60 * 3600, launch_level: 4, leveled_at: null, now: new Date().toISOString() };
   // Announcements preview data (dev only).
   const annCover = (c1, c2) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="160" height="90" fill="url(#g)"/><circle cx="120" cy="20" r="30" fill="#fff" opacity=".12"/></svg>`);
   const annBase = { audience: { base: 'active' }, send_push: true, cta_label: null, cta_url: null, cover_url: null, delivered_count: 0, read_count: 0, click_count: 0, push_count: 0, eligible_count: null, scheduled_for: null, published_at: null, delivered_at: null, was_published: false, revises: null, expires_at: null };

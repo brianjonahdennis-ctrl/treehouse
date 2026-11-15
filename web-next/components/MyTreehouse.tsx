@@ -136,7 +136,7 @@ function Dashboard() {
                 <li>Someone joins Treehouse using your link.</li>
                 <li>They become part of your direct referral network.</li>
                 <li>When they invite others, their referrals become part of your wider network.</li>
-                <li>Watch your Treehouse grow.</li>
+                <li>Watch your Treehouse grow. Every friend who joins with your link also helps your Bird level grow faster.</li>
               </ol>
               <p className="tiny muted">{`A referral counts when the person creates their Treehouse profile within ${th.window_days} day${th.window_days === 1 ? '' : 's'} of signing up with your link. Link clicks don’t count, nobody is counted twice, and suspended accounts don’t count. Being in someone’s tree doesn’t make you friends or open a chat.`}</p>
             </section>

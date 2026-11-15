@@ -2299,3 +2299,8 @@ button.mt-nav:active { transform: scale(.99); }
 .mt-msg-note { display: inline-flex; align-items: center; gap: 6px; margin: 4px 0; }
 .mt-node-sheet > .btn-block { margin-top: 4px; }
 @media (max-width: 420px) { .mt-li-main > .tiny { display: none; } }
+
+.bk-invite { display: flex; align-items: center; gap: 12px; width: 100%; margin: 4px 0 10px; padding: 12px 14px; border-radius: 14px; cursor: pointer; text-align: left; font: inherit; color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--good) 40%, var(--line)); background: color-mix(in srgb, var(--good) 10%, var(--surface)); }
+.bk-invite > span:first-child { font-size: 24px; }
+.bk-invite .grow { display: grid; gap: 2px; min-width: 0; }

@@ -8,7 +8,8 @@ import { useEffect, useState } from 'react';
 import * as api from '@/lib/api';
 import { state, emit, useAppState } from '@/lib/state';
 import { openSheet, toast } from './overlay';
-import { vars } from './ui';
+import { vars, Icon } from './ui';
+import { go } from '@/lib/nav';
 
 export const BIRDS = [
   { n: 1, name: 'Sparrow', hours: 0, emoji: '🐦', c1: '#c9a27e', c2: '#8a6a4b', text: 'Every journey starts here. Small, curious and everywhere.' },
@@ -226,7 +227,13 @@ function BirdKingdom({ close }: { close: () => void }) {
           </div>
         ))}
       </div>
-      <p className="tiny muted">Your bird grows the more you take part in treehouse. A level is never taken away.</p>
+      <button className="bk-invite" onClick={() => { close(); go('treehouse'); }}>
+        <span aria-hidden="true">🌳</span>
+        <span className="grow"><b>{me.invites ? `${me.invites} friend${me.invites === 1 ? '' : 's'} helped your bird grow` : 'Invite friends to grow faster'}</b>
+          <span className="tiny muted">Each friend who joins with your invite link gives your bird a boost.</span></span>
+        <Icon name="chev" cls="sm" />
+      </button>
+      <p className="tiny muted">Your bird grows the more you take part in treehouse, and faster when friends join with your link. A level is never taken away.</p>
       <div className="sheet-actions"><button className="btn btn-soft btn-block" onClick={close}>Close</button></div>
     </>
   );

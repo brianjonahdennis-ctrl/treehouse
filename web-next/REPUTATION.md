@@ -147,3 +147,9 @@ a proven score, and the band is High.
 - **Notifications:** none are sent when someone rates you.
 - **Audit:** the internal records (rater, time, validity) stay in `dating_private`. Members can't
   reach them through any function.
+
+## Invites boost Bird levels (15 Nov 2026, migration 117)
+"60-40": each direct invite that counts in My Treehouse covers 40% of the hours for one level step, at most
+one invite per step, so active time is always at least 60% of every step. Extra invites carry over to later
+steps. Levels never go down. `dating_private.bird_progress(seconds, invites)` does the maths; the app's bar
+uses the `seconds` it returns (real time + invite share). Members never see hours.
