@@ -5,6 +5,7 @@
 // chat's private live channel, the request accept bar, reveal and add-friend buttons.
 // The + next to the message box sends photos (camera or gallery, once unlocked) and Kickrs challenges.
 // Photos are blurred until tapped; swipe a message right to reply.
+import { openRecorder, VoiceBubble } from './Voice';
 import { BirthdayCardBubble, ChatBirthdayBanner, openCardPicker, parseBirthdayCard } from './Birthday';
 import { ConvoBird } from './Reputation';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -21,7 +22,7 @@ import { useSwipeReply } from './swipe';
 import { CHALLENGES, CHALLENGE_MS, challengeOf, parseChallenge } from '@/lib/kickrs';
 import { meta, activeText, shortName, acceptRequest, declineRequest, blockConvo, cancelSent, askFriend, doReveal, chatMenu, partnerProfile } from './convo';
 
-type Msg = { id: string; sender_id: string; body: string; created_at: string; reply_to: string | null; edited_at: string | null; deleted_at: string | null; photo?: string | null; photo_w?: number; photo_h?: number; pending?: boolean; localUrl?: string };
+type Msg = { id: string; sender_id: string; body: string; created_at: string; reply_to: string | null; edited_at: string | null; deleted_at: string | null; photo?: string | null; photo_w?: number; photo_h?: number; voice?: string | null; voice_ms?: number | null; voice_played_at?: string | null; pending?: boolean; localUrl?: string };
 const EDIT_WINDOW = 15 * 60 * 1000;
 const coarse = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 
@@ -83,6 +84,7 @@ function ChatView({ convo }: { convo: Convo }) {
   const id = convo.conversation_id as string;
   const me = state.user.id as string;
   const [msgs, setMsgs] = useState<Msg[]>([]);
+  useEffect(() => { msgsRef.current = msgs; });
   const [loaded, setLoaded] = useState(false);
   const [typing, setTyping] = useState(false);
   const [present, setPresent] = useState(false);
@@ -101,6 +103,16 @@ function ChatView({ convo }: { convo: Convo }) {
   const sinceCheck = useRef(0);
   const [unblurred, setUnblurred] = useState(0);   // bumps when a photo is tapped to view
   const [older, setOlder] = useState<Record<string, Msg>>({});   // quoted messages from before what's loaded
+  // Earlier history: the first load shows the latest 80; scrolling near the top loads 80 more each time.
+  const msgsRef = useRef<Msg[]>([]);
+  const hasMore = useRef(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [reachedStart, setReachedStart] = useState(false);
+  const restore = useRef<{ prevH: number; prevTop: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = body.current, r = restore.current;
+    if (el && r) { el.scrollTop = el.scrollHeight - r.prevH + r.prevTop; restore.current = null; }
+  });
 
   const scroll = useCallback(() => requestAnimationFrame(() => { const b = body.current; if (b) b.scrollTop = b.scrollHeight; }), []);
   const checkPhotos = useCallback(() => {
@@ -118,6 +130,23 @@ function ChatView({ convo }: { convo: Convo }) {
     if (!lastMsg.current || new Date(m.created_at) >= new Date(lastMsg.current.created_at)) lastMsg.current = m;
   }, [me, checkPhotos]);
   const update = useCallback((m: Partial<Msg> & { id: string }) => setMsgs((list) => list.map((x) => (x.id === m.id ? { ...x, ...m } : x))), []);
+  const loadOlder = useCallback(async () => {
+    const first = msgsRef.current.find((x) => !x.pending);
+    if (!hasMore.current || !first || loadingOlder) return;
+    hasMore.current = false;   // one request at a time
+    setLoadingOlder(true);
+    const b = body.current;
+    const prevH = b ? b.scrollHeight : 0, prevTop = b ? b.scrollTop : 0;
+    try {
+      const rows: Msg[] = await api.messagesBefore(id, first.created_at);
+      setMsgs((list) => [...rows.filter((r) => !list.some((x) => x.id === r.id)), ...list]);
+      hasMore.current = rows.length >= 80;
+      if (!hasMore.current) setReachedStart(true);
+      // Keep my place: the new messages appear above what I was reading (applied right after they render).
+      restore.current = { prevH, prevTop };
+    } catch (e: any) { hasMore.current = true; toast(api.friendly(e), 'x'); }
+    setLoadingOlder(false);
+  }, [id, loadingOlder]);
 
   // A request becomes a chat when someone replies, etc.: refresh this chat's state from the list.
   const refreshChatState = useCallback(async () => {
@@ -131,7 +160,7 @@ function ChatView({ convo }: { convo: Convo }) {
   useEffect(() => {
     state.openChat = id;
     let alive = true;
-    api.messages(id).then((rows: Msg[]) => { if (!alive) return; rows.forEach(add); setLoaded(true); scroll(); }).catch((e: any) => { setLoaded(true); toast(api.friendly(e), 'x'); });
+    api.messages(id).then((rows: Msg[]) => { if (!alive) return; hasMore.current = rows.length >= 80; rows.forEach(add); setLoaded(true); scroll(); }).catch((e: any) => { setLoaded(true); toast(api.friendly(e), 'x'); });
     markChatRead(id);
     const incoming = (m: Msg) => {
       if (!m || !m.id) return;
@@ -242,6 +271,20 @@ function ChatView({ convo }: { convo: Convo }) {
       setMsgs((list) => list.filter((x) => x.id !== temp.id));
       toast(api.friendly(e), 'x');
     }
+  }
+
+  // Voice notes: same unlock rule as photos.
+  async function voiceTap() {
+    if (!photoOk && !(await checkPhotos())) {
+      toast(statusOf(convo) === 'chat' ? 'Voice notes unlock once you two have chatted a bit more 🎤' : 'Voice notes unlock after your chat is accepted', 'info');
+      return;
+    }
+    openRecorder(async (blob, ext, ms) => {
+      const temp: Msg = { id: `pending-${Date.now()}`, sender_id: me, body: '🎤 Voice note', created_at: new Date().toISOString(), reply_to: null, edited_at: null, deleted_at: null, voice: 'pending', voice_ms: ms, pending: true };
+      setMsgs((list) => [...list, temp]); scroll();
+      try { const m = await api.sendVoice(id, blob, ext, ms); setMsgs((list) => list.filter((x) => x.id !== temp.id)); add(m); scroll(); }
+      catch (e) { setMsgs((list) => list.filter((x) => x.id !== temp.id)); throw e; }
+    });
   }
 
   async function photoTap(source: 'camera' | 'library') {
@@ -391,7 +434,8 @@ function ChatView({ convo }: { convo: Convo }) {
       </div>
       {convo.blocked || statusOf(convo) !== 'chat' ? null : <ChatBirthdayBanner convoId={convo.conversation_id} name={shortName(nameOf(convo))} onCard={() => openCardPicker(shortName(nameOf(convo)), sendCard)} />}
 
-      <div ref={body} className="chat-body" role="log" aria-live="polite" onScroll={(e) => { const b = e.currentTarget; b.dataset.pinned = b.scrollHeight - b.scrollTop - b.clientHeight < 80 ? '1' : '0'; }}>
+      <div ref={body} className="chat-body" role="log" aria-live="polite" onScroll={(e) => { const b = e.currentTarget; b.dataset.pinned = b.scrollHeight - b.scrollTop - b.clientHeight < 80 ? '1' : '0'; if (b.scrollTop < 200) loadOlder(); }}>
+        {loadingOlder ? <div className="chat-older">Loading earlier messages…</div> : reachedStart ? <div className="chat-older">Start of your chat</div> : null}
         {loaded && !msgs.length ? (
           <div className="empty" style={{ padding: '30px 10px' }}><div className="empty-art"><span>👋</span></div><h3>Say hi!</h3>
             <p>{st === 'sent' ? 'Your request is waiting for them to accept.' : isMatch(convo) ? 'You matched. Neither of you knows who the other is yet: start with something fun.' : 'Request accepted. You’re both anonymous: start with something fun.'}</p></div>
@@ -416,7 +460,7 @@ function ChatView({ convo }: { convo: Convo }) {
                   ? <div className="bubble photo-bubble" onClick={() => photoClick(m)}>{quote}<photos.PhotoBox key={unblurred} m={m} mine={mine} localUrl={m.localUrl} blur={!photos.wasSeen(m.id)} /></div>
                   : <div className="bubble" onClick={() => !m.pending && messageActions(m)}>
                     {quote}
-                    {gone ? <span className="gone-text"><Icon name="ban" cls="sm" />{mine ? 'You unsent a message' : 'This message was deleted'}</span> : <Body m={m} mine={mine} chatId={id} />}
+                    {gone ? <span className="gone-text"><Icon name="ban" cls="sm" />{mine ? 'You unsent a message' : 'This message was deleted'}</span> : m.voice ? <VoiceBubble m={m} mine={mine} onPlayed={(at) => update({ id: m.id, voice_played_at: at })} /> : <Body m={m} mine={mine} chatId={id} />}
                   </div>}
               </MsgRow>
               {receiptFor(i)}
@@ -452,6 +496,7 @@ function ChatView({ convo }: { convo: Convo }) {
             ) : null}
             <form className="composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
               <button type="button" className="composer-plus" aria-label="Photos and games" onMouseDown={(e) => e.preventDefault()} onClick={plusMenu}><Icon name="plus" /></button>
+              {text.trim() ? null : <button type="button" className="composer-plus vn-mic" aria-label="Record a voice note" onMouseDown={(e) => e.preventDefault()} onClick={voiceTap}><span aria-hidden="true">🎤</span></button>}
               <textarea ref={input} className="input" rows={1} maxLength={1000} placeholder="Type a message…" aria-label="Message" value={text}
                 onChange={(e) => { setText(e.target.value); const el = e.target; el.style.height = 'auto'; el.style.height = `${Math.min(120, el.scrollHeight)}px`; channel.current?.typing(); }}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !coarse()) { e.preventDefault(); send(); } }} />

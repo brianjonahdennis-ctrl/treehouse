@@ -24,10 +24,10 @@ begin
   perform set_config('request.jwt.claims', '', true);
 end $$;
 
-select pg_temp.login('00000000-0000-0000-0000-0000000000c1'); select create_my_profile('Ada Speed', 'female', 26, 'Lagos', 'love');
-select pg_temp.login('00000000-0000-0000-0000-0000000000c2'); select create_my_profile('Bola Speed', 'male', 28, 'Lagos', 'love');
-select pg_temp.login('00000000-0000-0000-0000-0000000000c3'); select create_my_profile('Chi Speed', 'male', 30, 'Lagos', 'love');
-select pg_temp.login('00000000-0000-0000-0000-0000000000c4'); select create_my_profile('Dayo Speed', 'female', 24, 'Lagos', 'love');
+select pg_temp.login('00000000-0000-0000-0000-0000000000c1'); select create_my_profile('Ada Speed', 'female', (current_date - interval '26 years 1 month')::date, 'Lagos', 'love');
+select pg_temp.login('00000000-0000-0000-0000-0000000000c2'); select create_my_profile('Bola Speed', 'male', (current_date - interval '28 years 1 month')::date, 'Lagos', 'love');
+select pg_temp.login('00000000-0000-0000-0000-0000000000c3'); select create_my_profile('Chi Speed', 'male', (current_date - interval '30 years 1 month')::date, 'Lagos', 'love');
+select pg_temp.login('00000000-0000-0000-0000-0000000000c4'); select create_my_profile('Dayo Speed', 'female', (current_date - interval '24 years 1 month')::date, 'Lagos', 'love');
 select pg_temp.admin();
 -- Ada wants men 25-35; Bola and Chi want women 20-30; Dayo wants women only (so not Bola/Chi).
 update dating_profiles set interested_in = '{male}', min_age = 25, max_age = 35, pref_state = null where user_id = '00000000-0000-0000-0000-0000000000c1';

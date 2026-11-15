@@ -18,7 +18,7 @@ end $$;
 
 -- Ada (dating card) and Bolu (no card) are in Ebonyi; Chi is in Ekiti.
 select pg_temp.login('00000000-0000-0000-0000-0000000000a8');
-select create_my_profile('Ada Secretname', 'female', 25, 'Ebonyi', 'love');
+select create_my_profile('Ada Secretname', 'female', (current_date - interval '25 years 1 month')::date, 'Ebonyi', 'love');
 select set_config('test.ha', (select handle from join_room('Ebonyi')), true);
 select set_config('test.msg', (select id::text from send_room_message('anyone up?')), true);
 select pg_temp.login('00000000-0000-0000-0000-0000000000b8');

@@ -27,13 +27,13 @@ create function pg_temp.status(conv text) returns text language sql as $$
 $$;
 
 select pg_temp.login('00000000-0000-0000-0000-0000000000a3');
-select create_my_profile('Ama Hidden', 'female', 25, 'Lagos', 'love');
+select create_my_profile('Ama Hidden', 'female', (current_date - interval '25 years 1 month')::date, 'Lagos', 'love');
 select pg_temp.login('00000000-0000-0000-0000-0000000000b3');
-select create_my_profile('Bayo Hidden', 'male', 27, 'Abuja', 'love');
+select create_my_profile('Bayo Hidden', 'male', (current_date - interval '27 years 1 month')::date, 'Abuja', 'love');
 select pg_temp.login('00000000-0000-0000-0000-0000000000c3');
-select create_my_profile('Chi Hidden', 'male', 30, 'Enugu', 'fun');
+select create_my_profile('Chi Hidden', 'male', (current_date - interval '30 years 1 month')::date, 'Enugu', 'fun');
 select pg_temp.login('00000000-0000-0000-0000-0000000000d3');
-select create_my_profile('Dayo Hidden', 'male', 29, 'Ibadan', 'fun');
+select create_my_profile('Dayo Hidden', 'male', (current_date - interval '29 years 1 month')::date, 'Ibadan', 'fun');
 select pg_temp.admin();
 select set_config('test.ha', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000a3'), true);
 select set_config('test.hb', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000b3'), true);

@@ -1727,10 +1727,11 @@ html, body { max-width: 100%; overflow-x: clip; }
 .gm-allow-list .icon { flex: none; margin-top: 2px; stroke: #c026d3; }
 .gm-wait { display: flex; align-items: center; gap: 12px; color: var(--muted); }
 
-.game-stage { position: fixed; inset: 0 0 calc(var(--nav-h) + env(safe-area-inset-bottom)) 0; z-index: 25; display: flex; flex-direction: column; background: #0b1220; }
+.game-stage { position: fixed; inset: 0 0 calc(var(--nav-h) + env(safe-area-inset-bottom)) 0; z-index: 25; display: flex; flex-direction: column; background: var(--navy); overscroll-behavior: contain; }
+html:has(.game-stage), body:has(.game-stage) { overflow: hidden; overscroll-behavior: none; }
 .gs-head { flex: none; display: flex; align-items: center; gap: 8px; padding: calc(4px + env(safe-area-inset-top)) 6px 4px; background: var(--navy); color: #fff; border-bottom: 1px solid rgba(255, 255, 255, .08); }
 .gs-head b { flex: 1; text-align: center; font-size: 15px; }
-.gs-frame { flex: 1; width: 100%; max-width: 520px; margin: 0 auto; border: 0; display: block; background: #0b1220; }
+.gs-frame { flex: 1; min-height: 0; width: 100%; max-width: 520px; margin: 0 auto; border: 0; display: block; background: var(--navy); }
 @media (min-width: 960px) { .game-stage { left: 260px; bottom: 0; } }
 
 /* Penalty challenges in chat */
@@ -2049,3 +2050,23 @@ html, body { max-width: 100%; overflow-x: clip; }
 .iv-n { text-align: right; line-height: 1.1; }
 .iv-n b { display: block; font: 800 17px var(--display); }
 .iv-n small { font-size: 11.5px; color: var(--muted); }
+
+.sd-camrule { padding: 10px 12px; border-radius: 14px; background: rgba(255,63,155,.14); box-shadow: inset 0 0 0 1px rgba(255,63,155,.5); font-size: 13.5px; line-height: 1.4; }
+.chat-older { text-align: center; font-size: 12px; color: var(--muted); padding: 8px 0 4px; }
+
+/* ---- Voice notes (components/Voice.tsx) ------------------------------------------------------ */
+.vn-mic span { font-size: 18px; line-height: 1; }
+.vn-bubble { display: flex; align-items: center; gap: 10px; min-width: 200px; }
+.vn-bubble .grow { display: grid; gap: 3px; }
+.vn-bubble.played { opacity: .7; }
+.vn-ico { font-size: 22px; }
+.vn-play { width: 40px; height: 40px; flex: none; border: 0; border-radius: 50%; background: var(--pink); color: #fff; font-size: 16px; cursor: pointer; }
+.vn-play:disabled { opacity: .8; }
+.vn-bar { display: block; height: 4px; border-radius: 999px; background: rgba(127,127,127,.3); overflow: hidden; }
+.vn-bar i { display: block; height: 100%; background: currentColor; }
+.vn-rec { display: flex; align-items: baseline; justify-content: center; gap: 8px; margin: 14px 0 6px; }
+.vn-time { font: 800 40px/1 var(--font-display, var(--font)); font-variant-numeric: tabular-nums; }
+.vn-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); align-self: center; }
+.vn-dot.on { background: #ff3b3b; animation: vn-blink 1s steps(2) infinite; }
+@keyframes vn-blink { 50% { opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .vn-dot.on { animation: none; } }

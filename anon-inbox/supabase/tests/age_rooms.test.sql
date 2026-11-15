@@ -27,7 +27,19 @@ create function pg_temp.dob(years int) returns date language sql as $$
 $$;
 
 select pg_temp.login('00000000-0000-0000-0000-0000000000a1');
-select create_my_profile('Ada Age', 'female', 30, 'Lagos', 'love');
+-- Older accounts were created with a typed age and no date of birth (sign-up now requires one); these
+-- tests cover adding the date of birth afterwards, so they make such accounts directly.
+create function pg_temp.old_profile(p_name text, p_gender text, p_age int, p_loc text, p_intent text) returns void language plpgsql as $$
+declare c text := current_setting('request.jwt.claims', true); r text := current_setting('role');
+begin
+  perform set_config('role', 'postgres', true);
+  perform set_config('request.jwt.claims', '', true);
+  insert into dating_profiles (user_id, name, gender, age, location, intent, handle)
+  values ((c::json ->> 'sub')::uuid, p_name, p_gender::dating_gender, p_age, p_loc, p_intent::dating_intent, dating_private.dating_new_handle());
+  perform set_config('request.jwt.claims', c, true);
+  perform set_config('role', r, true);
+end $$;
+select pg_temp.old_profile('Ada Age', 'female', 30, 'Lagos', 'love');
 -- The first date of birth is always accepted and sets the age (even inside the 365 days).
 select lives_ok(format($$update dating_profiles set birth_date = %L where user_id = auth.uid()$$, pg_temp.dob(22)), 'First date of birth is accepted');
 select is((select age from dating_profiles where user_id = auth.uid()), 22, 'Age comes from the date of birth');
@@ -49,7 +61,7 @@ select is((select count(*)::int from room_members where user_id = '00000000-0000
 
 -- Bola (30, no date of birth yet): age rooms ask for it first; typed age changes wait 365 days.
 select pg_temp.login('00000000-0000-0000-0000-0000000000a2');
-select create_my_profile('Bola Age', 'male', 30, 'Lagos', 'love');
+select pg_temp.old_profile('Bola Age', 'male', 30, 'Lagos', 'love');
 select throws_ok($$select join_room('Ages 26-35')$$, '42501', 'Add your date of birth to join the age rooms.', 'Without a date of birth, age rooms ask for it');
 select throws_ok($$update dating_profiles set age = 22 where user_id = auth.uid()$$, 'P0001', null, 'Without a date of birth, age changes wait 365 days too');
 update dating_profiles set birth_date = pg_temp.dob(30) where user_id = auth.uid();
@@ -57,7 +69,7 @@ select throws_ok($$select join_room('Ages 18-25')$$, '42501', 'You are too old f
 
 -- Chi gives an under-18 date of birth: suspended, can't retry, can't lift it.
 select pg_temp.login('00000000-0000-0000-0000-0000000000a3');
-select create_my_profile('Chi Age', 'male', 19, 'Lagos', 'love');
+select pg_temp.old_profile('Chi Age', 'male', 19, 'Lagos', 'love');
 update dating_profiles set birth_date = pg_temp.dob(16) where user_id = auth.uid();
 select is((select suspended and dob_underage_at is not null from dating_profiles where user_id = auth.uid()), true, 'An under-18 date of birth suspends the profile');
 select throws_ok(format($$update dating_profiles set birth_date = %L where user_id = auth.uid()$$, pg_temp.dob(20)), '42501', null, 'They cannot try another date');

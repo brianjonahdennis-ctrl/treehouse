@@ -157,9 +157,11 @@ export async function myProfile() {
   if (error) throw error;
   return data;
 }
-export const createProfile = (p: any) => rpc('create_my_profile', {
-  p_name: p.name, p_gender: p.gender, p_age: Number(p.age), p_location: p.location || '', p_intent: p.intent,
-});
+// The date of birth is required and saved in the same step (the database works out the age from it).
+export const createProfile = (p: any) => {
+  if (!p.birth) return Promise.reject(new Error('Enter your date of birth.'));
+  return rpc('create_my_profile', { p_name: p.name, p_gender: p.gender, p_birth_date: p.birth, p_location: p.location || '', p_intent: p.intent });
+};
 export async function updateProfile(handle: string, fields: Record<string, unknown>) {
   const { error } = await sb.from('dating_profiles').update(fields).eq('handle', handle);
   if (error) throw error;
@@ -189,7 +191,14 @@ export async function datingSummary(): Promise<any> {
   }
 }
 
-const MSG_COLS = 'id, sender_id, body, created_at, reply_to, edited_at, deleted_at, photo, photo_w, photo_h';
+const MSG_COLS = 'id, sender_id, body, created_at, reply_to, edited_at, deleted_at, photo, photo_w, photo_h, voice, voice_ms, voice_played_at';
+// Older history, 80 at a time (scrolling up in a chat). Same rules as the first load.
+export async function messagesBefore(conversationId: string, before: string) {
+  const { data, error } = await sb.from('dating_messages').select(MSG_COLS)
+    .eq('conversation_id', conversationId).lt('created_at', before).order('created_at', { ascending: false }).limit(80);
+  if (error) throw error;
+  return (data || []).reverse();
+}
 export async function messages(conversationId: string) {
   const { data, error } = await sb.from('dating_messages').select(MSG_COLS)
     .eq('conversation_id', conversationId).order('created_at', { ascending: false }).limit(80);
@@ -203,6 +212,25 @@ export async function sendMessage(conversationId: string, body: string, replyTo:
   if (error) throw error;
   return data;
 }
+
+// ---- Voice notes (same unlock rule as photos; played once, then deleted) --------------------------
+export async function sendVoice(conversationId: string, blob: Blob, ext: string, ms: number) {
+  const path = `${conversationId}/${crypto.randomUUID()}.${ext}`;
+  const type = ext === 'm4a' ? 'audio/mp4' : ext === 'ogg' ? 'audio/ogg' : 'audio/webm';
+  const up = await sb.storage.from('chat-voice').upload(path, blob, { contentType: type, upsert: false });
+  if (up.error) throw up.error;
+  const row: any = { conversation_id: conversationId, body: '🎤 Voice note', voice: path, voice_ms: Math.max(300, Math.min(61000, Math.round(ms))) };
+  const { data, error } = await sb.from('dating_messages').insert(row).select(MSG_COLS).single();
+  if (error) { sb.storage.from('chat-voice').remove([path]).catch(() => {}); throw error; }
+  return data;
+}
+export async function voiceBlob(path: string): Promise<Blob> {
+  const { data, error } = await sb.storage.from('chat-voice').download(path);
+  if (error || !data) throw error || new Error('This voice note is no longer available.');
+  return data;
+}
+export const voicePlayed = (messageId: string) => rpc('voice_played', { p_message: messageId });
+export const removeVoice = (path: string) => { sb.storage.from('chat-voice').remove([path]).catch(() => {}); };
 
 // ---- Photos in chats (unlock rule lives in the database) -----------------------------------------
 export const photosUnlocked = (conversationId: string) => rpc('photos_unlocked', { p_conversation: conversationId }).then(Boolean);
@@ -411,6 +439,8 @@ export const speedSignal = (id: string, data: unknown) => rpc('speed_signal', { 
 // The other person's call-setup messages from the mailbox (after message number `after`).
 export const speedPull = (id: string, after = 0) => rpc('speed_pull', { p_session: id, p_after: after });
 export const speedEnd = (id: string) => rpc('speed_end', { p_session: id });
+export const speedCameraOff = (id: string) => rpc('speed_camera_off', { p_session: id });
+export const speedReportCamera = (id: string) => rpc('speed_report_camera', { p_session: id });
 export const speedDecide = (id: string, like: boolean) => rpc('speed_decide', { p_session: id, p_like: like });
 export const speedReport = (id: string, reason: string | null, details = '', block = false) => rpc('speed_report', { p_session: id, p_reason: reason, p_details: details, p_block: block });
 // Relay passwords for the video call (from our server, only while on a live date).

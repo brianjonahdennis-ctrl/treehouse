@@ -26,9 +26,9 @@ begin
 end $$;
 
 select pg_temp.login('00000000-0000-0000-0000-0000000000e1');
-select create_my_profile('Eve One', 'female', 29, 'Lagos', 'love');
+select create_my_profile('Eve One', 'female', (current_date - interval '29 years 1 month')::date, 'Lagos', 'love');
 select pg_temp.login('00000000-0000-0000-0000-0000000000e2');
-select create_my_profile('Ed Two', 'male', 31, 'Abuja', 'marriage');
+select create_my_profile('Ed Two', 'male', (current_date - interval '31 years 1 month')::date, 'Abuja', 'marriage');
 select pg_temp.admin();
 select set_config('test.h1', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000e1'), true);
 

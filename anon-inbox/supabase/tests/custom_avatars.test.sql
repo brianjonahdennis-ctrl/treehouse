@@ -16,7 +16,7 @@ begin
 end $$;
 
 select pg_temp.login('00000000-0000-0000-0000-0000000000ab');
-select create_my_profile('Ada Avatar', 'female', 25, 'Lagos', 'love');
+select create_my_profile('Ada Avatar', 'female', (current_date - interval '25 years 1 month')::date, 'Lagos', 'love');
 select set_config('test.ha', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000ab'), true);
 select lives_ok($$ select set_my_avatar('{"k":"f","s":"3","h":"afro","hc":"black"}') $$, 'People can save an avatar');
 select throws_ok($$ select set_my_avatar('{"k":"m","s":"3","h":"fade"}') $$, '22023', null, 'Female profiles can only use female avatars');

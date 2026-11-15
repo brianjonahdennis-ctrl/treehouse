@@ -34,23 +34,23 @@ end $$;
 
 -- Sign-up rules ------------------------------------------------------------
 select pg_temp.login('00000000-0000-0000-0000-0000000000ff');
-select throws_ok($$ select create_my_profile('Una', 'female', 25, 'Lagos', 'love') $$,
+select throws_ok($$ select create_my_profile('Una', 'female', (current_date - interval '25 years 1 month')::date, 'Lagos', 'love') $$,
   '28000', 'Verify your email first.', 'Unverified accounts cannot create a profile');
 
 select pg_temp.login('00000000-0000-0000-0000-00000000000d');
-select throws_ok($$ select create_my_profile('Dee', 'male', 17, 'Abuja', 'fun') $$,
+select throws_ok($$ select create_my_profile('Dee', 'male', (current_date - interval '17 years 1 month')::date, 'Abuja', 'fun') $$,
   '22023', null, 'Under-18s are blocked by the server');
 
 select pg_temp.login('00000000-0000-0000-0000-00000000000a');
-select matches((select handle from create_my_profile('Ada Real-Name', 'female', 24, 'Lagos', 'love')),
+select matches((select handle from create_my_profile('Ada Real-Name', 'female', (current_date - interval '24 years 1 month')::date, 'Lagos', 'love')),
   '^[A-Z][a-z]+ [A-Z][a-z]+ [0-9]{3}$', 'A gets an anonymous handle like "Quiet Falcon 214"');
-select throws_ok($$ select create_my_profile('Ada Again', 'female', 24, 'Lagos', 'love') $$,
+select throws_ok($$ select create_my_profile('Ada Again', 'female', (current_date - interval '24 years 1 month')::date, 'Lagos', 'love') $$,
   '23505', null, 'One profile per account');
 
 select pg_temp.login('00000000-0000-0000-0000-00000000000b');
-select lives_ok($$ select create_my_profile('Bayo Real-Name', 'male', 27, 'Port Harcourt', 'marriage') $$, 'B creates a profile');
+select lives_ok($$ select create_my_profile('Bayo Real-Name', 'male', (current_date - interval '27 years 1 month')::date, 'Port Harcourt', 'marriage') $$, 'B creates a profile');
 select pg_temp.login('00000000-0000-0000-0000-00000000000c');
-select lives_ok($$ select create_my_profile('Chi Real-Name', 'other', 30, 'Abuja', 'fun') $$, 'C creates a profile');
+select lives_ok($$ select create_my_profile('Chi Real-Name', 'other', (current_date - interval '30 years 1 month')::date, 'Abuja', 'fun') $$, 'C creates a profile');
 
 select pg_temp.admin();
 select throws_ok($$ insert into dating_profiles (user_id, name, gender, age, location, intent, handle)

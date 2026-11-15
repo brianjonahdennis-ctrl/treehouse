@@ -27,7 +27,19 @@ $$;
 
 select pg_temp.login('00000000-0000-0000-0000-0000000000e1');
 select is(kickrs_status() ->> 'blocker', 'profile', 'Without a dating profile the member is asked to make one');
-select create_my_profile('Ada Kick', 'female', 27, 'Lagos', 'love');
+-- Older accounts were created with a typed age and no date of birth (sign-up now requires one); these
+-- tests cover adding the date of birth afterwards, so they make such accounts directly.
+create function pg_temp.old_profile(p_name text, p_gender text, p_age int, p_loc text, p_intent text) returns void language plpgsql as $$
+declare c text := current_setting('request.jwt.claims', true); r text := current_setting('role');
+begin
+  perform set_config('role', 'postgres', true);
+  perform set_config('request.jwt.claims', '', true);
+  insert into dating_profiles (user_id, name, gender, age, location, intent, handle)
+  values ((c::json ->> 'sub')::uuid, p_name, p_gender::dating_gender, p_age, p_loc, p_intent::dating_intent, dating_private.dating_new_handle());
+  perform set_config('request.jwt.claims', c, true);
+  perform set_config('role', r, true);
+end $$;
+select pg_temp.old_profile('Ada Kick', 'female', 27, 'Lagos', 'love');
 select is(kickrs_status(), '{"ready": true, "blocker": null, "connected": false}'::jsonb, 'With a profile the member can play but has not allowed Kickrs yet');
 select throws_ok('select * from kickrs_identity()', 'P0001', 'Allow Kickrs first.', 'No pass before the member taps Allow');
 
@@ -40,7 +52,7 @@ select is(kickrs_status() ->> 'connected', 'true', 'Status shows the member is c
 select throws_ok('select * from dating_private.kickrs_links', '42501', null, 'Members cannot read the link table directly');
 
 select pg_temp.login('00000000-0000-0000-0000-0000000000e2');
-select create_my_profile('Bola Kick', 'male', 29, 'Abuja', 'love');
+select pg_temp.old_profile('Bola Kick', 'male', 29, 'Abuja', 'love');
 update dating_profiles set birth_date = pg_temp.dob(29) where user_id = auth.uid();
 select set_config('test.k2', (select kickrs_id::text from kickrs_connect()), true);
 
@@ -60,7 +72,7 @@ select pg_temp.login('00000000-0000-0000-0000-0000000000e2');
 select is((select kickrs_id::text from kickrs_connect()), current_setting('test.k2'), 'Reconnecting gives back the same Kickrs id');
 
 select pg_temp.login('00000000-0000-0000-0000-0000000000e3');
-select create_my_profile('Chi Kick', 'male', 31, 'Lagos', 'love');
+select pg_temp.old_profile('Chi Kick', 'male', 31, 'Lagos', 'love');
 select pg_temp.admin();
 update dating_profiles set suspended = true where user_id = '00000000-0000-0000-0000-0000000000e3';
 select pg_temp.login('00000000-0000-0000-0000-0000000000e3');

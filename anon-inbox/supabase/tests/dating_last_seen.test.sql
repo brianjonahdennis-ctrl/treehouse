@@ -21,10 +21,10 @@ begin
 end $$;
 
 select pg_temp.login('00000000-0000-0000-0000-0000000000a5');
-select create_my_profile('Ada Seen', 'female', 24, 'Lagos', 'love');
+select create_my_profile('Ada Seen', 'female', (current_date - interval '24 years 1 month')::date, 'Lagos', 'love');
 update dating_profiles set interested_in = '{male}', pref_state = null where user_id = '00000000-0000-0000-0000-0000000000a5';
 select pg_temp.login('00000000-0000-0000-0000-0000000000b5');
-select create_my_profile('Bolu Seen', 'male', 26, 'Lagos', 'love');
+select create_my_profile('Bolu Seen', 'male', (current_date - interval '26 years 1 month')::date, 'Lagos', 'love');
 update dating_profiles set pref_state = null where user_id = '00000000-0000-0000-0000-0000000000b5';
 
 select throws_ok($$ update dating_profiles set last_seen_at = now() where user_id = '00000000-0000-0000-0000-0000000000b5' $$,
@@ -58,7 +58,7 @@ select ok((select last_seen_at > now() - interval '1 minute' from dating_profile
 insert into auth.users (id, email, aud, role, email_confirmed_at, created_at, updated_at) values
   ('00000000-0000-0000-0000-0000000000c5', 'c5@test.invalid', 'authenticated', 'authenticated', now(), now(), now());
 select pg_temp.login('00000000-0000-0000-0000-0000000000c5');
-select create_my_profile('Chuks Seen', 'male', 27, 'Lagos', 'love');
+select create_my_profile('Chuks Seen', 'male', (current_date - interval '27 years 1 month')::date, 'Lagos', 'love');
 update dating_profiles set pref_state = null where user_id = '00000000-0000-0000-0000-0000000000c5';
 select pg_temp.admin();
 update dating_profiles set created_at = now() - interval '30 days', last_seen_at = now() where user_id = '00000000-0000-0000-0000-0000000000c5';

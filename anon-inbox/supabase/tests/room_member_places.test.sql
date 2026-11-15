@@ -16,7 +16,7 @@ begin
 end $$;
 
 select pg_temp.login('00000000-0000-0000-0000-0000000000a9');
-select create_my_profile('Ada Placetest', 'female', 25, 'Port Harcourt', 'love');
+select create_my_profile('Ada Placetest', 'female', (current_date - interval '25 years 1 month')::date, 'Port Harcourt', 'love');
 select set_config('test.ha', (select handle from join_room('Gombe')), true);
 select pg_temp.login('00000000-0000-0000-0000-0000000000b9');
 select set_config('test.hb', (select handle from join_room('Gombe')), true);

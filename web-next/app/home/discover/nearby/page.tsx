@@ -1,2 +1,3 @@
 import Nearby from '@/components/Nearby';
-export default function Page() { return <Nearby />; }
+import DobGate from '@/components/DobGate';
+export default function Page() { return <DobGate what="use Nearby"><Nearby /></DobGate>; }

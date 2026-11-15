@@ -23,11 +23,11 @@ begin
 end $$;
 
 select pg_temp.login('00000000-0000-0000-0000-0000000000a1');
-select create_my_profile('Amy Secret', 'female', 26, 'Lagos', 'love');
+select create_my_profile('Amy Secret', 'female', (current_date - interval '26 years 1 month')::date, 'Lagos', 'love');
 select pg_temp.login('00000000-0000-0000-0000-0000000000b1');
-select create_my_profile('Ben Secret', 'male', 28, 'Abuja', 'love');
+select create_my_profile('Ben Secret', 'male', (current_date - interval '28 years 1 month')::date, 'Abuja', 'love');
 select pg_temp.login('00000000-0000-0000-0000-0000000000c1');
-select create_my_profile('Cy Secret', 'other', 33, 'Kano', 'fun');
+select create_my_profile('Cy Secret', 'other', (current_date - interval '33 years 1 month')::date, 'Kano', 'fun');
 select pg_temp.admin();
 select set_config('test.ha', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000a1'), true);
 

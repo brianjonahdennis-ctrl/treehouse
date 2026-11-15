@@ -24,9 +24,9 @@ create function pg_temp.mine() returns record language sql as $$
 $$;
 
 select pg_temp.login('00000000-0000-0000-0000-0000000000aa');
-select create_my_profile('Ada Quiet', 'female', 26, 'Lagos', 'love');
+select create_my_profile('Ada Quiet', 'female', (current_date - interval '26 years 1 month')::date, 'Lagos', 'love');
 select pg_temp.login('00000000-0000-0000-0000-0000000000bb');
-select create_my_profile('Bola Quiet', 'male', 28, 'Lagos', 'love');
+select create_my_profile('Bola Quiet', 'male', (current_date - interval '28 years 1 month')::date, 'Lagos', 'love');
 select pg_temp.admin();
 select set_config('test.ha', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000aa'), true);
 select set_config('test.hb', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000bb'), true);
