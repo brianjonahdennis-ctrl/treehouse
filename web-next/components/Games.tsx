@@ -11,7 +11,7 @@ import { Avatar, EmptyState, Hero, Icon, SkeletonList } from './ui';
 import { BellButton } from './Home';
 import { confirmSheet, openSheet, toast } from './overlay';
 
-const ART: Record<string, string> = { penalties: '⚽', ludo: '🎲', chess: '♟️', dice: '🎯', crosswords: '🔠', trivia: '❓' };
+const ART: Record<string, string> = { penalties: '⚽', ludo: '🎲', chess: '♟️', sudoku: '🔢', crosswords: '🔠', trivia: '❓' };
 
 const WhiteKnight = () => (
   <svg viewBox="0 0 45 45" width="36" height="36" aria-hidden="true">
