@@ -2,13 +2,15 @@
 import { useRef, useState } from 'react';
 import { sb, SUPABASE_URL, MOCK } from '@/lib/sb';
 import { Btn, toast } from './ui';
+import { shrinkImage } from '@/lib/shrinkImage';
 
 export function ImagePick({ value, onChange, folder }: { value: string; onChange: (url: string) => void; folder: 'ads' | 'covers' }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  const pick = async (f: File | undefined) => {
-    if (!f) return;
-    if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { toast('Use a JPG, PNG or WebP picture.', true); return; }
+  const pick = async (picked: File | undefined) => {
+    if (!picked) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(picked.type)) { toast('Use a JPG, PNG or WebP picture.', true); return; }
+    const f = await shrinkImage(picked);   // members download this picture: keep it small
     if (f.size > 1_500_000) { toast('Pictures must be under 1.5 MB.', true); return; }
     setBusy(true);
     try {

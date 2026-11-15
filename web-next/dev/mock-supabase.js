@@ -184,6 +184,14 @@ const RPC = {
     my_pending_likes: () => likes.length,
     // Preview only: sessionStorage mock-failchats=N makes the next N chat-list loads fail (tests the retry).
     dating_summary: (...args) => { const left = Number(sessionStorage.getItem('mock-failchats') || 0); if (left > 0) { sessionStorage.setItem('mock-failchats', String(left - 1)); throw new Error('mock: Supabase did not answer'); } return RPC.__unused_dating_summary(...args); },
+    // Same as the database: only chats whose fingerprint changed (preview: a simple JSON hash).
+    dating_summary_changes: ({ p_known = {}, p_req = '' }) => {
+      const full = RPC.dating_summary(); const fp = (o) => { let h = 0; const t = JSON.stringify(o); for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return String(h >>> 0); };
+      const rows = full.convos.map((c) => ({ ...c, _fp: fp(c) })); const ids = new Set(rows.map((r) => r.conversation_id)); const rf = fp(full.requests);
+      window.__mockListBytes = (window.__mockListBytes || 0);
+      const out = { changed: rows.filter((r) => p_known[r.conversation_id] !== r._fp), removed: Object.keys(p_known).filter((k) => !ids.has(k)), requests: rf === p_req ? null : full.requests, req_fp: rf,
+        pending: full.pending, my_status: full.my_status, friend_statuses: full.friend_statuses, origins: full.origins };
+      window.__mockListBytes += JSON.stringify(out).length; window.__mockListCalls = (window.__mockListCalls || 0) + 1; return out; },
     __unused_dating_summary: () => ({ convos, requests: likes, pending: likes.length, my_status: myStatus, origins: empty ? {} : { c12: 'nearby', c13: 'nearby', c14: 'nearby', ...mockOrigins },
       friend_statuses: [{ conversation_id: 'c8', body: 'Weekend vibes already! 🎉', updated_at: ago(17) }, { conversation_id: 'c9', body: 'At work, hit me up later 💼', updated_at: ago(180) }] }),
     set_my_status: ({ p_body }) => { myStatus = { body: p_body, updated_at: new Date().toISOString() }; return [myStatus]; },

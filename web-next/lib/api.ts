@@ -3,6 +3,7 @@
 // treehouse data layer: a straight port of anon-inbox/public/hy-api.js. Every Supabase call the
 // member app makes lives here, with the same function names and the same database functions (RPCs),
 // so the two apps behave identically against the one database. No database changes.
+import { shrinkImage } from './shrinkImage';
 import { getClient } from './supabase';
 import * as live from './livestats';
 
@@ -143,7 +144,7 @@ export async function setPassword(password: string) {
   const { error } = await sb.auth.updateUser({ password });
   if (error) throw error;
 }
-export const signOut = () => sb.auth.signOut();
+export const signOut = () => { forgetChatList(); forgetPhotos(); return sb.auth.signOut(); };
 export async function verifyEmailLink(tokenHash: string, type: string) {
   const { error } = await sb.auth.verifyOtp({ token_hash: tokenHash, type });
   return error || null;
@@ -192,7 +193,35 @@ export function onInboxNudge(uid: string, cb: (n: any) => void, onReconnect?: ()
   return { leave() { sb.removeChannel(ch); } };
 }
 export const friendStatuses = async () => (await rpc('friend_statuses')) || [];
+// The chat list, sending only what changed (dating_summary_changes, migration 119): this phone keeps the
+// last list it got, with a short fingerprint per chat, and the database sends back only chats whose
+// fingerprint differs (plus ids to drop, and the likes list only when it changed). Same data as before.
+// Callers get fresh copies, so local edits (unread counts, previews) never touch this cache.
+type ListCache = { uid: string; rows: Map<string, any>; reqFp: string; requests: any[] };
+let listCache: ListCache | null = null;
+let changesMissing = false;
+export function forgetChatList() { listCache = null; }
+async function datingSummaryChanges(uid: string): Promise<any> {
+  if (!listCache || listCache.uid !== uid) listCache = { uid, rows: new Map(), reqFp: '', requests: [] };
+  const c = listCache;
+  const known: Record<string, string> = {};
+  c.rows.forEach((r, id) => { known[id] = r._fp; });
+  const d = await rpc('dating_summary_changes', { p_known: known, p_req: c.reqFp });
+  if (listCache !== c) return datingSummaryChanges(uid);
+  for (const id of d.removed || []) c.rows.delete(id);
+  for (const r of d.changed || []) c.rows.set(r.conversation_id, r);
+  if (d.requests) { c.requests = d.requests; }
+  c.reqFp = d.req_fp || '';
+  const convos = [...c.rows.values()].map((r) => { const { _fp, ...row } = r; void _fp; return row; })
+    .sort((x, y) => +new Date(y.last_at) - +new Date(x.last_at));
+  return { convos, requests: c.requests.map((r) => ({ ...r })), pending: d.pending || 0, myStatus: d.my_status || null, friendStatuses: d.friend_statuses || [], origins: d.origins || {} };
+}
 export async function datingSummary(): Promise<any> {
+  const uid = (await sb.auth.getSession()).data.session?.user?.id;
+  if (uid && !changesMissing) {
+    try { return await datingSummaryChanges(uid); }
+    catch (e) { if (missingFn(e)) changesMissing = true; else throw e; }
+  }
   try {
     const d = await rpc('dating_summary');
     return { convos: d.convos || [], requests: d.requests || [], pending: d.pending || 0, myStatus: d.my_status || null, friendStatuses: d.friend_statuses || [], origins: d.origins || {} };
@@ -263,13 +292,58 @@ export async function sendPhoto(conversationId: string, blob: Blob, w: number, h
   const { data, error } = await sb.from('dating_messages').insert(row).select(MSG_COLS).single();
   if (error) { sb.storage.from('chat-photos').remove([path]).catch(() => {}); throw error; }
   photoUrls.set(path, { url: URL.createObjectURL(blob), until: Infinity });
+  // The sender already has the photo: keep it on this phone so it's never downloaded back.
+  try { if (typeof caches !== 'undefined') (await caches.open(PHOTO_CACHE)).put(photoKey(path), new Response(blob, { headers: { 'content-type': 'image/jpeg', 'x-saved': String(Date.now()) } })).catch(() => {}); } catch { /* never mind */ }
   return data;
 }
+// Each chat photo is downloaded once per phone: after the first view it's kept in this browser's own
+// storage (Cache Storage) and shown from there, instead of being downloaded again every session.
+// Kept 30 days at most (photos expire after 30 days anyway); cleared on sign-out.
+const PHOTO_CACHE = 'th-photos-v1';
+const PHOTO_KEEP_MS = 30 * 86400e3;
+const photoKey = (path: string) => `/__chat-photo/${path}`;
+let photoPruned = false;
+async function prunePhotos(cache: Cache) {
+  if (photoPruned) return;
+  photoPruned = true;
+  try {
+    for (const req of await cache.keys()) {
+      const r = await cache.match(req);
+      if (!r || Date.now() - Number(r.headers.get('x-saved') || 0) > PHOTO_KEEP_MS) await cache.delete(req);
+    }
+  } catch { /* never mind */ }
+}
+export async function forgetPhotos() { photoUrls.clear(); try { if (typeof caches !== 'undefined') await caches.delete(PHOTO_CACHE); } catch { /* never mind */ } }
 export async function photoUrl(path: string) {
   const hit = photoUrls.get(path);
   if (hit && hit.until > Date.now()) return hit.url;
+  let cache: Cache | null = null;
+  try { cache = typeof caches !== 'undefined' ? await caches.open(PHOTO_CACHE) : null; } catch { cache = null; }
+  if (cache) {
+    prunePhotos(cache);
+    try {
+      const saved = await cache.match(photoKey(path));
+      if (saved && Date.now() - Number(saved.headers.get('x-saved') || 0) < PHOTO_KEEP_MS) {
+        const url = URL.createObjectURL(await saved.blob());
+        photoUrls.set(path, { url, until: Infinity });
+        return url;
+      }
+    } catch { /* fall through to download */ }
+  }
   const { data, error } = await sb.storage.from('chat-photos').createSignedUrl(path, 3600);
   if (error || !data) throw error || new Error('Photo unavailable');
+  if (cache) {
+    try {
+      const r = await fetch(data.signedUrl);
+      if (r.ok) {
+        const blob = await r.blob();
+        cache.put(photoKey(path), new Response(blob, { headers: { 'content-type': blob.type || 'image/jpeg', 'x-saved': String(Date.now()) } })).catch(() => {});
+        const url = URL.createObjectURL(blob);
+        photoUrls.set(path, { url, until: Infinity });
+        return url;
+      }
+    } catch { /* show it straight from the link instead */ }
+  }
   photoUrls.set(path, { url: data.signedUrl, until: Date.now() + 50 * 60 * 1000 });
   return data.signedUrl as string;
 }
@@ -540,13 +614,14 @@ export const annAudit = async (id: string | null = null, limit = 50) => (await r
 export const annStaff = async () => (await rpc('ann_staff')) || [];
 export const annSetStaff = (handle: string, role: string | null, canPublish = false) => rpc('ann_set_staff', { p_handle: handle, p_role: role, p_can_publish: canPublish });
 /** Upload a cover or inline image (JPEG/PNG/WebP, max 2 MB). Returns its public https address. */
-export async function annUploadImage(file: File): Promise<string> {
+export async function annUploadImage(original: File): Promise<string> {
+  const file = await shrinkImage(original);
   const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' } as Record<string, string>)[file.type];
   if (!ext) throw new Error('Use a JPEG, PNG or WebP image.');
   if (file.size > 2 * 1024 * 1024) throw new Error('Images must be 2 MB or smaller.');
   const d = new Date();
   const path = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await sb.storage.from('announcement-images').upload(path, file, { contentType: file.type, upsert: false });
+  const { error } = await sb.storage.from('announcement-images').upload(path, file, { contentType: file.type, upsert: false, cacheControl: '31536000' });
   if (error) throw error;
   return sb.storage.from('announcement-images').getPublicUrl(path).data.publicUrl;
 }

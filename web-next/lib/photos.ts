@@ -3,8 +3,9 @@
 // photo's location data (port of anon-inbox/public/hy-photos.js). The database decides when photos
 // unlock (photos_unlocked); sending and viewing go through lib/api.ts.
 export const MAX_PHOTOS = 10;
-const MAX_SIDE = 1600;
-const MAX_BYTES = 1400000;
+// 1280 px at ~0.76 quality: sharp on any phone screen, about a third smaller than 1600 px (less data).
+const MAX_SIDE = 1280;
+const MAX_BYTES = 900000;
 
 export type Prepared = { blob: Blob; w: number; h: number; url: string };
 
@@ -31,9 +32,9 @@ export async function preparePhoto(file: File): Promise<Prepared> {
   ctx.fillRect(0, 0, w, h);
   ctx.drawImage(src, 0, 0, w, h);
   if ('close' in src) src.close();
-  let q = 0.82;
+  let q = 0.76;
   let blob = await new Promise<Blob | null>((r) => c.toBlob(r, 'image/jpeg', q));
-  while (blob && blob.size > MAX_BYTES && q > 0.4) { q -= 0.14; blob = await new Promise<Blob | null>((r) => c.toBlob(r, 'image/jpeg', q)); }
+  while (blob && blob.size > MAX_BYTES && q > 0.4) { q -= 0.12; blob = await new Promise<Blob | null>((r) => c.toBlob(r, 'image/jpeg', q)); }
   if (!blob || blob.size > MAX_BYTES) throw new Error('That photo is too large.');
   return { blob, w, h, url: URL.createObjectURL(blob) };
 }
