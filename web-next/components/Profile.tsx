@@ -3,8 +3,11 @@
 // Profile: your dating card, privacy, appearance and account (port of anon-inbox/public/hy-profile.js).
 // Same rules: state changes once every 30 days, gender every 90, date of birth every 365 (the database
 // enforces these; the screen explains them).
+import { shareOrCopy } from '@/lib/util';
+import { inviteUrl } from '@/lib/referral';
 import { setBirthdayPublic } from './Birthday';
 import { MyIdentity } from './Reputation';
+import { UsernameRow, chooseUsername, addFriendSheet } from './Username';
 import { useEffect, useState, type ReactNode } from 'react';
 import * as api from '@/lib/api';
 import { state, emit, useAppState, loadDating } from '@/lib/state';
@@ -71,6 +74,7 @@ export default function Profile() {
       ) : null}
 
       <Group title="Your profile">
+        <UsernameRow />
         <Row ico="sparkles" title="Customize avatar" sub="Skin tone, hair, outfit, accessories and background" onClick={openAvatar} />
         <Row ico="edit" title="Edit dating profile" sub={'Age, gender, state' + (api.features.matching ? ', bio' : '')} onClick={editDating} />
         {api.features.matching ? <Row ico="heart" title="Interests & intentions" sub={`${INTENT_LABEL[profile.intent]}${(profile.interests || []).length ? ` · ${(profile.interests || []).slice(0, 3).join(', ')}` : ''}`} onClick={editDating} /> : null}
@@ -86,7 +90,7 @@ export default function Profile() {
 
       <Group title="Privacy & safety">
         <Info emoji="🎭" title="You’re anonymous" sub="People see your nickname and avatar, never your email or real name. Chatrooms use your room nickname." />
-        <Info emoji="🔓" title="Identity reveal needs both of you" sub="Your first name is only shown when you and the other person both choose to reveal. Nobody can reveal you alone." />
+        <Info emoji="🔓" title="Identity reveal needs both of you" sub="Your first name and username are only shown when you and the other person both choose to reveal. Nobody can reveal you alone." />
         <Info emoji="📩" title="Who can send you message requests" sub="Anyone with a dating card. Requests wait in your Inbox until you accept; decline or block any time." />
         <div className="settings-row" style={{ cursor: 'default' }}><span style={{ fontSize: '20px' }}>🎂</span>
           <span className="grow">Show my birthday<span className="sub">{profile.birth_date ? 'On your birthday, people see “Today is their birthday 🎂”. Never your date. Off by default.' : 'Add your date of birth in Edit dating profile first'}</span></span>
@@ -97,6 +101,8 @@ export default function Profile() {
         <Info emoji="🚩" title="Reporting" sub="Report anyone from a chat’s ⋯ menu, a request, or a chatroom message. Reported messages are hidden for you straight away, and we act on reports within 24 hours." />
         <a className="settings-row" href="mailto:support@treehouse.ng?subject=treehouse%20report"><Icon name="flag" /><span className="grow">Report a problem by email<span className="sub">support@treehouse.ng</span></span><span className="chev"><Icon name="chev" cls="sm" /></span></a>
       </Group>
+
+      <InviteGroup />
 
       <Group title="Notifications"><PushRow /><AnnPushRow /><InstallRow /></Group>
       <StaffRow />
@@ -303,5 +309,47 @@ function StaffRow() {
   const [me, setMe] = useState<any>(null);
   useEffect(() => { (staffCheck ||= api.annMe().catch(() => null)).then(setMe); }, []);
   if (!me) return null;
-  return <Group title="Staff"><Row ico="megaphone" title="Product Announcements" sub="Create, schedule and track official announcements" onClick={() => go('admin/announcements')} /></Group>;
+  return (
+    <Group title="Staff">
+      <a className="settings-row" href="https://admin.treehouse.ng" target="_blank" rel="noopener noreferrer"><Icon name="shield" /><span className="grow">Admin console<span className="sub">Reports, members, rooms, ads and referrals · admin.treehouse.ng</span></span><span className="chev"><Icon name="chev" cls="sm" /></span></a>
+      <Row ico="megaphone" title="Product Announcements" sub="Create, schedule and track official announcements" onClick={() => go('admin/announcements')} />
+    </Group>
+  );
+}
+
+let inviteCache: Promise<any> | null = null;
+function InviteGroup() {
+  const [r, setR] = useState<any>(null);
+  useEffect(() => { (inviteCache ||= api.myReferral().catch(() => null)).then(setR); }, []);
+  if (!r || !r.enabled || !r.active) return null;
+  const addFriend = <Row ico="userplus" title="Add a friend by username" sub="Send a friend request to someone’s @username" onClick={addFriendSheet} />;
+  if (!r.code) {
+    const pick = async () => {
+      if (!(await chooseUsername({ why: 'Your invite link uses your username, so choose one first.' }))) return;
+      inviteCache = api.myReferral().catch(() => null);
+      setR(await inviteCache);
+    };
+    return (
+      <Group title="Invite friends">
+        <Row ico="send" title="Get your invite link" sub="Choose a username first: your link will be treehouse.ng/r/yourname" onClick={pick} />
+        {addFriend}
+        <Row ico="sparkles" title="Top inviters this week" sub="The #1 is announced as Man or Woman of the Week every Monday" onClick={() => go('invite')} />
+      </Group>
+    );
+  }
+  const url = inviteUrl(r.code);
+  const share = async () => {
+    const how = await shareOrCopy({ title: 'treehouse', text: 'Join me on treehouse: anonymous chats, chatrooms and dating for Nigeria.', url });
+    if (how === 'copied') toast('Invite link copied');
+    else if (how === 'failed') toast(url, 'link');
+  };
+  return (
+    <Group title="Invite friends">
+      <button className="settings-row" onClick={share}><Icon name="send" />
+        <span className="grow">Share your invite link<span className="sub">{url.replace('https://', '')}{r.joined ? ` · ${r.joined} joined with your link` : ''}</span></span>
+        <span className="chev"><Icon name="chev" cls="sm" /></span></button>
+      {addFriend}
+      <Row ico="sparkles" title="Top inviters this week" sub="The #1 is announced as Man or Woman of the Week every Monday" onClick={() => go('invite')} />
+    </Group>
+  );
 }
