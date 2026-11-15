@@ -34,6 +34,7 @@ const members = Array.from({ length: 64 }, (_, i) => {
     intent: pick(['fun', 'friendship', 'love', 'marriage']), created_at: iso(rnd() * 90 * D), last_seen_at: iso(rnd() < 0.2 ? rnd() * 4 * 60e3 : rnd() * 9 * D),
     suspended: i % 23 === 5, is_active: i % 17 !== 3, underage: i === 40, room_ban_until: i % 19 === 7 ? iso(-30 * H) : null, open_reports: i % 9 === 2 ? 1 + (i % 3) : 0,
     staff_role: i === 0 ? 'super_admin' : i === 1 ? 'moderator' : i === 2 ? 'editor' : null,
+    username: i % 3 === 0 ? h.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14) : null,
   };
 });
 const H0 = members[0].handle;
@@ -113,8 +114,9 @@ function rpc(fn: string, a: any): any {
     case 'staff_member_note': case 'staff_member_delete': case 'staff_room_delete_message': case 'staff_room_set': case 'staff_setting_set': case 'staff_filter_word': case 'staff_rating_set':
     case 'staff_team_set': case 'staff_referral_campaign': case 'staff_referral_code_active': case 'ann_publish': case 'ann_cancel': case 'ann_archive': case 'ann_delete_draft': return null;
     case 'staff_members': {
-      const q = (a.p_q || '').toLowerCase();
-      return members.filter((m) => (!q || m.handle.toLowerCase().includes(q)) && (a.p_filter === 'suspended' ? m.suspended : a.p_filter === 'reported' ? m.open_reports > 0 : a.p_filter === 'room_banned' ? !!m.room_ban_until
+      const q = (a.p_q || '').toLowerCase().trim();
+      const un = q.replace(/^@/, '');
+      return members.filter((m) => (!q || (!q.startsWith('@') && m.handle.toLowerCase().includes(q)) || (!!m.username && /^[a-z0-9]{1,14}$/.test(un) && m.username.startsWith(un))) && (a.p_filter === 'suspended' ? m.suspended : a.p_filter === 'reported' ? m.open_reports > 0 : a.p_filter === 'room_banned' ? !!m.room_ban_until
         : a.p_filter === 'underage' ? m.underage : a.p_filter === 'staff' ? !!m.staff_role : a.p_filter === 'online' ? now - Date.parse(m.last_seen_at) < 300e3 : a.p_filter === 'new' ? now - Date.parse(m.created_at) < 7 * D : true)).slice(a.p_offset || 0, (a.p_offset || 0) + 50);
     }
     case 'staff_member': {

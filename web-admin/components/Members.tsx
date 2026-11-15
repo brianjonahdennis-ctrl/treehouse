@@ -12,7 +12,7 @@ import { Ask, Avatar, Btn, Card, Empty, ErrorBox, Field, Modal, PageHead, Pill, 
 import { Icon } from './Icon';
 
 type Row = { handle: string; gender: string; age: number; state: string; intent: string; created_at: string; last_seen_at: string | null; suspended: boolean;
-  is_active: boolean; underage: boolean; room_ban_until: string | null; open_reports: number; staff_role: Role | null };
+  is_active: boolean; underage: boolean; room_ban_until: string | null; open_reports: number; staff_role: Role | null; username?: string | null };
 
 const FILTERS: [string, string][] = [['all', 'All'], ['online', 'Online now'], ['new', 'New this week'], ['reported', 'Reported'], ['suspended', 'Suspended'], ['room_banned', 'Room bans'], ['underage', 'Under 18'], ['staff', 'Staff']];
 
@@ -27,10 +27,10 @@ export function Members() {
   const list = useAsync(() => rpc<Row[]>('staff_members', { p_q: term, p_filter: filter, p_limit: 50, p_offset: page * 50 }), [term, filter, page]);
   return (
     <>
-      <PageHead title="Members" sub={allows(me.role, 'manage') ? 'Search by handle, or by exact email address.' : 'Search by handle.'} />
+      <PageHead title="Members" sub={allows(me.role, 'manage') ? 'Search by handle, @username, or exact email address.' : 'Search by handle or @username.'} />
       <div className="toolbar">
         <form className="search inline" onSubmit={(e) => { e.preventDefault(); setPage(0); setTerm(q.trim()); }}>
-          <Icon name="search" size={17} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Handle or email…" aria-label="Search members" />
+          <Icon name="search" size={17} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={allows(me.role, 'manage') ? 'Handle, @username or email…' : 'Handle or @username…'} aria-label="Search members" />
         </form>
         <div className="chips">{FILTERS.map(([id, l]) => <button key={id} className={`chip ${filter === id ? 'on' : ''}`} onClick={() => { setPage(0); setFilter(id); }}>{l}</button>)}</div>
       </div>
@@ -44,7 +44,7 @@ export function Members() {
             <tbody>
               {list.data.map((m) => (
                 <tr key={m.handle} className="click" onClick={() => go(`/members/${encodeURIComponent(m.handle)}`)}>
-                  <td><div className="who-cell"><Avatar name={m.handle} /><div><b>{m.handle}</b><small>{words(m.gender)}{m.staff_role ? ` · ${ROLE_LABEL[m.staff_role]}` : ''}</small></div></div></td>
+                  <td><div className="who-cell"><Avatar name={m.handle} /><div><b>{m.handle}</b><small>{m.username ? `@${m.username} · ` : ''}{words(m.gender)}{m.staff_role ? ` · ${ROLE_LABEL[m.staff_role]}` : ''}</small></div></div></td>
                   <td>{m.age}</td><td>{m.state || '—'}</td><td>{words(m.intent)}</td>
                   <td className="muted">{date(m.created_at, false)}</td><td className="muted">{ago(m.last_seen_at)}</td>
                   <td><Status m={m} /></td>
@@ -74,7 +74,7 @@ function Status({ m }: { m: Row }) {
 }
 
 type Detail = {
-  handle: string; gender: string; age: number; state: string; location: string; intent: string; bio: string | null; interests: string[] | null;
+  handle: string; username?: string | null; gender: string; age: number; state: string; location: string; intent: string; bio: string | null; interests: string[] | null;
   created_at: string; last_seen_at: string | null; is_active: boolean; suspended: boolean; underage_at: string | null; age_changed_at: string | null;
   signed_up_at: string; last_sign_in_at: string | null; sign_in_blocked: boolean; staff_role: Role | null; room_ban: { until: string; reason: string } | null;
   counts: Record<string, number>; reputation: { score: number; raters: number; band: string } | null; bird_level: number | null; kickrs: boolean; platforms: string[];
@@ -105,7 +105,7 @@ export function Member({ handle }: { handle: string }) {
         <Avatar name={d.handle} size={64} />
         <div className="mt-main">
           <h1>{d.handle}{d.staff_role && <Pill tone="violet">{ROLE_LABEL[d.staff_role]}</Pill>}</h1>
-          <p className="muted">{words(d.gender)} · {d.age} · {d.state || 'No state'}{d.location ? ` (${d.location})` : ''} · looking for {words(d.intent)}</p>
+          <p className="muted">{d.username ? <><b>@{d.username}</b> · </> : null}{words(d.gender)} · {d.age} · {d.state || 'No state'}{d.location ? ` (${d.location})` : ''} · looking for {words(d.intent)}</p>
           <div className="mt-pills">
             {d.underage_at && <Pill tone="red">Marked under 18 · {date(d.underage_at, false)}</Pill>}
             {d.suspended && <Pill tone="red">Suspended</Pill>}
