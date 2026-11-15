@@ -212,9 +212,9 @@ function PersonRow({ p, onOpen }: { p: any; onOpen: () => void }) {
   const act = activeText(p);
   return (
     <article className="nb-row" role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => { if (e.key === 'Enter') onOpen(); }}>
-      <span className={`nb-av ${p.liked_me ? 'likes-you' : ''}`}><Avatar seed={p.handle} cls="lg" />{p.online ? <i className="on" /> : null}</span>
+      <span className={`nb-av ${p.liked_me ? 'likes-you' : ''} ${p.online ? '' : 'av-off'}`}><Avatar seed={p.handle} cls="lg" />{p.online ? <i className="on" /> : null}</span>
       <span className="grow">
-        <b><span className="ellipsis">{shortName(p.handle)}</span>{` ${p.age}`}{p.online ? <i className="nb-online" aria-label="Online" /> : null}</b>
+        <b className={p.online ? '' : 'name-off'}><span className="ellipsis">{shortName(p.handle)}</span>{` ${p.age}`}{p.online ? <i className="nb-online" aria-label="Online" /> : null}</b>
         {!p.online && act ? <span className="nb-sub">{act}</span> : null}
         <span className="nb-sub"><Icon name="pin" cls="sm" />{distText(p)}</span>
         <HandleBadges handle={p.handle} />
@@ -266,7 +266,7 @@ function pinHtml(p: any) {
   const face = cfg
     ? (() => { const c = normalize(cfg); return `<span class="avatar lg has-av"><span class="av-svg av-modern av-bg-${esc(c.b)}"><img src="${esc(pictureOf(c, 96))}" alt="" draggable="false"></span></span>`; })()
     : `<span class="avatar lg" data-h="${esc(p.handle)}">${esc(initials(p.handle))}</span>`;
-  return `<div class="nb-pin ${p.liked_me ? 'date' : ''}"><span class="nb-pin-av">${face}${p.online ? '<i class="on"></i>' : ''}</span><span class="nb-pin-dist">${esc(distShort(p))}</span></div>`;
+  return `<div class="nb-pin ${p.liked_me ? 'date' : ''} ${p.online ? '' : 'pin-off'}"><span class="nb-pin-av">${face}${p.online ? '<i class="on"></i>' : ''}</span><span class="nb-pin-dist">${esc(distShort(p))}</span></div>`;
 }
 
 function NearbyMap({ people, redraw, onRemove }: { people: any[]; redraw: () => void; onRemove: (h: string) => void }) {
@@ -337,7 +337,7 @@ function preview(p: any, onRemove: (h: string) => void) {
   openSheet((close) => (
     <>
       <div className="nb-pv">
-        <span className="nb-pv-av"><Avatar seed={p.handle} cls="xl" />{p.online ? <i className="on" /> : null}</span>
+        <span className={`nb-pv-av ${p.online ? '' : 'av-off'}`}><Avatar seed={p.handle} cls="xl" />{p.online ? <i className="on" /> : null}</span>
         <div className="grow">
           <h2>{`${shortName(p.handle)} `}<span className="nb-age">{String(p.age)}</span></h2>
           <p className="nb-pv-where"><Icon name="pin" cls="sm" />{[distText(p), p.location].filter(Boolean).join(' · ')}</p>
@@ -385,7 +385,7 @@ function fullProfile(p: any) {
   openSheet((close) => (
     <>
       <div className="pc">
-        <div className="pc-av"><Avatar seed={p.handle} cls="xl" />{p.online ? <i /> : null}</div>
+        <div className={`pc-av ${p.online ? '' : 'av-off'}`}><Avatar seed={p.handle} cls="xl" />{p.online ? <i /> : null}</div>
         <h2>{p.handle}</h2>
         <p className="pc-sub">{[`${p.age}`, GENDER_LABEL[p.gender], p.location].filter(Boolean).join(' · ')}</p>
         <ProfileBadges dating={p.handle} />

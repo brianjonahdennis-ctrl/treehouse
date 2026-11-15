@@ -242,7 +242,7 @@ function SwipeCard({ p, depth, leaving }: { p: any; depth: number; leaving: null
   const style = leaving ? { transform: `translate(${dir * 140}%, -30px) rotate(${dir * 24}deg)`, opacity: 0 } : {};
   const active = activeText(p.online, p.active_hours);
   return (
-    <article className={`swipe-card ${depth === 1 ? 'behind' : depth === 2 ? 'behind-2' : ''} ${leaving ? 'animating' : ''}`} style={{ ...vars({ '--av': avatarBg(p.handle) }), ...style }} aria-label={`${p.handle}, ${meta(p)}`}>
+    <article className={`swipe-card ${p.online ? '' : 'is-off'} ${depth === 1 ? 'behind' : depth === 2 ? 'behind-2' : ''} ${leaving ? 'animating' : ''}`} style={{ ...vars({ '--av': avatarBg(p.handle) }), ...style }} aria-label={`${p.handle}, ${meta(p)}`}>
       <CardArt p={p} />
       <span className="stamp like" style={leaving === 'like' ? { opacity: 1 } : undefined}>LIKE</span>
       <span className="stamp nope" style={leaving === 'nope' ? { opacity: 1 } : undefined}>NOPE</span>
@@ -288,7 +288,7 @@ function cardProfile(p: any) {
   openSheet((close) => (
     <>
       <div className="pc">
-        <div className="pc-av"><Avatar seed={p.handle} cls="xl" />{p.online ? <i /> : null}</div>
+        <div className={`pc-av ${p.online ? '' : 'av-off'}`}><Avatar seed={p.handle} cls="xl" />{p.online ? <i /> : null}</div>
         <h2>{p.handle}</h2>
         <p className="pc-sub">{[`${p.age}`, GENDER_LABEL[p.gender], p.location].filter(Boolean).join(' · ')}</p>
         <ProfileBadges dating={p.handle} />

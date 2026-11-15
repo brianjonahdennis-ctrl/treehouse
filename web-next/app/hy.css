@@ -2140,3 +2140,9 @@ html:has(.game-stage), body:has(.game-stage) { overflow: hidden; overscroll-beha
 .un-check.bad { color: var(--danger, #e11d48); font-weight: 600; }
 .un-current { font: 800 22px var(--display); margin: 4px 0 8px; }
 .pc-username { margin: 6px 0 0; font-weight: 700; color: var(--muted); }
+
+/* Offline people look greyed out so you can tell at a glance who's online (Hydra, 15 Nov).
+   Look only: rows, profiles and Message buttons stay fully tappable and at full strength. */
+.av-off .avatar, .av-off .room-av, .avatar.av-off, .pin-off .nb-pin-av .avatar { filter: grayscale(1); opacity: .55; transition: filter .2s, opacity .2s; }
+.name-off, b.name-off { color: var(--muted) !important; }
+.swipe-card.is-off .swipe-art, .person-tile.is-off .pt-art { filter: grayscale(.85); }
