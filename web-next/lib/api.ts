@@ -4,6 +4,7 @@
 // member app makes lives here, with the same function names and the same database functions (RPCs),
 // so the two apps behave identically against the one database. No database changes.
 import { getClient } from './supabase';
+import * as live from './livestats';
 
 export const SITE = typeof window !== 'undefined' ? window.location.origin : '';
 export let sb: any = null;
@@ -175,15 +176,26 @@ export const likeProfile = async (handle: string, like: boolean) => ((await rpc(
 export const incomingRequests = async () => (features.matching ? (await rpc('incoming_requests')) || [] : []);
 export const pendingLikes = async () => (features.matching ? rpc('my_pending_likes') : 0);
 export const conversations = async () => (await rpc('my_conversations')) || [];
-export function onInboxNudge(uid: string, cb: (n: any) => void) {
-  const ch = sb.channel(`user:${uid}`, { config: { private: true } }).on('broadcast', { event: 'inbox' }, (e: any) => cb((e && e.payload) || {})).subscribe();
+export function onInboxNudge(uid: string, cb: (n: any) => void, onReconnect?: () => void) {
+  let joined = 0;
+  const ch = sb.channel(`user:${uid}`, { config: { private: true } })
+    .on('broadcast', { event: 'inbox' }, (e: any) => {
+      const n = (e && e.payload) || {};
+      if (n.k === 'message') live.arrived('inbox', n.at);
+      cb(n);
+    })
+    .subscribe((st: string) => {
+      live.status('inbox', st);
+      // Joined again after the connection dropped: anything sent in between was missed, so catch up.
+      if (st === 'SUBSCRIBED' && ++joined > 1 && onReconnect) onReconnect();
+    });
   return { leave() { sb.removeChannel(ch); } };
 }
 export const friendStatuses = async () => (await rpc('friend_statuses')) || [];
 export async function datingSummary(): Promise<any> {
   try {
     const d = await rpc('dating_summary');
-    return { convos: d.convos || [], requests: d.requests || [], pending: d.pending || 0, myStatus: d.my_status || null, friendStatuses: d.friend_statuses || [] };
+    return { convos: d.convos || [], requests: d.requests || [], pending: d.pending || 0, myStatus: d.my_status || null, friendStatuses: d.friend_statuses || [], origins: d.origins || {} };
   } catch (e) {
     if (!/could not find the function|PGRST202/i.test(String((e as any)?.message || (e as any)?.code || ''))) throw e;
     const [convos, requests, pending] = await Promise.all([conversations(), incomingRequests(), pendingLikes()]);
@@ -196,6 +208,13 @@ const MSG_COLS = 'id, sender_id, body, created_at, reply_to, edited_at, deleted_
 export async function messagesBefore(conversationId: string, before: string) {
   const { data, error } = await sb.from('dating_messages').select(MSG_COLS)
     .eq('conversation_id', conversationId).lt('created_at', before).order('created_at', { ascending: false }).limit(80);
+  if (error) throw error;
+  return (data || []).reverse();
+}
+/** The latest few messages: used to catch up after the live connection dropped. */
+export async function messagesLatest(conversationId: string, n = 30) {
+  const { data, error } = await sb.from('dating_messages').select(MSG_COLS)
+    .eq('conversation_id', conversationId).order('created_at', { ascending: false }).limit(n);
   if (error) throw error;
   return (data || []).reverse();
 }
@@ -301,6 +320,13 @@ export const stateCounts = async () => {
 };
 export const startChat = (handle: string) => rpc('start_conversation', { p_handle: handle });
 export const startFriend = (handle: string) => rpc('start_friend_request', { p_handle: handle });
+/** A message request that says where it started ('nearby'), so the Inbox can file it under Nearby. */
+export async function startChatFrom(handle: string, origin: string | null) {
+  if (!origin) return startChat(handle);
+  try { return await rpc('start_conversation_from', { p_handle: handle, p_origin: origin }); }
+  catch (e) { if (missingFn(e)) return startChat(handle); throw e; }
+}
+export const removeFriend = (conversationId: string) => rpc('remove_friend', { p_conversation: conversationId });
 export const askFriend = (conversationId: string, on = true) => rpc('ask_friend', { p_conversation: conversationId, p_on: on });
 
 let asksMissing = false;
@@ -347,17 +373,22 @@ export const reportPartner = (conversationId: string, reason: string, details?: 
   rpc('report_conversation_partner', { p_conversation: conversationId, p_reason: reason, p_details: details || '' });
 
 // ---- Live updates for one open chat -----------------------------------------------------------------
-export function joinChat(conversationId: string, me: string, { onMessage, onUpdate, onTyping, onPresence, onRead }: {
-  onMessage: (m: any) => void; onUpdate?: (m: any) => void; onTyping: () => void; onPresence?: (here: boolean) => void; onRead?: () => void;
+export function joinChat(conversationId: string, me: string, { onMessage, onUpdate, onTyping, onPresence, onRead, onReconnect }: {
+  onMessage: (m: any) => void; onUpdate?: (m: any) => void; onTyping: () => void; onPresence?: (here: boolean) => void; onRead?: () => void; onReconnect?: () => void;
 }) {
-  let fallback: any = null;
-  const live = sb.channel(`chat:${conversationId}`, { config: { private: true } })
-    .on('broadcast', { event: 'message' }, ({ payload }: any) => onMessage(payload))
+  let fallback: any = null, joined = 0;
+  const msg = (m: any) => { if (m && m.sender_id !== me) live.arrived('chat', m.created_at); onMessage(m); };
+  const liveCh = sb.channel(`chat:${conversationId}`, { config: { private: true } })
+    .on('broadcast', { event: 'message' }, ({ payload }: any) => msg(payload))
     .on('broadcast', { event: 'update' }, ({ payload }: any) => { if (onUpdate) onUpdate(payload); })
     .subscribe((status: string) => {
+      live.status('chat', status);
+      // Joined again after a drop: fetch what was missed.
+      if (status === 'SUBSCRIBED' && ++joined > 1 && onReconnect) onReconnect();
       if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && !fallback) {
+        live.status('chat', 'fallback');
         fallback = sb.channel(`hy-chat-db-${conversationId}`)
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dating_messages', filter: `conversation_id=eq.${conversationId}` }, (p: any) => onMessage(p.new))
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dating_messages', filter: `conversation_id=eq.${conversationId}` }, (p: any) => msg(p.new))
           .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'dating_messages', filter: `conversation_id=eq.${conversationId}` }, (p: any) => { if (onUpdate) onUpdate(p.new); })
           .subscribe();
       }
@@ -372,7 +403,7 @@ export function joinChat(conversationId: string, me: string, { onMessage, onUpda
   return {
     read,
     typing() { const now = Date.now(); if (now - last > 2500) { last = now; ch.send({ type: 'broadcast', event: 'typing', payload: { from: me } }); } },
-    leave() { sb.removeChannel(ch); sb.removeChannel(live); if (fallback) sb.removeChannel(fallback); },
+    leave() { sb.removeChannel(ch); sb.removeChannel(liveCh); if (fallback) sb.removeChannel(fallback); },
   };
 }
 

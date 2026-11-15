@@ -26,7 +26,7 @@
     convo('c1', 'Velvet Mango 532', { last_message: 'Haha true! Which side of Lekki are you?', unread: 2, last_at: ago(4), other_online: true, other_active_hours: 0, matched: true }),
     convo('c2', 'Quiet Comet 118', { last_message: 'Goodnight 🌙', last_from_me: true, last_at: ago(180), other_age: 26, other_location: 'Ogun', they_revealed: true, i_revealed: true, other_read_at: ago(170), other_delivered_at: ago(170) }),
     convo('c8', 'Sunny Baobab 640', { kind: 'friend', last_message: 'See you in Football Banter later ⚽', last_from_me: false, last_at: ago(40), other_age: 29, other_location: 'Lagos', unread: 1, other_online: true }),
-    convo('c9', 'Kind Jaguar 414', { kind: 'friend', last_message: 'Good morning', last_from_me: false, last_at: ago(180), other_age: 27, other_location: 'Lagos', unread: 0, other_online: true }),
+    convo('c9', 'Kind Jaguar 414', { kind: 'friend', matched: true, last_message: 'Good morning', last_from_me: false, last_at: ago(180), other_age: 27, other_location: 'Lagos', unread: 0, other_online: true }),
     convo('c10', 'Noble Wolf 299', { kind: 'friend', last_message: null, last_from_me: false, last_at: ago(480), accepted_at: ago(480), other_age: 25, other_location: 'Oyo', other_online: false, other_active_hours: 8 }),
     convo('c3', 'Golden Kite 907', { last_at: ago(55), other_age: 23, other_online: true, other_active_hours: 0, matched: true }),
     convo('c4', 'Silver Fern 341', { status: 'request', last_message: 'Hi! Saw you in the Lagos room, you seem fun 😄', last_at: ago(12), unread: 1, other_age: 25, other_online: true, other_active_hours: 0 }),
@@ -34,6 +34,9 @@
     convo('c5', 'Coral Breeze 760', { status: 'request', last_message: 'Hey, love your bio', last_at: ago(95), unread: 1, other_age: 29, other_location: 'Oyo' }),
     convo('c11', 'Swift Heron 118', { kind: 'friend', status: 'sent', started_by_me: true, accepted_at: null, last_message: null, last_from_me: true, last_at: ago(90), other_age: 24 }),
     convo('c6', 'Indigo Lark 289', { status: 'sent', started_by_me: true, accepted_at: null, other_delivered_at: ago(300), last_message: 'Hey! Are you going to Detty December?', last_from_me: true, last_at: ago(300), other_age: 28 }),
+    convo('c12', 'Brave Panther 502', { last_message: 'Why you dey laugh? 😂', last_at: ago(240), unread: 1, other_age: 26, other_location: 'Lagos', other_online: false, other_active_hours: 1 }),
+    convo('c13', 'Calm Leopard 595', { kind: 'friend', last_message: 'Alright…Thank you', last_from_me: false, last_at: ago(2880), other_age: 28, other_location: 'Lagos', other_online: true, other_active_hours: 0 }),
+    convo('c14', 'Misty Owl 733', { status: 'sent', started_by_me: true, accepted_at: null, last_message: 'Hi neighbour 👋', last_from_me: true, last_at: ago(60), other_age: 27 }),
     convo('c7', 'Amber Tide 455', { last_message: 'See you around', last_at: ago(4000), blocked: true, i_blocked: true }),
   ];
   const likes = empty ? [] : [
@@ -178,7 +181,7 @@ const RPC = {
     my_pending_likes: () => likes.length,
     // Preview only: sessionStorage mock-failchats=N makes the next N chat-list loads fail (tests the retry).
     dating_summary: (...args) => { const left = Number(sessionStorage.getItem('mock-failchats') || 0); if (left > 0) { sessionStorage.setItem('mock-failchats', String(left - 1)); throw new Error('mock: Supabase did not answer'); } return RPC.__unused_dating_summary(...args); },
-    __unused_dating_summary: () => ({ convos, requests: likes, pending: likes.length, my_status: myStatus,
+    __unused_dating_summary: () => ({ convos, requests: likes, pending: likes.length, my_status: myStatus, origins: empty ? {} : { c12: 'nearby', c13: 'nearby', c14: 'nearby' },
       friend_statuses: [{ conversation_id: 'c8', body: 'Weekend vibes already! 🎉', updated_at: ago(17) }, { conversation_id: 'c9', body: 'At work, hit me up later 💼', updated_at: ago(180) }] }),
     set_my_status: ({ p_body }) => { myStatus = { body: p_body, updated_at: new Date().toISOString() }; return [myStatus]; },
     clear_my_status: () => { myStatus = null; return null; },
@@ -264,6 +267,8 @@ const RPC = {
     photos_unlocked: ({ p_conversation }) => p_conversation === 'c3',
     like_profile: ({ p_handle }) => (p_handle.startsWith('Pearl') ? [{ matched: true, conversation_id: 'c3' }] : [{ matched: false }]),
     start_conversation: () => 'c6',
+    start_conversation_from: () => 'c6',
+    remove_friend: ({ p_conversation }) => { const c = convos.find((x) => x.conversation_id === p_conversation); if (c && c.kind === 'friend') { c.kind = undefined; return 'removed'; } return 'none'; },
     dating_state_counts: () => [],
     nearby_settings: () => [nearbyOn ? { enabled: true, paused: false, hide_distance: false, hide_on_map: false, updated_at: ago(3), area_lat: 9.0643, area_lng: 7.4892 } : { enabled: false, paused: false, hide_distance: false, hide_on_map: false, updated_at: null, area_lat: null, area_lng: null }],
     nearby_set_location: () => { nearbyOn = true; sessionStorage.setItem('mock-nearby', '1'); },
@@ -353,6 +358,8 @@ const RPC = {
             const extra = Array.from({ length: 200 }, (_, i) => ({ id: `old-${i}`, sender_id: i % 2 ? ME : 'them', body: `Older message #${200 - i}`, created_at: new Date(t0 - (i + 1) * 60000).toISOString(), reply_to: null, edited_at: null, deleted_at: null, photo: null }));
             all = [...extra.reverse(), ...all];
           }
+          // Preview only: window.__mockMissed[conv] = messages that "arrived while the live connection was down".
+          if (window.__mockMissed && window.__mockMissed[convId]) all = [...all, ...window.__mockMissed[convId]];
           let desc = all.slice().reverse();
           if (before) desc = desc.filter((m) => m.created_at < before);
           data = lim ? desc.slice(0, lim) : desc;

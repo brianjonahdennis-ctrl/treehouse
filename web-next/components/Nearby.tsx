@@ -354,7 +354,7 @@ function preview(p: any, onRemove: (h: string) => void) {
       <div className="nb-pv-actions">
         {p.conversation_id
           ? <button className="btn btn-primary grow" onClick={() => { close(); openChat(p.conversation_id); }}><Icon name="chat" cls="sm" />Open chat</button>
-          : <button className="btn btn-coral grow" onClick={() => { close(); composeTo(p); }}><Icon name="send" cls="sm" />Send Message Request</button>}
+          : <button className="btn btn-coral grow" onClick={() => { close(); composeTo(p, { origin: 'nearby' }); }}><Icon name="send" cls="sm" />Send Message Request</button>}
         <HeartButton p={p} cls="btn btn-icon nb-pv-heart" />
         <button className="btn btn-icon btn-ghost" aria-label="More options" onClick={() => { close(); moreMenu(p, onRemove); }}><Icon name="more" /></button>
       </div>
@@ -404,7 +404,7 @@ function fullProfile(p: any) {
         <button className="btn btn-coral" onClick={() => { close(); like(p); }}><Icon name="heart" cls="sm" />Like</button>
         {p.conversation_id
           ? <button className="btn btn-primary" onClick={() => { close(); openChat(p.conversation_id); }}><Icon name="chat" cls="sm" />Open chat</button>
-          : <button className="btn btn-primary" onClick={() => { close(); composeTo(p); }}><Icon name="send" cls="sm" />Message request</button>}
+          : <button className="btn btn-primary" onClick={() => { close(); composeTo(p, { origin: 'nearby' }); }}><Icon name="send" cls="sm" />Message request</button>}
       </div>
     </>
   ), { label: `${p.handle}’s profile` });

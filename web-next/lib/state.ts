@@ -28,6 +28,7 @@ export const state = {
   recovering: false,
   inRoom: null as boolean | null,
   annUnread: 0,             // unread treehouse announcements (Inbox → Announcements)
+  origins: {} as Record<string, string>,   // conversation id → where it started ('nearby')
 };
 
 // ---- Change signal ------------------------------------------------------------------------------
@@ -47,8 +48,11 @@ export const statusOf = (c: Convo) => c.status || 'chat';
 export const matchFriendAsks = () => state.convos.filter((c) => !c.blocked && c.friendAsk === 'theirs' && c.kind !== 'friend');
 export const messageRequests = () => state.convos.filter((c) => !c.blocked && statusOf(c) === 'request');
 export const unreadChats = () => state.convos.filter((c) => !c.blocked && statusOf(c) !== 'request').reduce((n, c) => n + (c.unread || 0), 0);
-export const isMatch = (c: Convo) => c.matched === true && c.kind !== 'friend';
+// A chat can be several things at once (one conversation, never duplicated): a friend (accepted friend
+// request), a match (you both liked each other) and/or started in Nearby. Each comes from its own system.
+export const isMatch = (c: Convo) => c.matched === true;
 export const isFriend = (c: Convo) => c.kind === 'friend';
+export const isNearby = (c: Convo) => state.origins[c.conversation_id] === 'nearby';
 export const friendsList = () => state.convos
   .filter((c) => c.kind === 'friend' && !c.blocked && statusOf(c) === 'chat')
   .map((c) => Object.assign(c, { friend_status: state.friendStatus[c.conversation_id] || null }));
@@ -75,9 +79,10 @@ export async function loadDating({ force = false, minGap = 30000 } = {}) {
 }
 async function loadDatingNow() {
   try {
-    const [{ convos, requests, pending, myStatus, friendStatuses }, asks, annUnread] = await Promise.all([api.datingSummary(), api.myFriendAsks().catch(() => null), api.announcementsUnread().catch(() => null)]);
+    const [{ convos, requests, pending, myStatus, friendStatuses, origins }, asks, annUnread] = await Promise.all([api.datingSummary(), api.myFriendAsks().catch(() => null), api.announcementsUnread().catch(() => null)]);
     if (annUnread != null) state.annUnread = annUnread;
     state.convos = convos; state.requests = requests; state.pendingLikes = pending || 0;
+    if (origins) state.origins = origins;
     if (asks) { const by = new Map(asks.map((a: any) => [a.conversation_id, a.who])); convos.forEach((c: Convo) => { c.friendAsk = by.get(c.conversation_id) || null; }); }
     if (myStatus !== undefined) state.myStatus = myStatus;
     if (friendStatuses) state.friendStatus = Object.fromEntries(friendStatuses.map((f: any) => [f.conversation_id, f]));
