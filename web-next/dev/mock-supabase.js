@@ -137,7 +137,8 @@
     c6: [['me', 'Hey! Are you going to Detty December?', 300]],
   };
   const messages = (cid) => (chatMsgs[cid] || []).map(([who, body, min], i) => ({ id: i + 1, sender_id: who === 'me' ? ME : 'x', body, created_at: ago(min),
-    reply_to: cid === 'c1' && i === 3 ? 2 : null, edited_at: cid === 'c1' && i === 1 ? ago(79) : null, deleted_at: null }));
+    reply_to: cid === 'c1' && i === 3 ? 2 : null, edited_at: cid === 'c1' && i === 1 ? ago(79) : null, deleted_at: null,
+    ...(cid === 'c2' && i === 1 ? { photo: '00000000-0000-0000-0000-0000000000c2/00000000-0000-0000-0000-000000000001.jpg', photo_w: 1200, photo_h: 800 } : {}) }));
 
   let nearbyOn = sessionStorage.getItem('mock-nearby') === '1';
   const np = (handle, age, gender, km, dlat, dlng, online, extra) => Object.assign({ handle, age, gender, location: 'Abuja (FCT)', intent: 'love',
@@ -427,7 +428,7 @@ const RPC = {
         from, channel, removeChannel() {},
         storage: { from: () => ({
           upload: (path, blob) => { mockFiles.set(path, URL.createObjectURL(blob)); return result({ path }); },
-          createSignedUrl: (path) => result({ signedUrl: mockFiles.get(path) || '/lp-chatroom.jpg' }),
+          createSignedUrl: (path) => result({ signedUrl: mockFiles.get(path) || '/icon-512.png?mock-photo' }),
           remove: () => result(null),
           getPublicUrl: (path) => ({ data: { publicUrl: mockFiles.get(path) || '/lp-chatroom.jpg' } }),
         }) },
