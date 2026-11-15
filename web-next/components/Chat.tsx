@@ -5,6 +5,7 @@
 // chat's private live channel, the request accept bar, reveal and add-friend buttons.
 // The + next to the message box sends photos (camera or gallery, once unlocked) and Kickrs challenges.
 // Photos are blurred until tapped; swipe a message right to reply.
+import { openRecorder, VoiceBubble } from './Voice';
 import { BirthdayCardBubble, ChatBirthdayBanner, openCardPicker, parseBirthdayCard } from './Birthday';
 import { ConvoBird } from './Reputation';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -21,7 +22,7 @@ import { useSwipeReply } from './swipe';
 import { CHALLENGES, CHALLENGE_MS, challengeOf, parseChallenge } from '@/lib/kickrs';
 import { meta, activeText, shortName, acceptRequest, declineRequest, blockConvo, cancelSent, askFriend, doReveal, chatMenu, partnerProfile } from './convo';
 
-type Msg = { id: string; sender_id: string; body: string; created_at: string; reply_to: string | null; edited_at: string | null; deleted_at: string | null; photo?: string | null; photo_w?: number; photo_h?: number; pending?: boolean; localUrl?: string };
+type Msg = { id: string; sender_id: string; body: string; created_at: string; reply_to: string | null; edited_at: string | null; deleted_at: string | null; photo?: string | null; photo_w?: number; photo_h?: number; voice?: string | null; voice_ms?: number | null; voice_played_at?: string | null; pending?: boolean; localUrl?: string };
 const EDIT_WINDOW = 15 * 60 * 1000;
 const coarse = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 
@@ -272,6 +273,20 @@ function ChatView({ convo }: { convo: Convo }) {
     }
   }
 
+  // Voice notes: same unlock rule as photos.
+  async function voiceTap() {
+    if (!photoOk && !(await checkPhotos())) {
+      toast(statusOf(convo) === 'chat' ? 'Voice notes unlock once you two have chatted a bit more 🎤' : 'Voice notes unlock after your chat is accepted', 'info');
+      return;
+    }
+    openRecorder(async (blob, ext, ms) => {
+      const temp: Msg = { id: `pending-${Date.now()}`, sender_id: me, body: '🎤 Voice note', created_at: new Date().toISOString(), reply_to: null, edited_at: null, deleted_at: null, voice: 'pending', voice_ms: ms, pending: true };
+      setMsgs((list) => [...list, temp]); scroll();
+      try { const m = await api.sendVoice(id, blob, ext, ms); setMsgs((list) => list.filter((x) => x.id !== temp.id)); add(m); scroll(); }
+      catch (e) { setMsgs((list) => list.filter((x) => x.id !== temp.id)); throw e; }
+    });
+  }
+
   async function photoTap(source: 'camera' | 'library') {
     if (!photoOk) {
       // Maybe it just unlocked: ask once more before saying no. (Then they tap again to pick.)
@@ -445,7 +460,7 @@ function ChatView({ convo }: { convo: Convo }) {
                   ? <div className="bubble photo-bubble" onClick={() => photoClick(m)}>{quote}<photos.PhotoBox key={unblurred} m={m} mine={mine} localUrl={m.localUrl} blur={!photos.wasSeen(m.id)} /></div>
                   : <div className="bubble" onClick={() => !m.pending && messageActions(m)}>
                     {quote}
-                    {gone ? <span className="gone-text"><Icon name="ban" cls="sm" />{mine ? 'You unsent a message' : 'This message was deleted'}</span> : <Body m={m} mine={mine} chatId={id} />}
+                    {gone ? <span className="gone-text"><Icon name="ban" cls="sm" />{mine ? 'You unsent a message' : 'This message was deleted'}</span> : m.voice ? <VoiceBubble m={m} mine={mine} onPlayed={(at) => update({ id: m.id, voice_played_at: at })} /> : <Body m={m} mine={mine} chatId={id} />}
                   </div>}
               </MsgRow>
               {receiptFor(i)}
@@ -481,6 +496,7 @@ function ChatView({ convo }: { convo: Convo }) {
             ) : null}
             <form className="composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
               <button type="button" className="composer-plus" aria-label="Photos and games" onMouseDown={(e) => e.preventDefault()} onClick={plusMenu}><Icon name="plus" /></button>
+              {text.trim() ? null : <button type="button" className="composer-plus vn-mic" aria-label="Record a voice note" onMouseDown={(e) => e.preventDefault()} onClick={voiceTap}><span aria-hidden="true">🎤</span></button>}
               <textarea ref={input} className="input" rows={1} maxLength={1000} placeholder="Type a message…" aria-label="Message" value={text}
                 onChange={(e) => { setText(e.target.value); const el = e.target; el.style.height = 'auto'; el.style.height = `${Math.min(120, el.scrollHeight)}px`; channel.current?.typing(); }}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !coarse()) { e.preventDefault(); send(); } }} />

@@ -191,7 +191,7 @@ export async function datingSummary(): Promise<any> {
   }
 }
 
-const MSG_COLS = 'id, sender_id, body, created_at, reply_to, edited_at, deleted_at, photo, photo_w, photo_h';
+const MSG_COLS = 'id, sender_id, body, created_at, reply_to, edited_at, deleted_at, photo, photo_w, photo_h, voice, voice_ms, voice_played_at';
 // Older history, 80 at a time (scrolling up in a chat). Same rules as the first load.
 export async function messagesBefore(conversationId: string, before: string) {
   const { data, error } = await sb.from('dating_messages').select(MSG_COLS)
@@ -212,6 +212,25 @@ export async function sendMessage(conversationId: string, body: string, replyTo:
   if (error) throw error;
   return data;
 }
+
+// ---- Voice notes (same unlock rule as photos; played once, then deleted) --------------------------
+export async function sendVoice(conversationId: string, blob: Blob, ext: string, ms: number) {
+  const path = `${conversationId}/${crypto.randomUUID()}.${ext}`;
+  const type = ext === 'm4a' ? 'audio/mp4' : ext === 'ogg' ? 'audio/ogg' : 'audio/webm';
+  const up = await sb.storage.from('chat-voice').upload(path, blob, { contentType: type, upsert: false });
+  if (up.error) throw up.error;
+  const row: any = { conversation_id: conversationId, body: '🎤 Voice note', voice: path, voice_ms: Math.max(300, Math.min(61000, Math.round(ms))) };
+  const { data, error } = await sb.from('dating_messages').insert(row).select(MSG_COLS).single();
+  if (error) { sb.storage.from('chat-voice').remove([path]).catch(() => {}); throw error; }
+  return data;
+}
+export async function voiceBlob(path: string): Promise<Blob> {
+  const { data, error } = await sb.storage.from('chat-voice').download(path);
+  if (error || !data) throw error || new Error('This voice note is no longer available.');
+  return data;
+}
+export const voicePlayed = (messageId: string) => rpc('voice_played', { p_message: messageId });
+export const removeVoice = (path: string) => { sb.storage.from('chat-voice').remove([path]).catch(() => {}); };
 
 // ---- Photos in chats (unlock rule lives in the database) -----------------------------------------
 export const photosUnlocked = (conversationId: string) => rpc('photos_unlocked', { p_conversation: conversationId }).then(Boolean);

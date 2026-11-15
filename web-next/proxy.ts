@@ -16,7 +16,7 @@ export function proxy(request: NextRequest) {
     `style-src 'self' https://fonts.googleapis.com ${dev ? "'unsafe-inline'" : `'nonce-${nonce}'`}`,
     `font-src https://fonts.gstatic.com${dev ? " 'self'" : ''}`,
     `img-src 'self' data: blob: https://img.treehouse.ng https://tile.openstreetmap.org ${sb}`.trim(),
-    "media-src 'self' https://img.treehouse.ng",
+    "media-src 'self' blob: https://img.treehouse.ng",
     `connect-src 'self' ${sb} ${sb.replace('https://', 'wss://')} ${kickrsApi}${dev ? ' ws:' : ''}`.trim(),
     `frame-src ${kickrs}`,
     "object-src 'none'",

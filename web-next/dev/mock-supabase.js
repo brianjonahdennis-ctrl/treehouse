@@ -321,7 +321,7 @@ const RPC = {
     if (table === 'dating_messages') rows = [];
     let convId = null, single = false, before = null, lim = null;
     const b = {
-      select() { return b; }, insert(v) { if (table === 'dating_messages') rows = { id: Date.now(), sender_id: ME, body: v.photo ? '📷 Photo' : v.body, created_at: new Date().toISOString(), reply_to: v.reply_to || null, edited_at: null, deleted_at: null, photo: v.photo || null, photo_w: v.photo_w || null, photo_h: v.photo_h || null }; return b; },
+      select() { return b; }, insert(v) { if (table === 'dating_messages') rows = { id: Date.now(), sender_id: ME, body: v.photo ? '📷 Photo' : v.body, created_at: new Date().toISOString(), reply_to: v.reply_to || null, edited_at: null, deleted_at: null, photo: v.photo || null, photo_w: v.photo_w || null, photo_h: v.photo_h || null, voice: v.voice || null, voice_ms: v.voice_ms || null, voice_played_at: null }; if (table === 'dating_messages' && v.voice) rows.body = '🎤 Voice note'; return b; },
       update(v) {
         if (table === 'dating_profiles' && v) {
           if (v.birth_date) {
