@@ -114,7 +114,8 @@ select throws_ok($$ select staff_member_delete('sctest_u4', 'scam') $$, '42501',
 
 -- ---- Reports and private chats ----------------------------------------------------------------
 select pg_temp.login('00000000-0000-0000-0000-0000000c0003');
-select is(jsonb_array_length(staff_reports('chat', 'actioned', 50, null)), 1, 'moderator sees chat reports');
+select ok(exists (select 1 from jsonb_array_elements(staff_reports('chat', 'actioned', 200, null)) e
+                  where (e ->> 'id')::bigint = current_setting('test.rep')::bigint), 'moderator sees chat reports');
 select is(jsonb_array_length(staff_report_context('chat', current_setting('test.rep')::bigint) -> 'messages'), 2, 'report context shows the reported chat');
 select pg_temp.admin();
 select ok(exists (select 1 from dating_private.staff_audit where action = 'view_reported_chat'), 'opening a reported chat is logged');
