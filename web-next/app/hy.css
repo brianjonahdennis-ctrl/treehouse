@@ -1485,14 +1485,21 @@ html, body { max-width: 100%; overflow-x: clip; }
 .rmsg.me .rmsg-quote { --c: #fff; background: rgba(255, 255, 255, .16); }
 .rmsg.me .rmsg-quote span { color: rgba(255, 255, 255, .85); }
 
-/* "Add friend" next to Reveal in match chats (blue: friends and talking). */
-.head-friend { margin-right: 6px; }
-.friend-btn { width: 32px; height: 32px; flex: none; display: grid; place-items: center; padding: 0; border-radius: 50%; cursor: pointer;
+/* Friend label beside the nickname in a chat: Add friend / Accept friend / Pending (blue: friends). */
+.chat-head .chat-who { position: relative; }
+.chat-who-hit { position: absolute; inset: 0; z-index: 0; padding: 0; border: 0; border-radius: 12px; background: none; cursor: pointer; }
+.chat-head .chat-who > :not(.chat-who-hit) { position: relative; pointer-events: none; }
+.chat-head .chat-who:has(.chat-who-hit:focus-visible) { background: var(--surface-2); outline: 2px solid var(--blue); outline-offset: 1px; }
+.cw-name { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; min-width: 0; }   /* narrow phones: the label drops under the name */
+.chat-head .cw-name b { flex: 0 1 auto; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.friend-chip { pointer-events: auto; flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px 3px 7px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 12px; font-weight: 700; line-height: 1.3; white-space: nowrap;
   border: 1px solid color-mix(in srgb, var(--blue) 45%, transparent); background: var(--blue-soft); color: var(--blue-2); }
-.friend-btn.hot { background: var(--blue); border-color: var(--blue); color: #fff; animation: friendPulse 1.8s ease-in-out infinite; }
-.friend-btn.wait { background: transparent; border-color: var(--line); color: var(--muted); }
+.friend-chip .icon { width: 14px; height: 14px; }
+.friend-chip.hot { background: var(--blue); border-color: var(--blue); color: #fff; animation: friendPulse 1.8s ease-in-out infinite; }
+.friend-chip.wait { background: transparent; border-color: var(--line); color: var(--muted); }
 @keyframes friendPulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--blue) 45%, transparent); } 50% { box-shadow: 0 0 0 6px transparent; } }
-@media (prefers-reduced-motion: reduce) { .friend-btn.hot { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .friend-chip.hot { animation: none; } }
 /* Small phones: Reveal shrinks to a round icon too, so the name keeps its room. */
 @media (max-width: 440px) {
   .head-friend { margin-right: 4px; }

@@ -38,14 +38,13 @@ export function BirdBadge({ level, compact = false }: { level?: number | null; c
 export function StarPill({ rating, ratings }: { rating?: number | null; ratings?: number | null }) {
   const n = Number(ratings || 0);
   const count = <small>{` (${n.toLocaleString()})`}</small>;
-  // Everyone is 5.0 until real ratings move it; only the number of ratings is shown with it.
-  if (rating == null) return <span className="rp-pill" title={`5.0 out of 5 · ${n} rating${n === 1 ? '' : 's'}`}>★ 5.0{count}</span>;
-  return <span className="rp-pill" title={`${rating} out of 5 from ${n} ratings`}>{`★ ${Number(rating).toFixed(1)}`}{count}</span>;
+  // Everyone starts at 0.0; each rating moves it straight away (the average of the stars received).
+  return <span className="rp-pill" title={`${Number(rating || 0).toFixed(1)} out of 5 from ${n} rating${n === 1 ? '' : 's'}`}>{`★ ${Number(rating || 0).toFixed(1)}`}{count}</span>;
 }
 
-// ---- Badges for other people (cached for 10 minutes) -----------------------------------------
+// ---- Badges for other people (cached for 2 minutes) ------------------------------------------
 const cache = new Map<string, { at: number; b: any }>();
-const fresh = (k: string) => { const c = cache.get(k); return c && Date.now() - c.at < 600000 ? c.b : undefined; };
+const fresh = (k: string) => { const c = cache.get(k); return c && Date.now() - c.at < 120000 ? c.b : undefined; };
 let tick = 0;
 const listeners = new Set<() => void>();
 function useCacheTick() { const [, set] = useState(0); useEffect(() => { const f = () => set(++tick); listeners.add(f); return () => { listeners.delete(f); }; }, []); }
@@ -133,7 +132,7 @@ export function RateUser({ convo, handle }: { convo?: string; handle?: string })
         </div>
         <button className="btn btn-primary btn-block" disabled={!stars || busy} onClick={async () => {
           setBusy(true);
-          try { await (convo ? api.rateConvo(convo, stars) : api.rateRoomMember(handle!, stars)); setDone(true); }
+          try { await (convo ? api.rateConvo(convo, stars) : api.rateRoomMember(handle!, stars)); setDone(true); cache.clear(); myRep = null; listeners.forEach((f) => f()); }
           catch (e) { toast(api.friendly(e), 'x'); } finally { setBusy(false); }
         }}>Submit Rating</button>
       </>
@@ -166,16 +165,16 @@ export function MyIdentity() {
       <button className="card pf-id-card" onClick={openReputation} aria-label="Open my reputation">
         <span className="rp-big">★</span>
         <span className="grow"><span className="tiny muted">Community rating</span>
-          <b>{rep ? `${rep.established ? Number(rep.score).toFixed(1) : '5.0'} / 5.0 (${rep.ratings})` : '…'}</b>
+          <b>{rep ? `${Number(rep.score || 0).toFixed(1)} / 5.0 (${rep.ratings})` : '…'}</b>
           <span className="tiny muted">{rep ? `${rep.ratings} rating${rep.ratings === 1 ? '' : 's'}` : ''}</span></span>
       </button>
     </div>
   );
 }
 
-// My own rating: fetched at most every 10 minutes and shared by Home and Profile (keeps start-up light).
+// My own rating: fetched at most every 2 minutes and shared by Home and Profile (keeps start-up light).
 let myRep: { at: number; p: Promise<any> } | null = null;
-const loadMyRep = () => { if (!myRep || Date.now() - myRep.at > 600000) myRep = { at: Date.now(), p: api.myReputation().catch(() => { myRep = null; return null; }) }; return myRep.p; };
+const loadMyRep = () => { if (!myRep || Date.now() - myRep.at > 120000) myRep = { at: Date.now(), p: api.myReputation().catch(() => { myRep = null; return null; }) }; return myRep.p; };
 
 /** Under my nickname on Home: my bird and my stars, each opening its page. */
 export function MyHomeBadges() {
@@ -188,7 +187,7 @@ export function MyHomeBadges() {
     <div className="hm-badges">
       {isMyBirthday() ? <span className="bday-pill">🎂 Happy birthday to you! 🎉</span> : null}
       {b ? <button className="plain-btn" onClick={openBirdKingdom} aria-label={`Bird Kingdom: ${bird(b.level).name}`}><BirdBadge level={b.level} /></button> : null}
-      {rep ? <button className="plain-btn" onClick={openReputation} aria-label="My community rating"><StarPill rating={rep.established ? rep.score : null} ratings={rep.ratings} /></button> : null}
+      {rep ? <button className="plain-btn" onClick={openReputation} aria-label="My community rating"><StarPill rating={rep.score} ratings={rep.ratings} /></button> : null}
     </div>
   );
 }
@@ -273,7 +272,7 @@ function MyReputation({ close }: { close: () => void }) {
         <div className="settings-row" style={{ cursor: 'default', alignItems: 'flex-start' }}><span style={{ fontSize: '20px' }}>🎭</span><span className="grow">Anonymous<span className="sub">{`You never see who rated you, and nobody sees who you rated. Each person can rate you once every ${r.cooldown_days} days.`}</span></span></div>
         <div className="settings-row" style={{ cursor: 'default', alignItems: 'flex-start' }}><span style={{ fontSize: '20px' }}>🛡️</span><span className="grow">Blocks and reports don’t touch your stars<span className="sub">Safety is handled separately by the treehouse team.</span></span></div>
       </div>
-      <p className="tiny muted center">{r.refreshed_at ? `Updated every hour · last update ${new Date(r.refreshed_at).toLocaleString('en-NG', { hour: 'numeric', minute: '2-digit', day: 'numeric', month: 'short' })}` : 'Updated every hour'}</p>
+      <p className="tiny muted center">{r.refreshed_at ? `Updates after every rating · last change ${new Date(r.refreshed_at).toLocaleString('en-NG', { hour: 'numeric', minute: '2-digit', day: 'numeric', month: 'short' })}` : 'Everyone starts at 0.0. Your score updates after every rating.'}</p>
       <div className="sheet-actions"><button className="btn btn-soft btn-block" onClick={close}>Close</button></div>
     </>
   );

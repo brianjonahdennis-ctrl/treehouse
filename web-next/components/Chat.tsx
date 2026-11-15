@@ -448,15 +448,16 @@ function ChatView({ convo }: { convo: Convo }) {
     <>
       <div className="chat-head">
         <button className="plain-btn" aria-label="Back" onClick={back}><Icon name="back" /></button>
-        <button className="chat-who" aria-label={`View ${convo.other_handle}’s profile`} onClick={() => partnerProfile(convo)}>
+        {/* The whole name area opens the profile; the friend label beside the nickname is its own button. */}
+        <div className="chat-who">
+          <button className="chat-who-hit" aria-label={`View ${convo.other_handle}’s profile`} onClick={() => partnerProfile(convo)} />
           <Avatar seed={convo.other_handle} label={nameOf(convo)} />
           <span className="grow">
-            <b className="ellipsis name-dot">{nameOf(convo)}<span className="name-dot-slot">{online ? <i className="online-dot-inline" role="img" aria-label="Online" /> : null}</span></b>
+            <span className="cw-name"><b className="ellipsis name-dot">{nameOf(convo)}<span className="name-dot-slot">{online ? <i className="online-dot-inline" role="img" aria-label="Online" /> : null}</span></b><FriendChip convo={convo} /></span>
             <span className="status">{online ? <><i />Online</> : (active ? `${active} · ${metaText}` : metaText)}</span>
             {convo.blocked ? null : <span className="chat-bird"><ConvoBird id={convo.conversation_id} /></span>}
           </span>
-        </button>
-        <FriendButton convo={convo} />
+        </div>
         <RevealPill convo={convo} />
         <button className="plain-btn" aria-label="Chat options" onClick={() => chatMenu(convo)}><Icon name="more" /></button>
       </div>
@@ -554,33 +555,36 @@ function RevealPill({ convo }: { convo: Convo }) {
   return <span className="head-reveal">{btn}</span>;
 }
 
-// "Add friend" next to Reveal in match chats (both tapping it turns the chat into a friend chat).
-function FriendButton({ convo }: { convo: Convo }) {
+// Beside the nickname: "Add friend", "Accept friend" (they asked: accept right here) or "Pending" (you
+// asked). Declining and cancelling happen in Inbox → Requests. No chat message is sent for a request.
+function FriendChip({ convo }: { convo: Convo }) {
   const [askState, setAskState] = useState<string | null>(null);
   const id = convo.conversation_id;
   const eligible = !convo.blocked && !isFriend(convo) && statusOf(convo) === 'chat';
   useEffect(() => {
     if (!eligible) return;
     let alive = true;
+    setAskState(convo.friendAsk || null);
     api.friendAskState(id).then((st: any) => { if (!alive) return; if (st === 'friends') loadDating({ force: true }).catch(() => {}); else setAskState(st); }).catch(() => {});
     return () => { alive = false; };
   }, [eligible, id, convo.friendAsk]);
-  if (!eligible || !askState) return <span className="head-reveal head-friend" />;
+  if (!eligible || !askState) return null;
   const who = nameOf(convo);
-  const btn = (cls: string, label: string, onClick: () => void) => <button className={`friend-btn ${cls}`.trim()} aria-label={label} title={label} onClick={onClick}><Icon name="userplus" cls="sm" /></button>;
-  let el;
-  if (askState === 'theirs') el = btn('hot', `${who} wants to add you as a friend`, async () => {
-    if (!(await confirmSheet({ title: `${who} wants to be friends`, yes: 'Accept', text: 'This chat moves to Friends and you’ll see each other’s statuses. You both stay anonymous until you reveal.' }))) return;
+  const chip = (cls: string, label: string, text: string, onClick: () => void) => (
+    <button type="button" className={`friend-chip ${cls}`.trim()} aria-label={label} onClick={(e) => { e.stopPropagation(); onClick(); }}>
+      <Icon name={cls === 'wait' ? 'clock' : 'userplus'} cls="sm" />{text}</button>);
+  if (askState === 'theirs') return chip('hot', `${who} sent you a friend request: accept`, 'Accept friend', async () => {
+    if (!(await confirmSheet({ title: `${who} wants to be friends`, yes: 'Accept',
+      text: 'This chat moves to Friends and you’ll see each other’s statuses. You both stay anonymous until you reveal. To decline, go to Inbox → Requests.' }))) return;
     await askFriend(convo, true);
   });
-  else if (askState === 'mine') el = btn('wait', 'Friend request sent', () => openSheet((close) => (<><h2>Friend request sent</h2>
-    <p className="muted">{`Waiting for ${who} to accept. Nothing changes until they do.`}</p>
-    <div className="sheet-actions"><button className="btn btn-soft btn-block" onClick={() => { close(); askFriend(convo, false).then(() => setAskState('none')); }}>Cancel request</button><button className="btn btn-primary btn-block" onClick={close}>OK</button></div></>), { label: 'Friend request' }));
-  else el = btn('', 'Add as friend', async () => {
-    if (!(await confirmSheet({ title: `Add ${who} as a friend?`, yes: 'Send request', text: 'They’ll get a friend request in this chat. If they accept, it moves to Friends and you’ll see each other’s statuses.' }))) return;
+  if (askState === 'mine') return chip('wait', 'Friend request pending', 'Pending', () => openSheet((close) => (<><h2>Friend request pending</h2>
+    <p className="muted">{`Waiting for ${who} to accept. To cancel it, go to Inbox → Requests.`}</p>
+    <div className="sheet-actions"><button className="btn btn-soft btn-block" onClick={() => { close(); go('matches/requests'); }}>Open Requests</button><button className="btn btn-primary btn-block" onClick={close}>OK</button></div></>), { label: 'Friend request' }));
+  return chip('', `Add ${who} as a friend`, 'Add friend', async () => {
+    if (!(await confirmSheet({ title: `Add ${who} as a friend?`, yes: 'Send request', text: 'They’ll see your request beside your nickname in this chat. If they accept, it moves to Friends and you’ll see each other’s statuses.' }))) return;
     await askFriend(convo, true); setAskState('mine');
   });
-  return <span className="head-reveal head-friend">{el}</span>;
 }
 
 // One message row; swipe it right to reply.

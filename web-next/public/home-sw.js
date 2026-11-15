@@ -8,6 +8,7 @@ const TEXT = {
   request: ['📩 New message request', 'Someone wants to chat. Open treehouse to see it.'],
   like: ['💘 Someone liked you', 'Open treehouse to see who’s interested.'],
   match: ['✨ It’s a match!', 'You have a new match. Open treehouse to say hi.'],
+  friend: ['👋 New friend request', 'Someone wants to be your friend. Open treehouse to accept.'],
   announcement: ['Treehouse Update 🎉', 'We have something new for you. Open Treehouse to see what’s new.'],
 };
 
