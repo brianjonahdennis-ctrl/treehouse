@@ -146,6 +146,11 @@ function rpc(fn: string, a: any): any {
     case 'staff_ad_save': { const p = a.p; if (p.id) { ads = ads.map((x) => (x.id === p.id ? { ...x, ...p } : x)); return p.id; } const id = `a${ads.length + 1}`; ads = [{ ...p, id, status: 'draft', created_at: new Date().toISOString(), views: 0, taps: 0, reach: 0, live: false }, ...ads]; return id; }
     case 'staff_ad_status': ads = ads.map((x) => (x.id === a.p_id ? { ...x, status: a.p_status, live: a.p_status === 'active' } : x)); return null;
     case 'staff_ad_stats': return { daily: days(30).map((d) => ({ day: d, views: Math.floor(rnd() * 300), taps: Math.floor(rnd() * 30) })), placements: { home: { views: 3000, taps: 300 }, rooms: { views: 1210, taps: 77 } } };
+    case 'staff_treehouse': return { window_days: 3, referred: 354, counting: 341, network: 12, campaign: 0, by_source: { link: 340, qr: 14 }, clicks: 2554,
+      disqualified: [{ handle: 'Fake Fox 101', reason: 'duplicate account', by: 'Boma', at: new Date().toISOString() }],
+      top_networks: [{ handle: 'Gentle Fox 610', direct: 337, total: 349 }, { handle: 'Noble Wolf 133', direct: 8, total: 12 }],
+      suspicious: [{ handle: 'Gentle Fox 610', joined: 120, never_came_back: 70, max_in_an_hour: 14 }] };
+    case 'staff_referral_disqualify': case 'staff_referral_fix': return null;
     case 'staff_referrals': return { enabled: true, total_joined: 2140, joined_period: 389, came_back: 1310, codes: 5120, daily: days(a.p_days || 30).map((d) => ({ day: d, joined: Math.floor(rnd() * 30) })),
       top: [{ code: 'k7mq2xa', handle: members[5].handle, active: true, clicks: 310, joined: 41, came_back: 30, suspended: 0, last_joined: iso(3 * H), max_in_an_hour: 4 },
         { code: 'p9xw3ze', handle: members[6].handle, active: true, clicks: 95, joined: 26, came_back: 3, suspended: 6, last_joined: iso(1 * H), max_in_an_hour: 18 }],

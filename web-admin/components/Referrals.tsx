@@ -42,6 +42,7 @@ export default function Referrals() {
           <div className="kpi"><span className="kpi-l">Member invite links</span><div className="kpi-v"><b>{n(x.codes)}</b></div></div>
           <div className="kpi"><span className="kpi-l">Campaign codes</span><div className="kpi-v"><b>{n(x.campaigns.length)}</b></div></div>
         </div>
+        <TreehouseBoard days={days} />
         <WeekBoard />
         <Card title="New members from invites" sub={`Per day, last ${days} days`}>
           <Bars height={200} labels={x.daily.map((r) => dayLabel(r.day))} series={[{ name: 'Joined', color: '#ff3f9b', values: x.daily.map((r) => r.joined) }]} />
@@ -173,5 +174,106 @@ function WeekBoard() {
       {dq && <Ask title={`Disqualify ${dq} for this week?`} text="They drop off the board and can’t be announced for this week. Their invites still count for the people who joined." confirm="Disqualify" danger reason
         onDone={async (why) => { await rpc('staff_invite_exclude', { p_handle: dq, p_weeks_ago: Number(wk), p_exclude: true, p_reason: why }); toast(`${dq} disqualified.`); w.reload(); }} onClose={() => setDq(null)} />}
     </Card>
+  );
+}
+
+// ---- My Treehouse: referral networks (levels), suspicious activity, disqualify and audited corrections ----
+type TH = { window_days: number; referred: number; counting: number; network: number; campaign: number; by_source: Record<string, number>; clicks: number;
+  disqualified: { handle: string | null; reason: string; by: string | null; at: string }[];
+  top_networks: { handle: string; direct: number; total: number }[];
+  suspicious: { handle: string; joined: number; never_came_back: number; max_in_an_hour: number }[] };
+
+function TreehouseBoard({ days }: { days: number }) {
+  const { me } = useMe();
+  const go = useGo();
+  const t = useAsync(() => rpc<TH>('staff_treehouse', { p_days: days }), [days]);
+  const manage = allows(me.role, 'manage');
+  const [dq, setDq] = useState(false);
+  const [fix, setFix] = useState(false);
+  const [win, setWin] = useState(false);
+  const x = t.data;
+  return (
+    <Card title="My Treehouse networks" sub={x ? `Member referral trees. A referral counts when the account has a profile, isn’t suspended or under 18 and isn’t disqualified. Credited only for accounts under ${x.window_days} days old.` : 'Member referral trees'}
+      action={manage ? <div className="nowrap"><Btn small kind="ghost" onClick={() => setWin(true)}>Window</Btn><Btn small kind="ghost" icon="ban" onClick={() => setDq(true)}>Disqualify</Btn><Btn small kind="ghost" onClick={() => setFix(true)}>Correct inviter</Btn></div> : undefined} pad={false}>
+      {t.error && <ErrorBox text={t.error} retry={t.reload} />}
+      {t.loading && !x && <Spinner />}
+      {x && <>
+        <div className="kpis small" style={{ padding: 16 }}>
+          <div className="kpi"><span className="kpi-l">Referrals that count</span><div className="kpi-v"><b>{n(x.counting)}</b></div><p className="kpi-hint">of {n(x.referred)} invited by members</p></div>
+          <div className="kpi"><span className="kpi-l">Network (level 2+)</span><div className="kpi-v"><b>{n(x.network)}</b></div><p className="kpi-hint">invited by someone who was invited</p></div>
+          <div className="kpi"><span className="kpi-l">Link visits → joins</span><div className="kpi-v"><b>{pct(x.referred, x.clicks)}</b></div><p className="kpi-hint">{n(x.clicks)} visits · QR {n(x.by_source.qr || 0)} · link {n(x.by_source.link || 0)}</p></div>
+          <div className="kpi"><span className="kpi-l">Disqualified</span><div className="kpi-v"><b>{n(x.disqualified.length)}</b></div></div>
+        </div>
+        <div className="row-2 even">
+          <div>
+            <h4 style={{ margin: '0 16px 8px' }}>Biggest networks</h4>
+            {x.top_networks.length === 0 ? <Empty text="No networks yet." icon="gift" /> : (
+              <table className="tbl"><thead><tr><th>Member</th><th>Direct</th><th>Whole network</th></tr></thead>
+                <tbody>{x.top_networks.map((r) => (
+                  <tr key={r.handle} className="click" onClick={() => go(`/members/${encodeURIComponent(r.handle)}`)}><td><b>{r.handle}</b></td><td>{n(r.direct)}</td><td><b>{n(r.total)}</b></td></tr>))}</tbody></table>
+            )}
+          </div>
+          <div>
+            <h4 style={{ margin: '0 16px 8px' }}>Worth a look (last {days} days)</h4>
+            {x.suspicious.length === 0 ? <Empty text="Nothing unusual." icon="check" /> : (
+              <table className="tbl"><thead><tr><th>Inviter</th><th>Joined</th><th>Never came back</th><th>Busiest hour</th></tr></thead>
+                <tbody>{x.suspicious.map((r) => (
+                  <tr key={r.handle} className="click" onClick={() => go(`/members/${encodeURIComponent(r.handle)}`)}><td><b>{r.handle}</b></td><td>{n(r.joined)}</td>
+                    <td>{r.never_came_back * 2 > r.joined ? <Pill tone="amber">{n(r.never_came_back)}</Pill> : n(r.never_came_back)}</td>
+                    <td>{r.max_in_an_hour >= 5 ? <Pill tone="red">{r.max_in_an_hour} in 1 h</Pill> : r.max_in_an_hour}</td></tr>))}</tbody></table>
+            )}
+          </div>
+        </div>
+        {x.disqualified.length > 0 && (
+          <div className="week-ex"><h4>Disqualified from referral counts</h4>
+            {x.disqualified.map((d) => (
+              <p key={d.handle || d.at}><b>{d.handle || '—'}</b> · {d.reason} <span className="muted">({d.by || '—'}, {date(d.at)})</span>
+                {manage && d.handle && <Btn small kind="ghost" onClick={async () => { try { await rpc('staff_referral_disqualify', { p_handle: d.handle, p_on: false, p_reason: '' }); toast('Counts again.'); t.reload(); } catch (e) { toast((e as Error).message, true); } }}>Undo</Btn>}</p>))}
+          </div>
+        )}
+      </>}
+      {dq && <DisqualifyForm onClose={() => setDq(false)} onDone={() => { setDq(false); t.reload(); }} />}
+      {fix && <FixForm onClose={() => setFix(false)} onDone={() => { setFix(false); t.reload(); }} />}
+      {win && x && <WindowForm days={x.window_days} onClose={() => setWin(false)} onDone={() => { setWin(false); t.reload(); }} />}
+    </Card>
+  );
+}
+
+function DisqualifyForm({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [h, setH] = useState(''); const [why, setWhy] = useState(''); const [err, setErr] = useState('');
+  const save = async () => { try { await rpc('staff_referral_disqualify', { p_handle: h.trim(), p_on: true, p_reason: why }); toast(`${h.trim()} no longer counts as a referral.`); onDone(); } catch (e) { setErr((e as Error).message); } };
+  return (
+    <Modal title="Disqualify a referral" onClose={onClose} foot={<><Btn kind="ghost" onClick={onClose}>Cancel</Btn><Btn kind="primary" onClick={save} disabled={!h.trim() || why.trim().length < 3}>Disqualify</Btn></>}>
+      <p className="muted">The member stops counting in the tree of whoever invited them (and everyone above). People they invited still count. Logged in the audit log.</p>
+      <Field label="Member (nickname)"><input value={h} onChange={(e) => setH(e.target.value)} placeholder="e.g. Brave Panther 502" /></Field>
+      <Field label="Reason"><textarea rows={2} value={why} onChange={(e) => setWhy(e.target.value)} maxLength={300} placeholder="e.g. duplicate account" /></Field>
+      {err && <ErrorBox text={err} />}
+    </Modal>
+  );
+}
+
+function FixForm({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [h, setH] = useState(''); const [p, setP] = useState(''); const [why, setWhy] = useState(''); const [err, setErr] = useState('');
+  const save = async () => { try { await rpc('staff_referral_fix', { p_handle: h.trim(), p_parent: p.trim() || null, p_reason: why }); toast('Inviter corrected.'); onDone(); } catch (e) { setErr((e as Error).message); } };
+  return (
+    <Modal title="Correct who invited a member" onClose={onClose} foot={<><Btn kind="ghost" onClick={onClose}>Cancel</Btn><Btn kind="primary" onClick={save} disabled={!h.trim() || why.trim().length < 3}>Save correction</Btn></>}>
+      <p className="muted">Only for mistakes (for example a member who signed up with the wrong link). Loops are refused. The old and new inviter and your reason go into the audit log.</p>
+      <Field label="Member (nickname)"><input value={h} onChange={(e) => setH(e.target.value)} /></Field>
+      <Field label="New inviter (nickname)" hint="Leave empty to remove their inviter."><input value={p} onChange={(e) => setP(e.target.value)} /></Field>
+      <Field label="Reason"><textarea rows={2} value={why} onChange={(e) => setWhy(e.target.value)} maxLength={300} /></Field>
+      {err && <ErrorBox text={err} />}
+    </Modal>
+  );
+}
+
+function WindowForm({ days, onClose, onDone }: { days: number; onClose: () => void; onDone: () => void }) {
+  const [v, setV] = useState(String(days)); const [err, setErr] = useState('');
+  const save = async () => { try { await rpc('staff_setting_set', { p_key: 'referral_account_days', p_value: Number(v) }); toast('Saved.'); onDone(); } catch (e) { setErr((e as Error).message); } };
+  return (
+    <Modal title="Referral window" onClose={onClose} foot={<><Btn kind="ghost" onClick={onClose}>Cancel</Btn><Btn kind="primary" onClick={save}>Save</Btn></>}>
+      <p className="muted">A new member is credited to the link they used only if their account is younger than this. The link itself is remembered on their phone for 30 days.</p>
+      <Field label="Days (1 to 30)"><input type="number" min={1} max={30} value={v} onChange={(e) => setV(e.target.value)} /></Field>
+      {err && <ErrorBox text={err} />}
+    </Modal>
   );
 }

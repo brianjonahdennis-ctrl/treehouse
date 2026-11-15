@@ -2157,3 +2157,133 @@ html:has(.game-stage), body:has(.game-stage) { overflow: hidden; overscroll-beha
 .av-off .avatar, .av-off .room-av, .avatar.av-off, .pin-off .nb-pin-av .avatar { filter: grayscale(1); opacity: .55; transition: filter .2s, opacity .2s; }
 .name-off, b.name-off { color: var(--muted) !important; }
 .swipe-card.is-off .swipe-art, .person-tile.is-off .pt-art { filter: grayscale(.85); }
+
+/* ---- My Treehouse (referral network) ------------------------------------------------------------ */
+.mt-hero { background: radial-gradient(120% 90% at 85% 0%, rgba(255, 63, 155, .35), transparent 60%), radial-gradient(90% 80% at 0% 100%, rgba(18, 185, 245, .22), transparent 60%), var(--hero); }
+.mt-brand { display: inline-flex; align-items: center; gap: 8px; font: 800 20px var(--display); color: #fff; letter-spacing: -.01em; }
+.mt-title { margin: 6px 0 0; font: 800 34px/1.05 var(--display); max-width: 70%; }
+.mt-sub { max-width: 68%; }
+.mt-hero-art { position: absolute; right: 14px; bottom: 6px; font-size: 92px; line-height: 1; filter: drop-shadow(0 8px 26px rgba(255, 63, 155, .55)); pointer-events: none; }
+.mt-hero-sm .ih-subtop h1 { font: 800 26px var(--display); }
+.mt-link { display: grid; gap: 14px; border-color: color-mix(in srgb, var(--pink) 40%, var(--line));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--pink) 12%, transparent), color-mix(in srgb, var(--blue) 8%, transparent)), var(--surface); }
+.mt-link-top { display: flex; gap: 14px; align-items: center; min-width: 0; }
+.mt-link-top h2 { margin: 0 0 8px; font-size: 17px; }
+.mt-link-ico { flex: none; width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--coral); box-shadow: 0 10px 24px -10px var(--pink); }
+.mt-url { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 10px 12px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); font: 600 14px var(--font); text-align: left; }
+.mt-url .ellipsis { flex: 1; min-width: 0; }
+.mt-link-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mt-link-actions .btn { min-width: 0; }
+.mt-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.mt-stat { display: grid; justify-items: center; gap: 4px; padding: 14px 6px; border-radius: var(--r-md); text-align: center; border: 1px solid var(--line); background: var(--surface); }
+.mt-stat .icon { width: 26px; height: 26px; }
+.mt-stat b { font: 800 26px/1.1 var(--display); color: var(--ink); }
+.mt-stat span { font-size: 12px; line-height: 1.3; color: var(--muted); }
+.mt-stat.total { border-color: color-mix(in srgb, var(--blue) 45%, var(--line)); background: linear-gradient(160deg, color-mix(in srgb, var(--blue) 14%, transparent), transparent), var(--surface); }
+.mt-stat.total .icon { color: var(--blue); }
+.mt-stat.direct .icon { color: var(--indigo); }
+.mt-stat.network { border-color: color-mix(in srgb, var(--pink) 40%, var(--line)); background: linear-gradient(160deg, color-mix(in srgb, var(--pink) 12%, transparent), transparent), var(--surface); }
+.mt-stat.network .icon { color: var(--pink); }
+.mt-empty { display: grid; justify-items: center; gap: 8px; text-align: center; }
+.mt-empty h2 { margin: 0; font-size: 20px; }
+.mt-empty p { margin: 0 0 6px; }
+.mt-empty-art { font-size: 44px; }
+.mt-nav { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; color: var(--ink); cursor: pointer; font: inherit; }
+button.mt-nav:active { transform: scale(.99); }
+.mt-nav b { display: block; font-size: 16.5px; margin-bottom: 3px; }
+.mt-nav .grow > span { display: block; font-size: 13.5px; color: var(--muted); }
+.mt-nav-ico { flex: none; width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: var(--indigo); background: color-mix(in srgb, var(--indigo) 14%, transparent); }
+.mt-rewards { cursor: default; }
+.mt-rewards .mt-nav-ico { color: var(--pink); background: color-mix(in srgb, var(--pink) 14%, transparent); }
+.mt-how { border-color: color-mix(in srgb, var(--blue) 35%, var(--line)); }
+.mt-how-head { display: flex; align-items: center; gap: 10px; color: var(--blue-2); }
+.mt-how-head h2 { margin: 0; font-size: 17px; color: var(--ink); }
+.mt-how ol { margin: 12px 0 10px; padding-left: 22px; display: grid; gap: 6px; font-size: 14px; color: var(--ink-2); }
+.mt-qr { width: min(260px, 70vw); margin: 10px auto 4px; padding: 10px; border-radius: 16px; background: #fff; box-shadow: var(--shadow-2); }
+.mt-qr svg { display: block; width: 100%; height: auto; }
+.mt-card { border-color: color-mix(in srgb, var(--blue) 45%, transparent); background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 14%, transparent), color-mix(in srgb, var(--pink) 12%, transparent)), var(--surface); }
+.mt-card .hg-kicker { color: var(--blue-2); }
+.mt-card .hg-go { background: var(--brand); }
+
+/* Your Tree */
+.mt-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .14); }
+.mt-seg button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; border: 0; border-radius: 999px; cursor: pointer; background: none; color: rgba(255, 255, 255, .8); font: 700 15px var(--font); }
+.mt-seg button.on { background: var(--coral); color: #fff; box-shadow: 0 8px 20px -10px var(--pink); }
+.mt-treeview { position: relative; padding: 20px 0 14px; border-radius: var(--r-lg); color: #fff; overflow: hidden;
+  background: radial-gradient(90% 50% at 50% 0%, rgba(124, 58, 237, .35), transparent 70%), var(--navy); border: 1px solid rgba(255, 255, 255, .08); }
+.mt-root { display: grid; justify-items: center; gap: 0; position: relative; z-index: 1; }
+.mt-root-av { padding: 4px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 34px -4px rgba(255, 63, 155, .7); }
+.mt-root-av .avatar { box-shadow: 0 0 0 3px var(--navy); }
+.mt-you { margin-top: -10px; padding: 2px 14px; border-radius: 999px; background: var(--pink); font: 800 13px var(--font); position: relative; }
+.mt-root-n { margin-top: 6px; padding: 6px 16px; border-radius: 999px; font: 700 14px var(--font); background: rgba(124, 58, 237, .35); border: 1px solid rgba(184, 178, 255, .35); }
+.mt-level { position: relative; padding-top: 22px; }
+.mt-stem { position: absolute; left: 50%; top: 0; width: 2px; height: 22px; background: linear-gradient(var(--pink), var(--lavender)); transform: translateX(-1px); }
+.mt-level-head { display: flex; align-items: baseline; gap: 8px; padding: 0 16px 8px; font-size: 13px; color: rgba(255, 255, 255, .7); border-top: 2px solid rgba(184, 178, 255, .35); padding-top: 10px; margin: 0 14px; padding-left: 2px; padding-right: 2px; }
+.mt-level-head b { color: #fff; font-size: 15px; flex: none; }
+.mt-level-head .ellipsis { min-width: 0; }
+.mt-level-n { margin-left: auto; color: #fff; font-weight: 700; }
+.mt-row { display: flex; gap: 6px; overflow-x: auto; padding: 4px 14px 8px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.mt-row > div { scroll-snap-align: start; }
+.mt-node { width: 84px; flex: none; display: grid; justify-items: center; gap: 4px; }
+.mt-node-av { padding: 3px; border: 0; border-radius: 50%; cursor: pointer; background: linear-gradient(140deg, var(--pink), var(--lavender), var(--blue)); }
+.mt-node-av .avatar { --size: 58px; box-shadow: 0 0 0 2.5px var(--navy); }
+.mt-node.open .mt-node-av { box-shadow: 0 0 0 3px rgba(255, 255, 255, .9), 0 0 26px rgba(255, 63, 155, .7); }
+.mt-node.hidden .mt-node-av { background: rgba(255, 255, 255, .25); }
+.mt-locked { display: grid; place-items: center; background: #2a2f5a !important; color: rgba(255, 255, 255, .7); }
+.mt-locked .icon { width: 45%; height: 45%; }
+.mt-node-name { max-width: 100%; font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, .9); }
+.mt-badge { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px; border-radius: 999px; cursor: pointer; font: 700 12.5px var(--font);
+  color: #fff; background: rgba(124, 58, 237, .4); border: 1px solid rgba(184, 178, 255, .45); }
+.mt-badge .icon { width: 13px; height: 13px; }
+.mt-badge.none { cursor: default; opacity: .55; background: transparent; }
+.mt-node.open .mt-badge { background: var(--pink); border-color: var(--pink); }
+.mt-chev { transform: rotate(90deg); transition: transform .15s; }
+.mt-chev.up { transform: rotate(-90deg); }
+.mt-chev.side { transform: none; }
+.mt-row-more { flex: none; width: 84px; height: 64px; margin-top: 2px; display: grid; place-content: center; gap: 2px; border-radius: 50%; cursor: pointer;
+  border: 1.5px dashed rgba(184, 178, 255, .6); background: rgba(255, 255, 255, .04); color: #fff; font: 800 15px var(--font); }
+.mt-row-more span { font-size: 10.5px; font-weight: 600; color: rgba(255, 255, 255, .7); }
+.mt-tree-empty { text-align: center; padding: 18px 20px 4px; color: rgba(255, 255, 255, .8); }
+.card.mt-tree-empty { color: var(--muted); }
+.mt-treeview > .tiny { margin: 6px 16px 0; color: rgba(255, 255, 255, .6); }
+.mt-node-sheet { display: grid; justify-items: center; gap: 6px; text-align: center; }
+.mt-node-sheet h2 { margin: 6px 0 0; }
+.mt-node-facts { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+.mt-node-facts span { display: grid; gap: 2px; padding: 10px; border-radius: 12px; background: var(--surface-2); font-size: 12px; color: var(--muted); }
+.mt-node-facts b { font-size: 15px; color: var(--ink); }
+.mt-summary { display: grid; gap: 4px; }
+.mt-summary .mt-how-head { margin-bottom: 6px; color: var(--pink); }
+.mt-sum-row { display: flex; align-items: center; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.mt-sum-row .lv { width: 12px; height: 12px; border-radius: 50%; background: var(--indigo); }
+.mt-sum-row .lv2 { background: var(--blue); } .mt-sum-row .lv3 { background: var(--pink); } .mt-sum-row .lv4 { background: var(--lavender); }
+.mt-sum-row.total { margin-top: 4px; padding: 12px; border: 0; border-radius: 12px; background: var(--surface-2); font: 800 16.5px var(--display); }
+.mt-more { min-height: 54px; font-size: 16px; }
+.mt-list { display: grid; gap: 10px; }
+.mt-list-tools { display: flex; gap: 8px; }
+.mt-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--muted); }
+.mt-search input { flex: 1; min-width: 0; min-height: 42px; border: 0; background: none; color: var(--ink); font: 500 15px var(--font); outline: none; }
+.mt-list-tools select { max-width: 42%; min-height: 44px; padding: 0 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); font: 600 13.5px var(--font); }
+.mt-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.mt-chips button { flex: none; padding: 7px 13px; border-radius: 999px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font: 700 13px var(--font); }
+.mt-chips button.on { background: var(--coral); border-color: transparent; color: #fff; }
+.mt-list-you { display: flex; align-items: baseline; gap: 10px; padding: 6px 2px 2px; border-bottom: 1px solid var(--line); }
+.mt-rows { list-style: none; margin: 0; padding: 0; display: grid; }
+.mt-li { padding-left: calc(var(--d, 0) * 16px); }
+.mt-li .mt-rows { border-left: 2px solid color-mix(in srgb, var(--indigo) 30%, transparent); margin-left: 15px; }
+.mt-li-row { display: flex; align-items: center; gap: 4px; }
+.mt-li-tog { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; }
+.mt-li-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 8px 4px; border: 0; border-radius: 12px; background: none; color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
+.mt-li-main:hover { background: var(--surface-2); }
+.mt-li-main .grow { min-width: 0; display: grid; }
+.mt-li-main b { font-size: 14.5px; }
+.mt-li-loading { padding: 6px 40px; }
+.mt-showmore { padding: 10px 4px; }
+.mt-none { padding: 8px 4px; }
+@media (max-width: 380px) {
+  .mt-title { font-size: 28px; max-width: 75%; }
+  .mt-hero-art { font-size: 70px; }
+  .mt-stat b { font-size: 21px; }
+  .mt-stat span { font-size: 11px; }
+  .mt-link-actions .btn { padding: 0 10px; font-size: 14px; }
+}

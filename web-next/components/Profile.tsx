@@ -332,6 +332,7 @@ function InviteGroup() {
     return (
       <Group title="Invite friends">
         <Row ico="send" title="Get your invite link" sub="Choose a username first: your link will be treehouse.ng/r/yourname" onClick={pick} />
+        <Row ico="network" title="My Treehouse" sub="Your network. Your growth." onClick={() => go('treehouse')} />
         {addFriend}
         <Row ico="sparkles" title="Top inviters this week" sub="The #1 is announced as Man or Woman of the Week every Monday" onClick={() => go('invite')} />
       </Group>
@@ -348,6 +349,7 @@ function InviteGroup() {
       <button className="settings-row" onClick={share}><Icon name="send" />
         <span className="grow">Share your invite link<span className="sub">{url.replace('https://', '')}{r.joined ? ` · ${r.joined} joined with your link` : ''}</span></span>
         <span className="chev"><Icon name="chev" cls="sm" /></span></button>
+      <Row ico="network" title="My Treehouse" sub="Your network. Your growth." onClick={() => go('treehouse')} />
       {addFriend}
       <Row ico="sparkles" title="Top inviters this week" sub="The #1 is announced as Man or Woman of the Week every Monday" onClick={() => go('invite')} />
     </Group>

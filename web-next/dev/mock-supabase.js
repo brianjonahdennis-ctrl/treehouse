@@ -313,6 +313,16 @@ const RPC = {
       if (n !== 'ada') throw Object.assign(new Error('No one on treehouse has that username.'), { code: 'P0002' });
       return { conversation_id: 'mock-friend-ada', handle: 'Gentle Fox 610', status: 'sent' }; },
     claim_referral: () => false,
+    // My Treehouse: a made-up tree (preview only). 24 direct, some with their own invitees, one level 3.
+    my_treehouse: () => { const t = mockTree(); const lv = {}; t.forEach((n) => { if (!n.hidden) lv[n.level] = (lv[n.level] || 0) + 1; });
+      const direct = lv[1] || 0, total = Object.values(lv).reduce((a, b) => a + b, 0);
+      return { ...(mockUsername ? { code: mockUsername.username, needs_username: false } : { code: null, needs_username: true }), enabled: true, active: true, joined: direct,
+        direct, network: total - direct, total, levels: Object.keys(lv).sort().map((k) => ({ level: +k, people: lv[k] })), deepest: Math.max(...Object.keys(lv).map(Number)), window_days: 3, rewards: { enabled: false } }; },
+    treehouse_nodes: ({ p_parent, p_sort, p_offset, p_limit }) => { const t = mockTree(); const kids = t.filter((n) => n.parent === (p_parent || null));
+      return { parent: p_parent, level: kids[0] ? kids[0].level : 1, count: kids.length, items: mockSort(kids, p_sort).slice(p_offset || 0, (p_offset || 0) + (p_limit || 30)).map(mockNode(t)) }; },
+    treehouse_search: ({ p_query, p_level, p_sort, p_offset, p_limit }) => { const t = mockTree(); const q = String(p_query || '').toLowerCase();
+      const v = t.filter((n) => !n.hidden && (!q || n.handle.toLowerCase().includes(q)) && (p_level == null || n.level === p_level));
+      return { count: v.length, items: mockSort(v, p_sort).slice(p_offset || 0, (p_offset || 0) + (p_limit || 40)).map(mockNode(t)) }; },
     invite_leaderboard: () => ({ enabled: true, week_start: '2026-11-09', week_end: '2026-11-15', ends_at: new Date(Date.now() + 30 * 3600e3).toISOString(), min: 3,
       top: [['Noble Owl 221', 14], ['Mellow Sparrow 799', 11], ['Hidden Tiger 155', 9], ['Calm Lion 412', 6], ['Sunny Kite 87', 4], ['Bold Falcon 330', 3], ['Quiet River 18', 2]]
         .map(([h, n], i) => ({ rank: i + 1, handle: h, invites: n, me: i === 4 })),
@@ -419,3 +429,21 @@ const RPC = {
     },
   };
 })();
+
+// ---- My Treehouse mock tree ----
+let _tree = null;
+const TREE_NAMES = ['Mimi Sunbird', 'Noble Wolf', 'Brave Panther', 'Kind Jaguar', 'Swift Tiger', 'Calm Leopard', 'Golden Kite', 'Misty Owl', 'Velvet Mango', 'Rosy Zebra', 'Silver Fern', 'Coral Breeze', 'Amber Tide', 'Sunny Baobab', 'Quiet River', 'Bold Falcon', 'Lucky Heron', 'Jolly Gecko', 'Royal Palm', 'Bright Comet', 'Gentle Dove', 'Wild Iroko', 'Cosmic Kola', 'Happy Ube', 'Sweet Agege', 'Shiny Cowrie', 'Fresh Zobo', 'Chill Lagoon', 'Spicy Suya', 'Magic Ankara', 'Neon Okada', 'Dancing Talking-drum'];
+function mockTree() {
+  if (_tree) return _tree;
+  const out = []; let i = 0; const day = 86400e3;
+  const add = (parent, level) => { const n = { key: 'k' + (++i), handle: `${TREE_NAMES[i % TREE_NAMES.length]} ${100 + i}`, parent, level, joined_at: new Date(Date.now() - (60 - i % 60) * day / 2).toISOString(), hidden: i === 7 }; out.push(n); return n; };
+  for (let a = 0; a < 24; a++) { const n = add(null, 1); const kids = [8, 5, 6, 5, 3, 0, 2, 0, 4][a] || (a % 5 === 0 ? 2 : 0);
+    for (let b = 0; b < kids; b++) { const m = add(n.key, 2); if (a === 0 && b < 3) for (let c = 0; c < 2 + b; c++) add(m.key, 3); } }
+  _tree = out; return out;
+}
+const mockSort = (arr, sort) => { const t = mockTree(); const st = (n) => mockStats(t, n);
+  return arr.slice().sort((x, y) => (sort === 'direct' ? st(y).direct - st(x).direct : sort === 'total' ? st(y).total - st(x).total : 0) || (y.joined_at > x.joined_at ? 1 : -1)); };
+function mockStats(t, n) { const below = (k) => t.filter((z) => z.parent === k).flatMap((z) => [z, ...below(z.key)]);
+  const all = below(n.key); return { direct: t.filter((z) => z.parent === n.key && !z.hidden).length, total: all.filter((z) => !z.hidden).length, kids: t.filter((z) => z.parent === n.key).length }; }
+const mockNode = (t) => (n) => { const s = mockStats(t, n); const p = t.find((z) => z.key === n.parent);
+  return { key: n.key, level: n.level, joined_at: n.joined_at, hidden: n.hidden, handle: n.hidden ? null : n.handle, parent_handle: p && !p.hidden ? p.handle : null, direct: s.direct, total: s.total, has_children: s.kids > 0 }; };

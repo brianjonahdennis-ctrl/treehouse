@@ -9,9 +9,12 @@ export async function claimReferralOnce() {
   const m = document.cookie.match(/(?:^|;\s*)th_ref=([a-z0-9]{3,24})/);
   if (!m) return;
   tried = true;
-  try { await api.claimReferral(m[1]); } catch { /* older database or not eligible */ }
-  document.cookie = 'th_ref=; Max-Age=0; path=/; SameSite=Lax';
-  if (location.hostname.endsWith('treehouse.ng')) document.cookie = 'th_ref=; Max-Age=0; path=/; domain=treehouse.ng; SameSite=Lax';
+  const via = /(?:^|;\s*)th_via=qr/.test(document.cookie) ? 'qr' : 'link';
+  try { await api.claimReferral(m[1], via); } catch { /* older database or not eligible */ }
+  for (const k of ['th_ref', 'th_via']) {
+    document.cookie = `${k}=; Max-Age=0; path=/; SameSite=Lax`;
+    if (location.hostname.endsWith('treehouse.ng')) document.cookie = `${k}=; Max-Age=0; path=/; domain=treehouse.ng; SameSite=Lax`;
+  }
 }
 
 export const inviteUrl = (code: string) => `https://treehouse.ng/r/${code}`;

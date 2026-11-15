@@ -556,7 +556,11 @@ export const adFor = (placement: string) => rpc('ad_for', { p_placement: placeme
 export const adEvent = (id: string, placement: string, kind: 'view' | 'tap') => rpc('ad_event', { p_ad: id, p_placement: placement, p_kind: kind });
 export const myReferral = () => rpc('my_referral');
 export const inviteLeaderboard = () => rpc('invite_leaderboard');
-export const claimReferral = (code: string) => rpc('claim_referral', { p_code: code });
+export const claimReferral = (code: string, source = 'link') => rpc('claim_referral', { p_code: code, p_source: source });
+// My Treehouse: my referral network (all checks are in the database).
+export const myTreehouse = () => rpc('my_treehouse');
+export const treehouseNodes = (parent: string | null, sort = 'joined', offset = 0, limit = 30) => rpc('treehouse_nodes', { p_parent: parent, p_sort: sort, p_offset: offset, p_limit: limit });
+export const treehouseSearch = (q: string, level: number | null, sort = 'joined', offset = 0, limit = 40) => rpc('treehouse_search', { p_query: q, p_level: level, p_sort: sort, p_offset: offset, p_limit: limit });
 
 // ---- Usernames (20261115000110_usernames.sql) -------------------------------------------------------
 export const myUsername = () => rpc('my_username');

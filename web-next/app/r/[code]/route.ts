@@ -13,6 +13,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ code: st
     const host = (req.headers.get('host') || '').split(':')[0].toLowerCase();
     const domain = host === 'treehouse.ng' || host.endsWith('.treehouse.ng') ? '; Domain=treehouse.ng' : '';
     headers.append('Set-Cookie', `th_ref=${code}; Max-Age=${30 * 86400}; Path=/${domain}; SameSite=Lax; Secure`);
+    // Scanned from a My Treehouse QR code (only used to show staff how people joined).
+    const via = new URL(req.url).searchParams.get('via') === 'qr' ? 'qr' : 'link';
+    headers.append('Set-Cookie', `th_via=${via}; Max-Age=${30 * 86400}; Path=/${domain}; SameSite=Lax; Secure`);
     if (SB && KEY) {
       await fetch(`${SB}/rest/v1/rpc/referral_click`, {
         method: 'POST', headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },

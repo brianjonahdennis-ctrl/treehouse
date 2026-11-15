@@ -17,6 +17,7 @@ import { HomeAppCard } from './PushInstall';
 import { GamesCard } from './Games';
 import AdSlot from './AdSlot';
 import { InviteCard } from './InviteBoard';
+import { TreehouseCard } from './MyTreehouse';
 
 const firstName = (n: string) => String(n || '').trim().split(/\s+/)[0].slice(0, 24);
 function greeting() {
@@ -74,6 +75,8 @@ export default function Home() {
       </div>
 
       <GamesCard />
+
+      <TreehouseCard />
 
       <InviteCard />
 
