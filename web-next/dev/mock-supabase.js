@@ -177,6 +177,7 @@
   let annPush = true;
   const annRow = (a) => ({ id: a.id, title: a.title, preview: a.preview, category: a.category, cover_url: a.cover_url, cta_label: a.cta_label, cta_url: a.cta_url, published_at: a.published_at, delivered_at: a.delivered_at, read_at: annMine[a.id]?.read_at || null, archived_at: annMine[a.id]?.archived_at || null });
 const mockRated = new Set();
+let mockUsername = null; // usernames (sample: 'ada' can be added as a friend, 'taken' is taken)
 const RPC = {
     my_pending_likes: () => likes.length,
     // Preview only: sessionStorage mock-failchats=N makes the next N chat-list loads fail (tests the retry).
@@ -226,7 +227,7 @@ const RPC = {
     room_profile: ({ p_handle }) => { const p = roomPeople.find((x) => x.handle === p_handle) || roomPeople[1]; return [{ handle: p.handle, room: 'Lagos', online: p.online, age: 25, gender: 'female', bio: 'Lagos babe, Afrobeats on repeat.', interests: ['Music', 'Fashion'], dating: p.dating, me: p.me, place: p.place }]; },
     toggle_room_reaction: () => [{ reactions: { '❤️': 1 }, added: true }],
     chat_partner_profile: ({ p_conversation }) => { const c = convos.find((x) => x.conversation_id === p_conversation); return c ? [{ handle: c.other_handle, age: c.other_age, gender: c.other_gender, location: c.other_location, intent: c.other_intent, bio: 'Love good food, music and deep conversations.', interests: ['Music', 'Food', 'Travel'], online: c.other_online, active_hours: c.other_active_hours, available: !c.blocked }] : []; },
-    revealed_details: () => [{ name: 'Tolu' }],
+    revealed_details: () => [{ name: 'Tolu', username: 'tolu2025' }],
     // ---- Speed Dating (shared between tabs through localStorage; each tab is one dater) ----
     speed_quota: () => speedQuota(),
     speed_waiting: () => speedDb().queue.filter((q) => Date.now() - q.seen < 20000).length,
@@ -296,7 +297,17 @@ const RPC = {
     ann_me: () => ({ role: 'super_admin', can_publish: true }),
     ad_for: (a) => (a.p_placement === 'home' || a.p_placement === 'rooms' ? { id: 'mock-ad', title: 'Win ₦50,000 in the Kickrs Fair Cup', body: 'Penalty shootout tonight at 6pm. Free to enter.', image_url: null, cta_label: 'Play now', cta_url: 'https://kickrs.app', advertiser: 'Kickrs' } : null),
     ad_event: () => null,
-    my_referral: () => ({ code: 'k7mq2xa', enabled: true, active: true, joined: 3 }),
+    my_referral: () => (mockUsername ? { code: mockUsername.username, needs_username: false, enabled: true, active: true, joined: 3 } : { code: null, needs_username: true, enabled: true, active: true, joined: 0 }),
+    my_username: () => mockUsername,
+    check_username: ({ p_username }) => { const n = String(p_username || '').trim().toLowerCase(); const ok = /^[a-z0-9]{3,14}$/.test(n) && /[a-z]/.test(n);
+      return { username: n, ok: ok && !['taken', 'ada', 'treehouse'].includes(n), reason: !ok ? 'format' : n === 'treehouse' ? 'reserved' : ['taken', 'ada'].includes(n) ? 'taken' : null }; },
+    set_username: ({ p_username }) => { const n = String(p_username || '').trim().toLowerCase();
+      if (mockUsername) throw Object.assign(new Error('You can change your username again on 15 November 2027.'), { code: 'P0001' });
+      if (n === 'taken') throw Object.assign(new Error('That username is taken. Try another.'), { code: '23505' });
+      mockUsername = { username: n, set_at: new Date().toISOString(), next_change_at: new Date(Date.now() + 365 * 86400e3).toISOString(), can_change: false }; return mockUsername; },
+    add_friend_by_username: ({ p_username }) => { const n = String(p_username || '').replace(/^@/, '').trim().toLowerCase();
+      if (n !== 'ada') throw Object.assign(new Error('No one on treehouse has that username.'), { code: 'P0002' });
+      return { conversation_id: 'mock-friend-ada', handle: 'Gentle Fox 610', status: 'sent' }; },
     claim_referral: () => false,
     invite_leaderboard: () => ({ enabled: true, week_start: '2026-11-09', week_end: '2026-11-15', ends_at: new Date(Date.now() + 30 * 3600e3).toISOString(), min: 3,
       top: [['Noble Owl 221', 14], ['Mellow Sparrow 799', 11], ['Hidden Tiger 155', 9], ['Calm Lion 412', 6], ['Sunny Kite 87', 4], ['Bold Falcon 330', 3], ['Quiet River 18', 2]]

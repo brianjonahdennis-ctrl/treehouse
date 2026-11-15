@@ -171,6 +171,7 @@ select is(ad_for('home'), null, 'ads switched off: nothing shows');
 
 -- ---- Referrals -------------------------------------------------------------------------------
 select pg_temp.login('00000000-0000-0000-0000-0000000c0022');
+select set_username('sctestinv');   -- invite links need a username (20261115000110_usernames)
 select set_config('test.code', my_referral() ->> 'code', true);
 select is(claim_referral(current_setting('test.code')), false, 'you can''t use your own code');
 select pg_temp.login('00000000-0000-0000-0000-0000000c0023');

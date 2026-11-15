@@ -6,7 +6,7 @@ import * as api from './api';
 let tried = false;
 export async function claimReferralOnce() {
   if (tried || typeof document === 'undefined') return;
-  const m = document.cookie.match(/(?:^|;\s*)th_ref=([a-z0-9]{4,24})/);
+  const m = document.cookie.match(/(?:^|;\s*)th_ref=([a-z0-9]{3,24})/);
   if (!m) return;
   tried = true;
   try { await api.claimReferral(m[1]); } catch { /* older database or not eligible */ }

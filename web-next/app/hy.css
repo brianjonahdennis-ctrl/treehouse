@@ -2123,3 +2123,13 @@ html:has(.game-stage), body:has(.game-stage) { overflow: hidden; overscroll-beha
 .ih-near-tag .icon { width: 14px; height: 14px; }
 .ih-note-btn { width: 100%; border: 0; cursor: pointer; text-align: left; font: inherit; align-items: center; }
 .ih-note-btn > span:nth-child(2) { flex: 1; }
+
+/* ---- Usernames (components/Username.tsx) -------------------------------------------------------- */
+.un-field { position: relative; }
+.un-field .input { padding-left: 34px; text-transform: lowercase; }
+.un-at { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-weight: 800; color: var(--muted); pointer-events: none; }
+.un-check { min-height: 1.4em; margin: 6px 2px 0; color: var(--muted); }
+.un-check.good { color: #16a34a; font-weight: 700; }
+.un-check.bad { color: var(--danger, #e11d48); font-weight: 600; }
+.un-current { font: 800 22px var(--display); margin: 4px 0 8px; }
+.pc-username { margin: 6px 0 0; font-weight: 700; color: var(--muted); }

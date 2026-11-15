@@ -16,6 +16,7 @@ import { BellButton, statusEditor } from './Home';
 import { meta, activeText, shortName, acceptRequest, declineRequest, cancelSent, cancelMatchAsk, askFriend, requestMenu, partnerProfile } from './convo';
 import Chat from './Chat';
 import AdSlot from './AdSlot';
+import { addFriendSheet } from './Username';
 import { AnnouncementsTab, AnnDetail } from './Announcements';
 
 const VIEWS = new Set(['requests', 'chats', 'likes', 'matches', 'friends', 'announcements', 'nearby', 'online']);
@@ -227,6 +228,7 @@ function newChatSheet() {
       <p className="small muted">On treehouse, chats start with a request, a match or a friendship, so nobody gets messages they didn’t agree to.</p>
       <div className="menu-list" style={{ marginTop: '10px' }}>
         <button className="menu-item" onClick={() => { close(); go('matches/friends'); }}><Icon name="rooms" />Message a friend</button>
+        <button className="menu-item" onClick={() => { close(); addFriendSheet(); }}><Icon name="userplus" />Add a friend by username</button>
         <button className="menu-item" onClick={() => { close(); go('discover'); }}><Icon name="flame" />Find someone in Discover</button>
         <button className="menu-item" onClick={() => { close(); go('discover/nearby'); }}><Icon name="pin" />Meet people Nearby</button>
         <button className="menu-item" onClick={() => { close(); go('rooms'); }}><Icon name="userplus" />Add friends in Chatrooms</button>
@@ -399,10 +401,12 @@ function FriendsScreen() {
   const list = all.filter((f) => !query || nameOf(f).toLowerCase().includes(query) || f.other_handle.toLowerCase().includes(query))
     .slice().sort((a, b) => (b.other_online ? 1 : 0) - (a.other_online ? 1 : 0) || (a.other_active_hours ?? 1e9) - (b.other_active_hours ?? 1e9));
   return (
-    <SubScreen title="Friends" sub="People who accepted your friend request, or whose request you accepted.">
+    <SubScreen title="Friends" sub="People who accepted your friend request, or whose request you accepted."
+      actions={<button className="hero-btn" aria-label="Add a friend by username" onClick={addFriendSheet}><Icon name="userplus" /></button>}>
       {!s.convosLoaded ? <SkeletonList n={4} /> : !all.length ? (
-        <EmptyState emoji="👋" title="No Friends Yet" text="People who accept your friend requests will appear here. Meet people in Chatrooms: tap someone’s name, then Add friend.">
-          <button className="btn btn-primary" onClick={() => go('rooms')}><Icon name="rooms" cls="sm" />Go to Chatrooms</button>
+        <EmptyState emoji="👋" title="No Friends Yet" text="People who accept your friend requests will appear here. Add a friend by their username, or meet people in Chatrooms: tap someone’s name, then Add friend.">
+          <button className="btn btn-primary" onClick={addFriendSheet}><Icon name="userplus" cls="sm" />Add by username</button>
+          <button className="btn btn-soft" onClick={() => go('rooms')}><Icon name="rooms" cls="sm" />Go to Chatrooms</button>
         </EmptyState>
       ) : (
         <>

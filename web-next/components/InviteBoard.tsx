@@ -10,6 +10,7 @@ import { shareOrCopy } from '@/lib/util';
 import { Icon, Hero, Avatar, EmptyState, SkeletonList } from './ui';
 import { toast } from './overlay';
 import { BellButton } from './Home';
+import { chooseUsername } from './Username';
 
 type Row = { rank: number; handle: string; invites: number; me: boolean };
 type Board = { enabled: boolean; week_start: string; week_end: string; ends_at: string; min: number; top: Row[];
@@ -33,13 +34,21 @@ const medal = (r: number) => (r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '�
 export default function InviteBoard() {
   const [b, setB] = useState<Board | null | undefined>(undefined);
   const [code, setCode] = useState<string | null>(null);
+  const [needsName, setNeedsName] = useState(false);
   useEffect(() => {
     loadBoard(true).then(setB);
-    api.myReferral().then((r: any) => setCode(r && r.active ? r.code : null)).catch(() => setCode(null));
+    api.myReferral().then((r: any) => { setCode(r && r.active ? r.code : null); setNeedsName(!!(r && r.needs_username)); }).catch(() => setCode(null));
   }, []);
   const share = async () => {
-    if (!code) return;
-    const url = inviteUrl(code);
+    let c = code;
+    if (!c && needsName) {
+      if (!(await chooseUsername({ why: 'Your invite link uses your username, so choose one first.' }))) return;
+      const r: any = await api.myReferral().catch(() => null);
+      c = r && r.active ? r.code : null;
+      setCode(c); setNeedsName(false);
+    }
+    if (!c) return;
+    const url = inviteUrl(c);
     const how = await shareOrCopy({ title: 'treehouse', text: 'Join me on treehouse: anonymous chats, chatrooms and dating for Nigeria.', url });
     if (how === 'copied') toast('Invite link copied');
     else if (how === 'failed') toast(url, 'link');
@@ -66,7 +75,7 @@ export default function InviteBoard() {
                 <b>{b.me.rank ? `You’re #${b.me.rank}` : 'You’re not on the board yet'}</b>
                 <span>{b.me.invites ? `${b.me.invites} friend${b.me.invites === 1 ? '' : 's'} joined with your link` : `Invite at least ${b.min} friends to have a shot at the title`}</span>
               </div>
-              <button className="btn btn-primary btn-sm" onClick={share} disabled={!code}><Icon name="send" cls="sm" />Invite</button>
+              <button className="btn btn-primary btn-sm" onClick={share} disabled={!code && !needsName}><Icon name="send" cls="sm" />Invite</button>
             </div>
             <section>
               <div className="section-head"><h2>This week</h2><span className="small muted">Top 50</span></div>
