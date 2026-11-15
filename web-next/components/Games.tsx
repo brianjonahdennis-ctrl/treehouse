@@ -12,6 +12,16 @@ import { BellButton } from './Home';
 import { confirmSheet, openSheet, toast } from './overlay';
 
 const ART: Record<string, string> = { penalties: '⚽', ludo: '🎲', chess: '♟️', dice: '🎯', crosswords: '🔠', trivia: '❓' };
+
+const WhiteKnight = () => (
+  <svg viewBox="0 0 45 45" width="36" height="36" aria-hidden="true">
+    <g fill="#fff" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round">
+      <rect x="10.5" y="34" width="24" height="5" rx="1.6" />
+      <path d="M14 34c0-5 2.5-8 4.5-10.5 1.2-1.5 1-3-.5-3.6l-3.3 2.3c-1.6 1.1-3.8.5-4.4-1.3-.4-1.2 0-2.4.8-3.4L17 10.5 17.5 6l2.8 3c6 .5 11.5 5.5 11.5 14 0 4-.5 7.5-.3 11z" />
+    </g>
+    <circle cx="17.5" cy="13.5" r="1.3" fill="#090d2b" />
+  </svg>
+);
 const FILTERS = [['all', 'All Games'], ['multi', 'Multiplayer'], ['quick', 'Quick Play']] as const;
 const playing = (n: number | null) => (!n ? '' : n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K playing` : `${n} playing`);
 const BLOCKED: Record<string, string> = {
@@ -72,7 +82,7 @@ export function GamesHub() {
             <div className="gm-grid">
               {shown.map((g) => (
                 <button key={g.id} className={`gm-tile ${g.status}`} disabled={g.status !== 'live'} onClick={() => go(`games/${g.id}`)} aria-label={g.status === 'live' ? `Play ${g.name}` : `${g.name}, coming soon`}>
-                  <span className="gm-art" aria-hidden="true">{ART[g.id] || '🎮'}</span>
+                  <span className="gm-art" aria-hidden="true">{g.id === 'chess' ? <WhiteKnight /> : ART[g.id] || '🎮'}</span>
                   <b>{g.name.replace(/^Kickrs /, '')}</b>
                   <span className="gm-meta">{g.status === 'live' ? <><i className="gm-live" />{playing(g.playing) || g.players}</> : 'Coming soon'}</span>
                 </button>
