@@ -30,13 +30,16 @@ const BLOCKED: Record<string, string> = {
 };
 
 let gamesCache: KickrsGame[] | null = null;
+const byPlayers = (games: KickrsGame[]) => games.map((g, i) => ({ g, i })).sort((a, b) => Number(b.g.status === 'live') - Number(a.g.status === 'live') || (b.g.playing ?? 0) - (a.g.playing ?? 0) || a.i - b.i).map(({ g }) => g);
 function useGames() {
   const [games, setGames] = useState<KickrsGame[] | null>(gamesCache);
   const [error, setError] = useState('');
   useEffect(() => {
     let live = true;
-    kickrsGames().then((g) => { gamesCache = g; if (live) setGames(g); }).catch((e) => { if (live && !gamesCache) setError(e.message); });
-    return () => { live = false; };
+    const load = () => kickrsGames().then((g) => { gamesCache = byPlayers(g); if (live) setGames(gamesCache); }).catch((e) => { if (live && !gamesCache) setError(e.message); });
+    void load();
+    const t = window.setInterval(load, 30000);
+    return () => { live = false; window.clearInterval(t); };
   }, []);
   return { games, error };
 }
