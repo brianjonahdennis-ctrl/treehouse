@@ -19,6 +19,7 @@
     bio: 'Afrobeats, suya and long walks on Bar Beach.', interests: ['Music', 'Afrobeats', 'Football', 'Food'], interested_in: ['female'], min_age: 21, max_age: 35,
     state: 'Lagos', pref_state: 'Lagos' };
 
+  const mockOrigins = {};
   const convo = (id, handle, extra) => Object.assign({ conversation_id: id, other_handle: handle, other_gender: 'female', other_age: 24, other_location: 'Lagos',
     other_intent: 'love', last_message: null, last_from_me: false, last_at: ago(30), unread: 0, i_revealed: false, they_revealed: false,
     blocked: false, i_blocked: false, status: 'chat', other_online: false, other_active_hours: 3, matched: false, other_read_at: null, accepted_at: ago(500), started_by_me: false }, extra);
@@ -183,7 +184,7 @@ const RPC = {
     my_pending_likes: () => likes.length,
     // Preview only: sessionStorage mock-failchats=N makes the next N chat-list loads fail (tests the retry).
     dating_summary: (...args) => { const left = Number(sessionStorage.getItem('mock-failchats') || 0); if (left > 0) { sessionStorage.setItem('mock-failchats', String(left - 1)); throw new Error('mock: Supabase did not answer'); } return RPC.__unused_dating_summary(...args); },
-    __unused_dating_summary: () => ({ convos, requests: likes, pending: likes.length, my_status: myStatus, origins: empty ? {} : { c12: 'nearby', c13: 'nearby', c14: 'nearby' },
+    __unused_dating_summary: () => ({ convos, requests: likes, pending: likes.length, my_status: myStatus, origins: empty ? {} : { c12: 'nearby', c13: 'nearby', c14: 'nearby', ...mockOrigins },
       friend_statuses: [{ conversation_id: 'c8', body: 'Weekend vibes already! 🎉', updated_at: ago(17) }, { conversation_id: 'c9', body: 'At work, hit me up later 💼', updated_at: ago(180) }] }),
     set_my_status: ({ p_body }) => { myStatus = { body: p_body, updated_at: new Date().toISOString() }; return [myStatus]; },
     clear_my_status: () => { myStatus = null; return null; },
@@ -272,7 +273,10 @@ const RPC = {
     photos_unlocked: ({ p_conversation }) => p_conversation === 'c3',
     like_profile: ({ p_handle }) => (p_handle.startsWith('Pearl') ? [{ matched: true, conversation_id: 'c3' }] : [{ matched: false }]),
     start_conversation: () => 'c6',
-    start_conversation_from: () => 'c6',
+    start_conversation_from: ({ p_handle, p_origin }) => {
+      const had = convos.find((c) => c.other_handle === p_handle); if (had) return had.conversation_id;
+      const id = 'c' + (100 + convos.length); convos.unshift(convo(id, p_handle, { status: 'sent', last_from_me: true, last_at: new Date().toISOString(), last_message: null }));
+      if (p_origin) mockOrigins[id] = p_origin; return id; },
     remove_friend: ({ p_conversation }) => { const c = convos.find((x) => x.conversation_id === p_conversation); if (c && c.kind === 'friend') { c.kind = undefined; return 'removed'; } return 'none'; },
     dating_state_counts: () => [],
     nearby_settings: () => [nearbyOn ? { enabled: true, paused: false, hide_distance: false, hide_on_map: false, updated_at: ago(3), area_lat: 9.0643, area_lng: 7.4892 } : { enabled: false, paused: false, hide_distance: false, hide_on_map: false, updated_at: null, area_lat: null, area_lng: null }],

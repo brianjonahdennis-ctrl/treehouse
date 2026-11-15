@@ -26,6 +26,8 @@ export const ROUTES: [string, string][] = [
   ['/home', 'Home'], ['/home/discover', 'Discover'], ['/home/discover/nearby', 'Nearby'], ['/home/rooms', 'Chatrooms'],
   ['/home/matches', 'Inbox'], ['/home/matches/friends', 'Friends'], ['/home/matches/requests', 'Requests'], ['/home/matches/likes', 'Likes you'],
   ['/home/matches/announcements', 'Announcements'], ['/home/games', 'Games'], ['/home/profile', 'Profile'], ['/home/notifications', 'Notifications'],
+  ['/home/invite', 'Top inviters'], ['/home/treehouse', 'My Treehouse'], ['/home/treehouse/tree', 'Your Tree'], ['/home/matches/treehouse', 'Treehouse chats'],
+  ['/home/matches/nearby', 'Nearby chats'], ['/home/matches/chats', 'Chats'],
 ];
 export const CTA_PRESETS = ['Explore Nearby', 'Discover Events', 'Play Now', 'Update Profile', 'Learn More', 'Open Treehouse'];
 

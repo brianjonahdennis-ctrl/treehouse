@@ -1,12 +1,12 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Inbox: a hub (Chats, Matches, Friends, Nearby, Requests, Updates + Who’s Online) and one screen for
-// each. /home/matches/<chats|matches|likes|friends|nearby|requests|announcements|online> opens a screen;
+// each. /home/matches/<chats|matches|likes|friends|nearby|treehouse|requests|announcements|online> opens a screen;
 // /home/matches/<chat id> opens a chat on top; /home/matches/announcements/<id> opens one announcement.
 import { previewOf } from './Birthday';
 import { useState, type ReactNode } from 'react';
 import * as api from '@/lib/api';
-import { state, emit, useAppState, loadDating, statusOf, messageRequests, matchFriendAsks, isMatch, isFriend, isNearby, friendsList, nameOf, type Convo } from '@/lib/state';
+import { state, emit, useAppState, loadDating, statusOf, messageRequests, matchFriendAsks, isMatch, isFriend, isNearby, isTreehouse, friendsList, nameOf, type Convo } from '@/lib/state';
 import { INTENT_LABEL } from '@/lib/options';
 import { go, openChat } from '@/lib/nav';
 import { ago } from '@/lib/util';
@@ -19,8 +19,8 @@ import AdSlot from './AdSlot';
 import { addFriendSheet } from './Username';
 import { AnnouncementsTab, AnnDetail } from './Announcements';
 
-const VIEWS = new Set(['requests', 'chats', 'likes', 'matches', 'friends', 'announcements', 'nearby', 'online']);
-type View = 'hub' | 'chats' | 'matches' | 'friends' | 'nearby' | 'requests' | 'announcements' | 'online';
+const VIEWS = new Set(['requests', 'chats', 'likes', 'matches', 'friends', 'announcements', 'nearby', 'treehouse', 'online']);
+type View = 'hub' | 'chats' | 'matches' | 'friends' | 'nearby' | 'treehouse' | 'requests' | 'announcements' | 'online';
 
 // The Inbox is a hub: Chats (every private conversation), then Matches, Friends, Nearby, Requests and
 // Updates. They are views of the same conversations: one chat can be a friend, a match AND a Nearby
@@ -36,6 +36,7 @@ export default function Inbox({ sub, item = null }: { sub: string | null; item?:
   else if (view === 'matches') body = <MatchesScreen focusLikes={listSub === 'likes'} />;
   else if (view === 'friends') body = <FriendsScreen />;
   else if (view === 'nearby') body = <NearbyScreen />;
+  else if (view === 'treehouse') body = <TreehouseScreen />;
   else if (view === 'requests') body = <SubScreen title="Requests" sub="Friend requests and message requests."><RequestsTab requests={messageRequests()} /></SubScreen>;
   else if (view === 'announcements') body = <SubScreen title="Updates" sub="Official news from treehouse."><AnnouncementsTab /></SubScreen>;
   else if (view === 'online') body = <OnlineScreen />;
@@ -69,6 +70,7 @@ const live = () => state.convos.filter((c) => !c.blocked && statusOf(c) === 'cha
 const onlineContacts = () => live().filter((c) => c.other_online)
   .sort((a, b) => (isFriend(b) ? 1 : 0) - (isFriend(a) ? 1 : 0) || recent(b) - recent(a));
 const nearbyChats = () => allChats().filter((c) => !c.blocked && isNearby(c));
+const treehouseChats = () => allChats().filter((c) => !c.blocked && isTreehouse(c));
 const newMatchList = () => live().filter((c) => isMatch(c) && !c.last_message);
 const unreadIn = (list: Convo[]) => list.filter((c) => !c.blocked && c.unread).length;
 const n99 = (n: number) => (n > 99 ? '99+' : String(n));
@@ -95,6 +97,7 @@ function Hub() {
   const friends = friendsList();
   const friendsOn = friends.filter((f) => f.other_online).length;
   const nearUnread = unreadIn(nearbyChats());
+  const treeUnread = unreadIn(treehouseChats());
   const reqs = messageRequests().length + matchFriendAsks().length;
   const matchNew = newMatchList().length + s.requests.length;
   const card = (to: string, cls: string, ico: string, title: string, desc: ReactNode, badge: number, aria?: string) => (
@@ -114,7 +117,8 @@ function Hub() {
           {card('matches/friends', 'ih-friend', 'rooms', 'Friends', friends.length ? <><i className={`ih-dot ${friendsOn ? 'on' : ''}`} />{`${friendsOn} online`}</> : 'Your accepted friends', 0,
             `Friends, ${friendsOn} online`)}
           {card('matches/nearby', 'ih-near', 'pin', 'Nearby', 'People you met nearby', nearUnread)}
-          {card('matches/requests', 'ih-req', 'send', 'Requests', 'Friends & messages', reqs)}
+          {card('matches/treehouse', 'ih-tree', 'network', 'Treehouse', 'People in your Treehouse', treeUnread)}
+          {card('matches/requests', 'ih-req wide', 'send', 'Requests', 'Friend & message requests', reqs)}
           {card('matches/announcements', 'ih-ann wide', 'megaphone', 'Updates', 'Official news from treehouse', s.annUnread)}
         </nav>
       </Hero>
@@ -181,7 +185,7 @@ function Paged({ list, render }: { list: Convo[]; render: (c: Convo) => ReactNod
 }
 
 // ---- Chats ------------------------------------------------------------------------------------------
-type Filter = 'all' | 'friends' | 'matches' | 'nearby';
+type Filter = 'all' | 'friends' | 'matches' | 'nearby' | 'treehouse';
 let chatFilter: Filter = 'all', chatQuery = '';
 function ChatsScreen() {
   const s = useAppState();
@@ -190,7 +194,7 @@ function ChatsScreen() {
   const [searching, setSearching] = useState(!!chatQuery);
   const all = allChats().sort(byInbox);
   const lists: Record<Filter, Convo[]> = {
-    all, friends: all.filter(isFriend), matches: all.filter(isMatch), nearby: all.filter(isNearby),
+    all, friends: all.filter(isFriend), matches: all.filter(isMatch), nearby: all.filter(isNearby), treehouse: all.filter(isTreehouse),
   };
   const query = q.trim().toLowerCase();
   const list = lists[f].filter((c) => matchQ(c, query));
@@ -204,24 +208,26 @@ function ChatsScreen() {
     friends: ['👋', 'No friend chats yet', 'Chats with people who accepted your friend request (or whose request you accepted) appear here.'],
     matches: ['💘', 'No match chats yet', 'When you and someone both like each other, your chat appears here.'],
     nearby: ['📍', 'No Nearby chats yet', 'Conversations you start with people discovered through Nearby will appear here.'],
+    treehouse: ['🌳', 'No Treehouse chats yet', 'Message requests you send to people in your Treehouse, and their replies, appear here.'],
   };
   return (
     <SubScreen title="Chats" actions={<>
       <button className="hero-btn" aria-label="Search chats" aria-pressed={searching} onClick={() => setSearching(!searching)}><Icon name="search" /></button>
       <button className="hero-btn" aria-label="Start a new chat" onClick={newChatSheet}><Icon name="edit" /></button>
     </>}>
-      <div className="ih-filters" role="tablist" aria-label="Show chats">{chip('all', 'All Chats')}{chip('friends', 'Friends')}{chip('matches', 'Matches')}{chip('nearby', 'Nearby')}</div>
+      <div className="ih-filters" role="tablist" aria-label="Show chats">{chip('all', 'All Chats')}{chip('friends', 'Friends')}{chip('matches', 'Matches')}{chip('nearby', 'Nearby')}{chip('treehouse', 'Treehouse')}</div>
       {searching ? <SearchBox placeholder="Search conversations" value={q} onChange={(v) => { chatQuery = v; setQ(v); }} /> : null}
       {f === 'all' && !query ? <WhoOnline /> : null}
       {f === 'all' && !query ? <AdSlot placement="inbox" /> : null}
       <section className="stack">
-        <div className="section-head"><h2>{f === 'all' ? 'All Conversations' : f === 'friends' ? 'Friend Chats' : f === 'matches' ? 'Match Chats' : 'Nearby Chats'}</h2>
+        <div className="section-head"><h2>{f === 'all' ? 'All Conversations' : f === 'friends' ? 'Friend Chats' : f === 'matches' ? 'Match Chats' : f === 'nearby' ? 'Nearby Chats' : 'Treehouse Chats'}</h2>
           <span className="small muted">{`(${lists[f].length})`}</span></div>
         {!s.convosLoaded ? <SkeletonList n={5} />
           : list.length ? <Paged list={list} render={(c) => <ConvoRow key={c.conversation_id} c={c} />} />
           : query ? <div className="card ib-empty"><p>No chats match your search.</p></div>
           : <EmptyState emoji={empty[f][0]} title={empty[f][1]} text={empty[f][2]}>
               {f === 'nearby' ? <button className="btn btn-primary btn-sm" onClick={() => go('discover/nearby')}><Icon name="pin" cls="sm" />Explore Nearby</button>
+                : f === 'treehouse' ? <button className="btn btn-primary btn-sm" onClick={() => go('treehouse/tree')}><Icon name="network" cls="sm" />Open Your Tree</button>
                 : f === 'friends' ? <button className="btn btn-primary btn-sm" onClick={() => go('rooms')}><Icon name="rooms" cls="sm" />Chatrooms</button>
                 : <button className="btn btn-coral btn-sm" onClick={() => go('discover')}><Icon name="flame" cls="sm" />Discover</button>}
             </EmptyState>}
@@ -239,6 +245,7 @@ function newChatSheet() {
         <button className="menu-item" onClick={() => { close(); addFriendSheet(); }}><Icon name="userplus" />Add a friend by username</button>
         <button className="menu-item" onClick={() => { close(); go('discover'); }}><Icon name="flame" />Find someone in Discover</button>
         <button className="menu-item" onClick={() => { close(); go('discover/nearby'); }}><Icon name="pin" />Meet people Nearby</button>
+        <button className="menu-item" onClick={() => { close(); go('treehouse/tree'); }}><Icon name="network" />Message someone in your Treehouse</button>
         <button className="menu-item" onClick={() => { close(); go('rooms'); }}><Icon name="userplus" />Add friends in Chatrooms</button>
       </div>
     </>
@@ -251,6 +258,7 @@ function RelTags({ c }: { c: Convo }) {
       {isMatch(c) ? <span className="ib-match" title="Match" aria-label="Match"><Icon name="heart" cls="fill" /></span> : null}
       {isFriend(c) ? <span className="ib-friend" title="Friend" aria-label="Friend">👋</span> : null}
       {isNearby(c) ? <span className="ih-near-tag" title="Met on Nearby" aria-label="Nearby"><Icon name="pin" cls="sm" /></span> : null}
+      {isTreehouse(c) ? <span className="ih-tree-tag" title="From your Treehouse" aria-label="Treehouse"><Icon name="network" cls="sm" /></span> : null}
     </span>
   );
 }
@@ -302,6 +310,36 @@ function NearbyScreen() {
         : query ? <div className="card ib-empty"><p>No Nearby chats match your search.</p></div>
         : <EmptyState emoji="📍" title="No Nearby chats yet" text="Conversations you start with people discovered through Nearby will appear here.">
             <button className="btn btn-primary btn-sm" onClick={() => go('discover/nearby')}><Icon name="pin" cls="sm" />Explore Nearby</button>
+          </EmptyState>}
+      {waiting.length ? (
+        <section className="stack">
+          <div className="section-head"><h2>Waiting for a reply</h2><span className="small muted">{`${waiting.length} pending`}</span></div>
+          <div className="card ib-list">{waiting.map((c) => <ConvoRow key={c.conversation_id} c={c} />)}</div>
+        </section>
+      ) : null}
+    </SubScreen>
+  );
+}
+
+// ---- Treehouse: chats with people in your referral network ------------------------------------------
+let treeQuery = '';
+function TreehouseScreen() {
+  const s = useAppState();
+  const [q, setQ] = useState(treeQuery);
+  const chats = treehouseChats().sort(byInbox);
+  const waiting = state.convos.filter((c) => !c.blocked && statusOf(c) === 'sent' && isTreehouse(c));
+  const incoming = messageRequests().filter(isTreehouse).length;
+  const query = q.trim().toLowerCase();
+  const list = chats.filter((c) => matchQ(c, query));
+  return (
+    <SubScreen title="Treehouse" sub="Chats with people in your Treehouse network." actions={<button className="hero-btn" aria-label="Open Your Tree" onClick={() => go('treehouse/tree')}><Icon name="network" /></button>}>
+      {incoming ? <button className="ib-note ih-note-btn" onClick={() => go('matches/requests')}><span>📩</span><span>{`${incoming} Treehouse message request${incoming === 1 ? '' : 's'} waiting in Requests`}</span><Icon name="chev" cls="sm" /></button> : null}
+      {chats.length > 3 ? <SearchBox placeholder="Search Treehouse chats" value={q} onChange={(v) => { treeQuery = v; setQ(v); }} /> : null}
+      {!s.convosLoaded ? <SkeletonList n={4} />
+        : list.length ? <Paged list={list} render={(c) => <ConvoRow key={c.conversation_id} c={c} lastActive />} />
+        : query ? <div className="card ib-empty"><p>No Treehouse chats match your search.</p></div>
+        : <EmptyState emoji="🌳" title="No Treehouse chats yet" text="Open Your Tree, tap someone and send them a message request. When they accept, your chat appears here.">
+            <button className="btn btn-primary btn-sm" onClick={() => go('treehouse/tree')}><Icon name="network" cls="sm" />Open Your Tree</button>
           </EmptyState>}
       {waiting.length ? (
         <section className="stack">

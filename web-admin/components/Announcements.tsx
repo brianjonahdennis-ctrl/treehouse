@@ -21,7 +21,8 @@ const STATUS: Record<string, [string, 'grey' | 'blue' | 'amber' | 'green' | 'vio
 const BASES: [string, string][] = [['active', 'Active in the last 30 days'], ['all', 'Everyone with a profile'], ['new', 'Joined in the last N days'], ['recent', 'Active in the last N days'], ['inactive', 'Inactive for N days']];
 const PLATFORMS: [string, string][] = [['android-play', 'Android (Play)'], ['android-apk', 'Android (APK)'], ['android-app', 'Android (old app)'], ['ios-app', 'iPhone'], ['web', 'Web']];
 const ROUTES: [string, string][] = [['/home', 'Home'], ['/home/discover', 'Discover'], ['/home/discover/nearby', 'Nearby'], ['/home/rooms', 'Chatrooms'], ['/home/matches', 'Inbox'],
-  ['/home/games', 'Games'], ['/home/profile', 'Profile'], ['/home/notifications', 'Notifications']];
+  ['/home/matches/treehouse', 'Inbox: Treehouse chats'], ['/home/treehouse', 'My Treehouse'], ['/home/treehouse/tree', 'Your Tree'],
+  ['/home/games', 'Games'], ['/home/profile', 'Profile'], ['/home/notifications', 'Notifications'], ['/home/invite', 'Top inviters']];
 
 type Row = { id: string; title: string; category: string; status: string; created_at: string; scheduled_for: string | null; published_at: string | null;
   eligible_count: number | null; delivered_count: number | null; read_count: number | null; click_count: number | null; created_by_handle: string | null; total: number };

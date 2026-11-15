@@ -7,10 +7,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import qrcode from 'qrcode-generator';
 import * as api from '@/lib/api';
-import { go } from '@/lib/nav';
+import { go, openChat } from '@/lib/nav';
 import { inviteUrl } from '@/lib/referral';
 import { copyText } from '@/lib/util';
-import { useAppState } from '@/lib/state';
+import { useAppState, state, statusOf } from '@/lib/state';
+import { composeTo } from './Discover';
 import { Icon, Hero, Avatar, SkeletonList } from './ui';
 import { openSheet, toast } from './overlay';
 import { BellButton } from './Home';
@@ -286,7 +287,7 @@ function nodeSheet(n: Node, onExpand?: () => void) {
         <span><b>{n0(n.direct)}</b>Direct referrals</span>
         <span><b>{n0(n.total)}</b>Total network</span>
       </div>
-      <p className="tiny muted">Being in your tree doesn’t make you friends or open a chat.</p>
+      <MessageAction n={n} close={close} />
       <div className="sheet-actions">
         {onExpand && n.has_children ? <button className="btn btn-primary btn-block" onClick={() => { close(); onExpand(); }}><Icon name="network" cls="sm" />Show their referrals</button> : null}
         <button className="btn btn-soft btn-block" onClick={close}>Close</button>
@@ -307,6 +308,22 @@ function NodeBubble({ n, open, onOpen }: { n: Node; open: boolean; onOpen: () =>
           <Icon name="users" cls="sm" />{n0(n.total)}<Icon name="chev" cls={`sm mt-chev ${open ? 'up' : ''}`} /></button>
       ) : <span className="mt-badge none"><Icon name="users" cls="sm" />0</span>}
     </div>
+  );
+}
+
+// Message request to someone in your tree (they accept or decline in Requests), or open your chat.
+function MessageAction({ n, close }: { n: Node; close: () => void }) {
+  if (n.hidden || !n.handle) return <p className="tiny muted">Being in your tree doesn’t make you friends or open a chat.</p>;
+  const c = state.convos.find((x) => x.other_handle === n.handle && !x.blocked);
+  const st = c ? statusOf(c) : null;
+  if (c && st === 'chat') return <button className="btn btn-coral btn-block" onClick={() => { close(); openChat(c.conversation_id); }}><Icon name="chat" cls="sm" />Open chat</button>;
+  if (c && st === 'sent') return <p className="small muted mt-msg-note"><Icon name="clock" cls="sm" />Message request sent. Waiting for them to accept.</p>;
+  if (c) return <button className="btn btn-coral btn-block" onClick={() => { close(); go('matches/requests'); }}><Icon name="send" cls="sm" />They sent you a request: open Requests</button>;
+  return (
+    <>
+      <button className="btn btn-coral btn-block" onClick={() => { close(); composeTo({ handle: n.handle }, { origin: 'treehouse' }); }}><Icon name="send" cls="sm" />Send message request</button>
+      <p className="tiny muted">They can accept or decline. Being in your tree doesn’t make you friends.</p>
+    </>
   );
 }
 

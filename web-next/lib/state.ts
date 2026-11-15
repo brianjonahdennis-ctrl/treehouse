@@ -28,7 +28,7 @@ export const state = {
   recovering: false,
   inRoom: null as boolean | null,
   annUnread: 0,             // unread treehouse announcements (Inbox → Announcements)
-  origins: {} as Record<string, string>,   // conversation id → where it started ('nearby')
+  origins: {} as Record<string, string>,   // conversation id → where it started ('nearby' | 'treehouse')
 };
 
 // ---- Change signal ------------------------------------------------------------------------------
@@ -53,6 +53,7 @@ export const unreadChats = () => state.convos.filter((c) => !c.blocked && status
 export const isMatch = (c: Convo) => c.matched === true;
 export const isFriend = (c: Convo) => c.kind === 'friend';
 export const isNearby = (c: Convo) => state.origins[c.conversation_id] === 'nearby';
+export const isTreehouse = (c: Convo) => state.origins[c.conversation_id] === 'treehouse';
 export const friendsList = () => state.convos
   .filter((c) => c.kind === 'friend' && !c.blocked && statusOf(c) === 'chat')
   .map((c) => Object.assign(c, { friend_status: state.friendStatus[c.conversation_id] || null }));
