@@ -401,9 +401,9 @@ function MatchAskCard({ c }: { c: Convo }) {
   return (
     <article className="req-card">
       <button className="req-top" onClick={() => openChat(c.conversation_id)} aria-label={`Open your chat with ${nameOf(c)}`}>
-        <span className={`ib-av ${c.other_online ? '' : 'av-off'}`}><Avatar seed={c.other_handle} label={nameOf(c)} cls="lg" />{c.other_online ? <i className="on" /> : null}</span>
+        <span className="ib-av"><Avatar seed={c.other_handle} label={nameOf(c)} cls="lg" />{c.other_online ? <i className="on" /> : null}</span>
         <span className="grow">
-          <span className="row-between"><b className={`ellipsis ${c.other_online ? '' : 'name-off'}`}>{nameOf(c)}<span className="pill friend">👋 Friend</span></b><span className="when">{ago(c.last_at)}</span></span>
+          <span className="row-between"><b className="ellipsis">{nameOf(c)}<span className="pill friend">👋 Friend</span></b><span className="when">{ago(c.last_at)}</span></span>
           <span className="req-meta">Your match wants to be friends</span>
         </span>
       </button>
@@ -421,9 +421,9 @@ function RequestCard({ c }: { c: Convo }) {
   return (
     <article className={`req-card ${c.unread ? 'unread' : ''}`}>
       <button className="req-top" onClick={() => openChat(c.conversation_id)} aria-label={`Open request from ${c.other_handle}`}>
-        <span className={`ib-av ${c.other_online ? '' : 'av-off'}`}><Avatar seed={c.other_handle} cls="lg" />{c.other_online ? <i className="on" /> : null}</span>
+        <span className="ib-av"><Avatar seed={c.other_handle} cls="lg" />{c.other_online ? <i className="on" /> : null}</span>
         <span className="grow">
-          <span className="row-between"><b className={`ellipsis ${c.other_online ? '' : 'name-off'}`}>{c.other_handle}<span className={`pill ${isFriend(c) ? 'friend' : 'msg'}`}>{isFriend(c) ? '👋 Friend' : '✉️ Message'}</span></b><span className="when">{ago(c.last_at)}</span></span>
+          <span className="row-between"><b className="ellipsis">{c.other_handle}<span className={`pill ${isFriend(c) ? 'friend' : 'msg'}`}>{isFriend(c) ? '👋 Friend' : '✉️ Message'}</span></b><span className="when">{ago(c.last_at)}</span></span>
           <span className="req-meta">{meta({ age: c.other_age, gender: c.other_gender, location: c.other_location })}{c.other_intent ? ` · ${INTENT_LABEL[c.other_intent]}` : ''}</span>
         </span>
       </button>
@@ -511,8 +511,8 @@ function FriendRow({ f }: { f: Convo }) {
   return (
     <div className="friend-row">
       <button className="fr-main" onClick={() => partnerProfile(f)} aria-label={`${nameOf(f)}’s profile`}>
-        <span className={`ib-av ${f.other_online ? '' : 'av-off'}`}><Avatar seed={f.other_handle} label={nameOf(f)} cls="lg" />{f.other_online ? <i className="on" /> : null}</span>
-        <span className="grow"><b className={`ellipsis ${f.other_online ? '' : 'name-off'}`}>{nameOf(f)}</b>
+        <span className="ib-av"><Avatar seed={f.other_handle} label={nameOf(f)} cls="lg" />{f.other_online ? <i className="on" /> : null}</span>
+        <span className="grow"><b className="ellipsis">{nameOf(f)}</b>
           <span className={`fr-sub ellipsis ${st ? 'status' : ''}`}>{sub}</span>
           {st && !f.other_online ? <span className="fr-away">{activeText(false, f.other_active_hours)}</span> : null}</span>
       </button>

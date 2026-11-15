@@ -184,7 +184,7 @@ function FriendsStrip() {
       {online.length ? null : <p className="small muted">None of your friends are online right now.</p>}
       <div className="friend-strip">{shown.slice(0, 12).map((f) => (
         <button key={f.conversation_id} className={`fs-item ${f.other_online ? 'on' : ''}`} onClick={() => openChat(f.conversation_id)} title={f.friend_status ? f.friend_status.body : ''}>
-          <span className={`fs-av ${f.other_online ? '' : 'av-off'}`}><Avatar seed={f.other_handle} label={nameOf(f)} cls="lg" />{f.other_online ? <i /> : null}</span>
+          <span className="fs-av"><Avatar seed={f.other_handle} label={nameOf(f)} cls="lg" />{f.other_online ? <i /> : null}</span>
           <span className="fs-name ellipsis">{shortName(nameOf(f))}</span>
         </button>
       ))}</div>
@@ -281,7 +281,7 @@ function People() {
   if (!list.length) return <p className="small muted">No new people right now. Check back soon, or widen who you see in Profile.</p>;
   return (
     <div className="h-scroll">{list.map((p) => (
-      <button key={p.handle} className={`person-tile ${p.online ? '' : 'is-off'}`} style={vars({ '--av': avatarBg(p.handle) })} onClick={() => go('discover')}>
+      <button key={p.handle} className="person-tile" style={vars({ '--av': avatarBg(p.handle) })} onClick={() => go('discover')}>
         <span className="pt-art"><PersonArt handle={p.handle} />{p.online ? <i className="pt-on" aria-label="Online" /> : null}</span>
         <span className="pt-info"><b>{`${shortName(p.handle)}, ${p.age}`}</b><span>{[p.location, INTENT_LABEL[p.intent]].filter(Boolean).join(' · ')}</span></span>
       </button>

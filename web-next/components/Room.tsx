@@ -458,7 +458,7 @@ function RoomView({ target, restart }: { target: string; restart: () => void }) 
     openSheet((close) => (
       <>
         <div className="pc">
-          <div className={`pc-av ${p.online ? '' : 'av-off'}`}><RoomAvatar handle={p.handle} cls="xl" />{p.online ? <i /> : null}</div>
+          <div className="pc-av"><RoomAvatar handle={p.handle} cls="xl" />{p.online ? <i /> : null}</div>
           <h2>{p.handle}</h2>
           <p className="pc-sub">{[p.place && p.place !== p.room ? p.place : roomName(p.room), p.age ? `${p.age} years` : null].filter(Boolean).join(' · ')}</p>
           <span className={`pc-status ${p.online ? 'on' : ''}`}>{p.online ? 'Online' : 'Away'}</span>
@@ -686,8 +686,8 @@ function MessageButton({ p }: { p: any }) {
 function MemberRow({ p, onCard }: { p: any; onCard: () => void }) {
   return (
     <div className="md-row" role="button" tabIndex={0} onClick={onCard} onKeyDown={(e) => { if (e.key === 'Enter') onCard(); }}>
-      <span className={`op-av ${isOnline(p) ? '' : 'av-off'}`}><RoomAvatar handle={p.handle} />{isOnline(p) ? <i /> : null}</span>
-      <span className="grow"><b className={isOnline(p) ? '' : 'name-off'} style={{ color: nameColor(p.handle) }}>{p.me ? `${p.handle} (you)` : p.handle}</b>
+      <span className="op-av"><RoomAvatar handle={p.handle} />{isOnline(p) ? <i /> : null}</span>
+      <span className="grow"><b style={{ color: nameColor(p.handle) }}>{p.me ? `${p.handle} (you)` : p.handle}</b>
         <span className="md-place">{`${p.place || ''}${p.place ? ' • ' : ''}${isOnline(p) ? 'Online' : 'Away'}`}</span><RoomBird handle={p.handle} /></span>
       <MessageButton p={p} />
     </div>

@@ -149,7 +149,7 @@ export async function partnerProfile(convo: Convo) {
   openSheet((close) => (
     <>
       <div className="pc">
-        <div className={`pc-av ${p.online ? '' : 'av-off'}`}><Avatar seed={p.handle} label={nameOf(convo)} cls="xl" />{p.online ? <i /> : null}</div>
+        <div className="pc-av"><Avatar seed={p.handle} label={nameOf(convo)} cls="xl" />{p.online ? <i /> : null}</div>
         {nameOf(convo) !== convo.other_handle ? <h2>{nameOf(convo)}<small className="pc-handle">{` · ${p.handle}`}</small></h2> : <h2>{p.handle}</h2>}
         <p className="pc-sub">{[p.age ? `${p.age} years` : null, GENDER_LABEL[p.gender], p.location].filter(Boolean).join(' · ')}</p>
         <ProfileBadges convo={convo.conversation_id} />
