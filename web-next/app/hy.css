@@ -2141,6 +2141,17 @@ html:has(.game-stage), body:has(.game-stage) { overflow: hidden; overscroll-beha
 .un-current { font: 800 22px var(--display); margin: 4px 0 8px; }
 .pc-username { margin: 6px 0 0; font-weight: 700; color: var(--muted); }
 
+/* ---- "Rate this user" card in chats (Reputation.tsx ChatRatePrompt) -------------------------------- */
+.rate-prompt { margin: 6px 12px; padding: 12px 14px; border-radius: 16px; background: var(--surface-2); box-shadow: inset 0 0 0 1px rgba(255,180,0,.35);
+  display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center; }
+.rate-prompt .rp-head { grid-column: 1 / -1; display: grid; gap: 2px; }
+.rate-prompt .rp-head span { font-size: 12.5px; color: var(--muted); }
+.rate-prompt .rate-stars.sm { justify-content: flex-start; gap: 4px; }
+.rate-prompt .rate-stars.sm .rate-star { width: 36px; height: 36px; font-size: 20px; border-radius: 10px; }
+.rate-prompt .rp-actions { display: flex; gap: 6px; }
+.rate-prompt.done { display: block; text-align: center; font-size: 13.5px; font-weight: 600; box-shadow: none; }
+@media (max-width: 380px) { .rate-prompt { grid-template-columns: 1fr; } .rate-prompt .rp-actions { justify-content: flex-end; } }
+
 /* Offline people look greyed out so you can tell at a glance who's online (Hydra, 15 Nov).
    Look only: rows, profiles and Message buttons stay fully tappable and at full strength. */
 .av-off .avatar, .av-off .room-av, .avatar.av-off, .pin-off .nb-pin-av .avatar { filter: grayscale(1); opacity: .55; transition: filter .2s, opacity .2s; }

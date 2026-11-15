@@ -504,6 +504,9 @@ export const myReputation = () => rpc('my_reputation');
 export const ratingStatusConvo = (id: string) => rpc('rating_status_convo', { p_conversation: id });
 export const ratingStatusRoom = (handle: string) => rpc('rating_status_room', { p_handle: handle });
 export const rateConvo = (id: string, stars: number) => rpc('rate_convo', { p_conversation: id, p_stars: stars });
+// "Rate this user" card in chats (20261115000113_rating_prompt.sql): after 10+ messages; Not now = 20 messages later.
+export const ratingPrompt = (id: string) => rpc('rating_prompt', { p_conversation: id });
+export const ratingPromptLater = (id: string) => rpc('rating_prompt_later', { p_conversation: id });
 export const rateRoomMember = (handle: string, stars: number) => rpc('rate_room_member', { p_handle: handle, p_stars: stars });
 export const badgesForConvos = async (ids: string[]) => (await rpc('badges_for_convos', { p_ids: ids })) || [];
 export const badgesForRoom = async (handles: string[]) => (await rpc('badges_for_room', { p_handles: handles })) || [];
