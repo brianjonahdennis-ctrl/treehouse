@@ -40,7 +40,7 @@ Roles live in the existing `announcement_staff` table (the announcements roles, 
 Everything below is a one-time job. Nothing here changes the member app until step 1 is done, and step 1
 only **adds** things (new tables, new functions, two safety triggers, one column on `room_reports`).
 
-1. **Database.** Apply `anon-inbox/supabase/migrations/20261114000091_staff_console.sql` and `20261114000092_invite_leaderboard.sql`
+1. **Database.** Apply `anon-inbox/supabase/migrations/20261115000097_staff_console.sql` and `20261115000098_invite_leaderboard.sql`
    (`supabase db push --remote --dry-run`, check, then without `--dry-run`). Tests:
    `anon-inbox/supabase/tests/staff_console.test.sql` (68 checks).
 2. **Make yourself Super Admin.** In Supabase → SQL editor, with your treehouse handle (and Boma's):
@@ -97,7 +97,7 @@ through Product Announcements (with a push to people who allow treehouse updates
 - Staff (Admins) can disqualify someone for the current or last week before the announcement (Referrals page),
   with a reason that goes in the audit log. The panel shows "all joins" next to "counts" to make fake accounts easy to spot.
 - Settings → Announce Man & Woman of the Week turns the Monday announcement off.
-- Database: `20261114000092_invite_leaderboard.sql` (job `invite-of-the-week`, Mondays 11:00 UTC). Tests:
+- Database: `20261115000098_invite_leaderboard.sql` (job `invite-of-the-week`, Mondays 11:00 UTC). Tests:
   `invite_leaderboard.test.sql` (16 checks).
 
 ## Settings that act straight away
