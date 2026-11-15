@@ -11,6 +11,7 @@ export async function claimReferralOnce() {
   tried = true;
   try { await api.claimReferral(m[1]); } catch { /* older database or not eligible */ }
   document.cookie = 'th_ref=; Max-Age=0; path=/; SameSite=Lax';
+  if (location.hostname.endsWith('treehouse.ng')) document.cookie = 'th_ref=; Max-Age=0; path=/; domain=treehouse.ng; SameSite=Lax';
 }
 
 export const inviteUrl = (code: string) => `https://treehouse.ng/r/${code}`;
