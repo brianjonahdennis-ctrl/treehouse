@@ -604,8 +604,8 @@ export const treasureHuntFinish = async (hunt: string, location: { latitude: num
     p_accuracy_m: location.accuracy, p_request_id: requestId });
   return result as { ok: boolean; error?: string; idempotent?: boolean; coins_awarded?: number; total_coins?: number };
 };
-export const treasureHuntsAdmin = async () => (await rpc('staff_treasure_hunts')) || [];
-export const treasureHuntAdminSave = (hunt: unknown, checkpoints: unknown, starts: unknown, finishes: unknown) => rpc('staff_treasure_hunt_save_routes', {
+export const treasureHuntsAdmin = async () => (await rpc('staff_treasure_hunts_personal')) || [];
+export const treasureHuntAdminSave = (hunt: unknown, checkpoints: unknown, starts: unknown, finishes: unknown) => rpc('staff_treasure_hunt_save_routes_personal', {
   p_hunt: hunt, p_checkpoints: checkpoints, p_start_points: starts, p_finish_points: finishes,
 });
 export const treasureHuntLeaderboard = async (hunt: string, cursor?: TreasureHuntCursor): Promise<TreasureHuntLeaderboard> => {

@@ -12,8 +12,10 @@ every permission is checked inside the database.
 1. Sign in with their treehouse account (Google, or email and password).
 2. The first time, scan a QR code with Google Authenticator (or any authenticator app) and type the 6-digit code.
    After that, every sign-in asks for a fresh code.
-3. Only people on the staff list get past this point. The database also refuses every staff action
+3. Only people on the staff list get past this point. The database also refuses staff actions
    from a session that hasn't passed the authenticator step, even if someone calls it directly.
+   Exception: Hydra can manage Treasure Hunts from the signed-in Treehouse app without a code; the
+   admin website and all other staff actions still require the authenticator step.
 
 ## Roles
 
