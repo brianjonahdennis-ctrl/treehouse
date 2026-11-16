@@ -4,6 +4,7 @@
 import { STATES } from './options';
 
 const K = 'th-admin-mock';
+const HUNTS_KEY = 'th-admin-mock-hunts';
 type S = { signedIn: boolean; enrolled: boolean; aal2: boolean; role: string };
 function st(): S {
   const p = new URLSearchParams(location.search);
@@ -26,6 +27,15 @@ const NAMES = ['NobleOwl', 'MellowSparrow', 'HiddenTiger', 'QuietRiver', 'BoldFa
 const now = Date.now();
 const iso = (msAgo: number) => new Date(now - msAgo).toISOString();
 const H = 3600e3, D = 86400e3;
+function mockHunts(): any[] {
+  const saved = localStorage.getItem(HUNTS_KEY);
+  if (saved) return JSON.parse(saved);
+  const sample = [{ id: 'mock-hunt-1', title: 'Treasure Hunt Preview', region: 'Wuse, Abuja · preview', description: 'A sample route for the staff preview.',
+    status: 'draft', starts_at: new Date(now + D).toISOString(), ends_at: new Date(now + 2 * D).toISOString(), completion_bonus_coins: 100, participant_count: 0,
+    checkpoints: [1, 2].map((n) => ({ id: `mock-stop-${n}`, sequence: n, name: `Checkpoint ${n}`, hint: 'Sample clue', latitude: 9.0765 + n * .0002,
+      longitude: 7.4793 + n * .0002, radius_m: 45, reward_coins: 100 })) }];
+  localStorage.setItem(HUNTS_KEY, JSON.stringify(sample)); return sample;
+}
 
 const members = Array.from({ length: 64 }, (_, i) => {
   const h = `${NAMES[i % NAMES.length]}${100 + Math.floor(rnd() * 899)}`;
@@ -175,6 +185,13 @@ function rpc(fn: string, a: any): any {
     case 'staff_referral_joined': return members.slice(40, 48).map((m) => ({ handle: m.handle, joined_at: m.created_at, last_seen_at: m.last_seen_at, suspended: m.suspended, state: m.state }));
     case 'staff_settings': return { settings: { signups_paused: false, signups_paused_reason: '', ads_enabled: true, referrals_enabled: true, invite_winner_enabled: true, invite_winner_min: 3 }, filter_words: ['scam', 'whatsappme', 'paypal'],
       rating: [{ key: 'min_raters', value: 5, note: 'different raters needed before a score is "established"' }, { key: 'cooldown_days', value: 7, note: 'one rating per person per rolling N days' }] };
+    case 'staff_treasure_hunts': return mockHunts();
+    case 'staff_treasure_hunt_save': {
+      const h = a.p_hunt || {}; const hunts = mockHunts(); const id = h.id || `mock-hunt-${Date.now()}`;
+      const value = { ...h, id, participant_count: 0, checkpoints: (a.p_checkpoints || []).map((c: any, i: number) => ({ ...c, id: `mock-stop-${i + 1}` })) };
+      const i = hunts.findIndex((x) => x.id === id); if (i < 0) hunts.unshift(value); else hunts[i] = value;
+      localStorage.setItem(HUNTS_KEY, JSON.stringify(hunts)); return id;
+    }
     case 'staff_team': return members.filter((m) => m.staff_role).map((m, i) => ({ handle: m.handle, role: m.staff_role, can_publish: i !== 1, added_at: iso((30 - i) * D), added_by: i ? H0 : null, authenticator: i !== 2, last_action_at: iso(i * H), email: st().role === 'super_admin' ? `staff${i}@treehouse.ng` : null }));
     case 'staff_audit_log': return a.p_before ? [] : audit.filter((x) => (!a.p_action || x.action === a.p_action) && (!a.p_actor || (x.actor || '').toLowerCase() === a.p_actor.toLowerCase()));
     case 'ann_overview': return { total: 2, published: 1, scheduled: 1, drafts: 0, recipients: 9740, reads: 4120, read_rate: 42.3, clicks: 610 };

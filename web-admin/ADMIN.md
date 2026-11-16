@@ -1,7 +1,7 @@
 # treehouse admin (admin.treehouse.ng)
 
 The staff console for the whole app: reports, members, private chats (with rules), chatrooms,
-announcements, ads, referrals, settings, staff and the audit log.
+announcements, ads, referrals, Treasure Hunts, settings, staff and the audit log.
 
 It is a small Next.js app in its own folder, deployed as its own Railway service, on its own address.
 It uses the same Supabase project and the same public key as the member app. It holds no secret keys:
@@ -26,6 +26,10 @@ every permission is checked inside the database.
 | Analyst | Dashboard and results only. |
 
 Roles live in the existing `announcement_staff` table (the announcements roles, plus the new Moderator).
+
+## Treasure Hunts
+
+Admins and Super Admins can create and manage Treasure Hunts from **Grow → Treasure Hunts**. Add at least two public checkpoints, set their map coordinates, clue, check radius and in-game coin reward, then choose the hunt dates and status. Double-check every location for safety before opening a route. After a player joins, the route, dates and rewards are locked; staff can still cancel the hunt. The staff page shows player counts, not member location history. Coins are game points and are not cash.
 
 ## What's private and what's logged
 

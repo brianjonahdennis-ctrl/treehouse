@@ -554,6 +554,53 @@ export const kickrsConnect = async () => ((await rpc('kickrs_connect')) || [])[0
 export const kickrsDisconnect = () => rpc('kickrs_disconnect');
 export const kickrsFriendRequest = (kickrsId: string) => rpc('kickrs_friend_request', { p_kickrs_id: kickrsId });
 
+// ---- Treehouse Treasure Hunt ----------------------------------------------------------------------
+export type TreasureHuntSummary = { id: string; title: string; region: string; description: string; starts_at: string; ends_at: string; checkpoint_count: number; participants: number; joined: boolean };
+export type TreasureHuntCheckpoint = { id: string; sequence: number; name: string; hint: string; latitude: number; longitude: number; radius_m: number; reward_coins: number; claimed: boolean };
+export type TreasureHuntProgress = {
+  hunt: { id: string; title: string; region: string; description: string; starts_at: string; ends_at: string; completion_bonus_coins: number };
+  participant: { joined_at: string; last_checkpoint_sequence: number; total_coins: number; completion_bonus_coins: number; completed_at: string | null };
+  checkpoints: TreasureHuntCheckpoint[];
+};
+export type TreasureHuntCursor = { coins: number; joined_at: string; board_key: string };
+export type TreasureHuntLeaderboard = { items: { handle: string; coins: number; checkpoints: number; completed_at: string | null; cursor_key: string; cursor_coins: number; cursor_joined_at: string }[]; has_more: boolean };
+
+let treasureHuntCache: { at: number; hunts: TreasureHuntSummary[] } | null = null;
+const treasureBoardCache = new Map<string, { at: number; data: TreasureHuntLeaderboard }>();
+export const treasureHuntsActive = async (force = false): Promise<TreasureHuntSummary[]> => {
+  if (!force && treasureHuntCache && Date.now() - treasureHuntCache.at < 60000) return treasureHuntCache.hunts;
+  const hunts = (await rpc('treasure_hunts_active')) || [];
+  treasureHuntCache = { at: Date.now(), hunts };
+  return hunts;
+};
+export const treasureHuntJoin = async (hunt: string): Promise<TreasureHuntProgress> => {
+  const data = await rpc('treasure_hunt_join', { p_hunt: hunt });
+  treasureHuntCache = null;
+  return data;
+};
+export const treasureHuntProgress = (hunt: string): Promise<TreasureHuntProgress> => rpc('treasure_hunt_progress', { p_hunt: hunt });
+export const treasureHuntClaimCheckpoint = async (hunt: string, checkpoint: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = crypto.randomUUID()) => {
+  const result = await rpc('treasure_hunt_claim_checkpoint', { p_hunt: hunt, p_checkpoint: checkpoint,
+    p_latitude: location.latitude, p_longitude: location.longitude, p_accuracy_m: location.accuracy, p_request_id: requestId });
+  if (result && result.ok) { treasureHuntCache = null; treasureBoardCache.clear(); }
+  return result as { ok: boolean; error?: string; idempotent?: boolean; coins_awarded?: number; total_coins?: number; checkpoint_sequence?: number };
+};
+export const treasureHuntFinish = async (hunt: string, requestId = crypto.randomUUID()) => {
+  const result = await rpc('treasure_hunt_finish', { p_hunt: hunt, p_request_id: requestId });
+  if (result && result.ok) treasureBoardCache.clear();
+  return result as { ok: boolean; error?: string; idempotent?: boolean; coins_awarded?: number; total_coins?: number };
+};
+export const treasureHuntLeaderboard = async (hunt: string, cursor?: TreasureHuntCursor): Promise<TreasureHuntLeaderboard> => {
+  const key = `${hunt}:${cursor ? `${cursor.coins}:${cursor.joined_at}:${cursor.board_key}` : 'first'}`;
+  const cached = treasureBoardCache.get(key);
+  if (cached && Date.now() - cached.at < 30000) return cached.data;
+  const data = await rpc('treasure_hunt_leaderboard', { p_hunt: hunt, p_limit: 25,
+    p_after_coins: cursor?.coins ?? null, p_after_joined_at: cursor?.joined_at ?? null, p_after_board_key: cursor?.board_key ?? null });
+  treasureBoardCache.set(key, { at: Date.now(), data });
+  while (treasureBoardCache.size > 12) treasureBoardCache.delete(treasureBoardCache.keys().next().value!);
+  return data;
+};
+
 // ---- Speed Dating (three-minute video dates; rules live in the database) ----------------------------
 // Config and relay passwords come from the existing server (/api/*, passed through by next.config.ts).
 export const speedConfig = () => fetch('/api/speed-config', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({ enabled: false }));

@@ -182,6 +182,21 @@
 const mockRated = new Set();
 let mockUsername = null; // usernames (sample: 'ada' can be added as a friend, 'taken' is taken)
 const mockLater = new Set(); // chats where "Not now" was tapped on the rating card
+const mockHuntId = 'd0000000-0000-4000-8000-000000000001';
+const mockHuntCheckpoints = Array.from({ length: 5 }, (_, i) => ({
+  id: `d0000000-0000-4000-8000-00000000000${i + 2}`, sequence: i + 1, name: `Checkpoint ${i + 1}`,
+  hint: ['Follow the blue trail.', 'Look near the open courtyard.', 'The next clue is ahead.', 'Keep the river path in view.', 'The treasure is close.'][i],
+  latitude: 9.0765 + i * 0.0002, longitude: 7.4793 + i * 0.0002, radius_m: 45, reward_coins: 100,
+}));
+function mockHuntProgress() {
+  const last = Number(sessionStorage.getItem('mock-hunt-last') || 0);
+  const bonus = sessionStorage.getItem('mock-hunt-done') ? 100 : 0;
+  return { hunt: { id: mockHuntId, title: 'Treasure Hunt', region: 'Wuse, Abuja · preview', description: 'Follow the clues and collect a Treehouse Coin at every stop.',
+      starts_at: new Date(Date.now() - 3600000).toISOString(), ends_at: new Date(Date.now() + 86400000).toISOString(), completion_bonus_coins: 100 },
+    participant: { joined_at: new Date().toISOString(), last_checkpoint_sequence: last, total_coins: last * 100 + bonus, completion_bonus_coins: bonus,
+      completed_at: sessionStorage.getItem('mock-hunt-done') ? new Date().toISOString() : null },
+    checkpoints: mockHuntCheckpoints.map((c) => ({ ...c, claimed: c.sequence <= last })) };
+}
 const RPC = {
     my_pending_likes: () => likes.length,
     // Preview only: sessionStorage mock-failchats=N makes the next N chat-list loads fail (tests the retry).
@@ -266,6 +281,33 @@ const RPC = {
     kickrs_connect: () => { sessionStorage.setItem('mock-kickrs', '1'); return [{ kickrs_id: '00000000-0000-4000-8000-000000000214', handle: profile.handle, avatar: null }]; },
     kickrs_disconnect: () => { sessionStorage.removeItem('mock-kickrs'); return null; },
     kickrs_friend_request: () => 'c9',
+    treasure_hunts_active: () => empty ? [] : [{ id: mockHuntId, title: 'Treasure Hunt', region: 'Wuse, Abuja · preview',
+      description: 'Follow the clues and collect a Treehouse Coin at every stop.', starts_at: new Date(Date.now() - 3600000).toISOString(),
+      ends_at: new Date(Date.now() + 86400000).toISOString(), checkpoint_count: 5, participants: 27,
+      joined: sessionStorage.getItem('mock-hunt-joined') === '1' }],
+    treasure_hunt_join: () => { sessionStorage.setItem('mock-hunt-joined', '1'); return mockHuntProgress(); },
+    treasure_hunt_progress: () => { if (sessionStorage.getItem('mock-hunt-joined') !== '1') throw new Error('Join this hunt first.'); return mockHuntProgress(); },
+    treasure_hunt_claim_checkpoint: ({ p_checkpoint, p_request_id }) => {
+      if (sessionStorage.getItem('mock-hunt-joined') !== '1') throw new Error('Join this hunt first.');
+      const cp = mockHuntCheckpoints.find((c) => c.id === p_checkpoint); const last = Number(sessionStorage.getItem('mock-hunt-last') || 0);
+      if (!cp || cp.sequence > last + 1) return { ok: false, error: 'Follow the checkpoints in order.' };
+      const claims = JSON.parse(sessionStorage.getItem('mock-hunt-claims') || '{}');
+      if (claims[p_request_id] || cp.sequence <= last) return { ok: true, idempotent: true, coins_awarded: cp.reward_coins, total_coins: last * 100, checkpoint_sequence: last };
+      claims[p_request_id] = cp.id; sessionStorage.setItem('mock-hunt-claims', JSON.stringify(claims));
+      sessionStorage.setItem('mock-hunt-last', String(cp.sequence));
+      return { ok: true, idempotent: false, coins_awarded: cp.reward_coins, total_coins: cp.sequence * 100, checkpoint_sequence: cp.sequence };
+    },
+    treasure_hunt_finish: () => {
+      const last = Number(sessionStorage.getItem('mock-hunt-last') || 0);
+      if (last < mockHuntCheckpoints.length) return { ok: false, error: 'Find every checkpoint before claiming the treasure.' };
+      const first = !sessionStorage.getItem('mock-hunt-done'); sessionStorage.setItem('mock-hunt-done', '1');
+      return { ok: true, idempotent: !first, coins_awarded: first ? 100 : 100, total_coins: last * 100 + 100 };
+    },
+    treasure_hunt_leaderboard: () => ({ items: [
+      { handle: 'Lucky Dolphin 214', coins: 500, checkpoints: 5, completed_at: new Date().toISOString(), cursor_key: 'd0000000-0000-4000-8000-000000000010', cursor_coins: 500, cursor_joined_at: new Date(Date.now() - 180000).toISOString() },
+      { handle: 'Golden Kite 731', coins: 400, checkpoints: 4, completed_at: null, cursor_key: 'd0000000-0000-4000-8000-000000000011', cursor_coins: 400, cursor_joined_at: new Date(Date.now() - 120000).toISOString() },
+      { handle: 'Quiet Falcon 086', coins: 300, checkpoints: 3, completed_at: null, cursor_key: 'd0000000-0000-4000-8000-000000000012', cursor_coins: 300, cursor_joined_at: new Date(Date.now() - 60000).toISOString() },
+    ], has_more: false }),
     // Matches → friends: in Golden Kite's chat (c3) they've asked you; elsewhere nobody has yet.
     friend_ask_state: ({ p_conversation }) => { const c = convos.find((x) => x.conversation_id === p_conversation); return !c ? null : c.kind === 'friend' ? 'friends' : (friendAsks[p_conversation] || (p_conversation === 'c3' ? 'theirs' : 'none')); },
     my_friend_asks: () => { const out = Object.entries(friendAsks).filter(([, v]) => v === 'mine' || v === 'theirs').map(([k, v]) => ({ conversation_id: k, who: v }));
