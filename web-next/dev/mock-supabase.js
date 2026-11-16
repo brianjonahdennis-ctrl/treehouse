@@ -310,11 +310,16 @@ const RPC = {
       const first = !sessionStorage.getItem('mock-hunt-done'); sessionStorage.setItem('mock-hunt-done', '1');
       return { ok: true, idempotent: !first, coins_awarded: first ? 100 : 100, total_coins: last * 100 + 100 };
     },
-    treasure_hunt_leaderboard: () => ({ items: [
-      { handle: 'Lucky Dolphin 214', coins: 500, checkpoints: 5, completed_at: new Date().toISOString(), cursor_key: 'd0000000-0000-4000-8000-000000000010', cursor_coins: 500, cursor_joined_at: new Date(Date.now() - 180000).toISOString() },
-      { handle: 'Golden Kite 731', coins: 400, checkpoints: 4, completed_at: null, cursor_key: 'd0000000-0000-4000-8000-000000000011', cursor_coins: 400, cursor_joined_at: new Date(Date.now() - 120000).toISOString() },
-      { handle: 'Quiet Falcon 086', coins: 300, checkpoints: 3, completed_at: null, cursor_key: 'd0000000-0000-4000-8000-000000000012', cursor_coins: 300, cursor_joined_at: new Date(Date.now() - 60000).toISOString() },
-    ], has_more: false }),
+    treasure_hunt_leaderboard: () => {
+      const finished = sessionStorage.getItem('mock-hunt-ended') === '1' || sessionStorage.getItem('mock-hunt-status') === 'completed';
+      const ownCoins = Number(sessionStorage.getItem('mock-hunt-last') || 0) * 100 + (sessionStorage.getItem('mock-hunt-done') ? 100 : 0);
+      if (!finished) return { visibility: 'self', player_count: 27, own_rank: 14, own_coins: ownCoins, items: [], has_more: false };
+      return { visibility: 'full', player_count: 3, own_rank: 2, own_coins: ownCoins, items: [
+        { rank: 1, handle: 'Lucky Dolphin 214', coins: 500, checkpoints: 5, completed_at: new Date().toISOString(), cursor_key: 'd0000000-0000-4000-8000-000000000010', cursor_coins: 500, cursor_joined_at: new Date(Date.now() - 180000).toISOString() },
+        { rank: 2, handle: 'Golden Kite 731', coins: 400, checkpoints: 4, completed_at: null, cursor_key: 'd0000000-0000-4000-8000-000000000011', cursor_coins: 400, cursor_joined_at: new Date(Date.now() - 120000).toISOString() },
+        { rank: 3, handle: 'Quiet Falcon 086', coins: 300, checkpoints: 3, completed_at: null, cursor_key: 'd0000000-0000-4000-8000-000000000012', cursor_coins: 300, cursor_joined_at: new Date(Date.now() - 60000).toISOString() },
+      ], has_more: false };
+    },
     staff_treasure_hunts: () => JSON.parse(sessionStorage.getItem('mock-staff-hunts') || JSON.stringify([{ id: mockHuntId, title: 'Treasure Hunt Preview', region: 'Wuse, Abuja', description: 'Sample safe route.', status: 'draft',
       starts_at: new Date(Date.now() + 86400000).toISOString(), ends_at: new Date(Date.now() + 2 * 86400000).toISOString(), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', participant_count: 0,
       start_points: [{ id: 'mock-start-1', sequence: 1, name: 'Wuse Market start', latitude: 9.0765, longitude: 7.4793, radius_m: 60, reward_coins: 0 }],

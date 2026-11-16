@@ -565,7 +565,14 @@ export type TreasureHuntProgress = {
 };
 export type TreasureHuntRoutePoint = { id: string; name: string; latitude: number; longitude: number; radius_m: number; reward_coins: number };
 export type TreasureHuntCursor = { coins: number; joined_at: string; board_key: string };
-export type TreasureHuntLeaderboard = { items: { handle: string; coins: number; checkpoints: number; completed_at: string | null; cursor_key: string; cursor_coins: number; cursor_joined_at: string }[]; has_more: boolean };
+export type TreasureHuntLeaderboard = {
+  visibility: 'self' | 'full';
+  player_count: number;
+  own_rank: number;
+  own_coins: number;
+  items: { rank: number; handle: string; coins: number; checkpoints: number; completed_at: string | null; cursor_key: string; cursor_coins: number; cursor_joined_at: string }[];
+  has_more: boolean;
+};
 
 let treasureHuntCache: { at: number; hunts: TreasureHuntSummary[] } | null = null;
 const treasureBoardCache = new Map<string, { at: number; data: TreasureHuntLeaderboard }>();
@@ -609,7 +616,9 @@ export const treasureHuntLeaderboard = async (hunt: string, cursor?: TreasureHun
   if (cached && Date.now() - cached.at < 30000) return cached.data;
   const data = await rpc('treasure_hunt_leaderboard', { p_hunt: hunt, p_limit: 25,
     p_after_coins: cursor?.coins ?? null, p_after_joined_at: cursor?.joined_at ?? null, p_after_board_key: cursor?.board_key ?? null });
-  treasureBoardCache.set(key, { at: Date.now(), data });
+  // A live response contains the caller's private rank and coin total. Do not
+  // keep it in a module cache that could survive an account switch in this tab.
+  if (data.visibility === 'full') treasureBoardCache.set(key, { at: Date.now(), data });
   while (treasureBoardCache.size > 12) treasureBoardCache.delete(treasureBoardCache.keys().next().value!);
   return data;
 };

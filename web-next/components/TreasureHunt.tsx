@@ -179,7 +179,7 @@ function HuntProgress({ data, busy, notice, showBoard, showCamera, hideCamera, o
         </li>)}</ol>
       </section>
       <section className="card th-board-card">
-        <button className="th-board-toggle" onClick={onToggleBoard} aria-expanded={showBoard}><span>🏆 Leaderboard <small>See how other players are doing</small></span><Icon name="chev" cls="sm" /></button>
+        <button className="th-board-toggle" onClick={onToggleBoard} aria-expanded={showBoard}><span>🏆 Leaderboard <small>Your standing now; full names after the hunt ends</small></span><Icon name="chev" cls="sm" /></button>
         {showBoard ? <Leaderboard hunt={data.hunt.id} /> : null}
       </section>
       <p className="tiny muted th-safety">Keep your eyes on the road and surroundings. Camera images never leave your phone.</p>
@@ -189,6 +189,7 @@ function HuntProgress({ data, busy, notice, showBoard, showCamera, hideCamera, o
 
 function Leaderboard({ hunt }: { hunt: string }) {
   const [items, setItems] = useState<api.TreasureHuntLeaderboard['items']>([]);
+  const [board, setBoard] = useState<api.TreasureHuntLeaderboard | null>(null);
   const [cursor, setCursor] = useState<api.TreasureHuntCursor | undefined>();
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -197,6 +198,7 @@ function Leaderboard({ hunt }: { hunt: string }) {
     setLoading(true); setError('');
     try {
       const data = await api.treasureHuntLeaderboard(hunt, after);
+      setBoard(data);
       setItems((prev) => after ? [...prev, ...data.items] : data.items); setHasMore(data.has_more);
       const last = data.items[data.items.length - 1];
       setCursor(last ? { coins: last.cursor_coins, joined_at: last.cursor_joined_at, board_key: last.cursor_key } : undefined);
@@ -204,8 +206,13 @@ function Leaderboard({ hunt }: { hunt: string }) {
     finally { setLoading(false); }
   };
   useEffect(() => { void page(); }, [hunt]);
+  if (board?.visibility === 'self') return <div className="th-board-list" aria-live="polite">
+    <div className="th-board-row"><span className="th-board-rank">#{board.own_rank}</span><b>Your standing</b><span>{board.own_coins.toLocaleString()} coins</span></div>
+    <span className="muted small">You’re ranked {board.own_rank} of {board.player_count} players. Other players’ details stay hidden until the hunt ends.</span>
+  </div>;
   return <div className="th-board-list">
-    {items.map((item, i) => <div className="th-board-row" key={`${item.handle}-${item.cursor_key}`}><span className="th-board-rank">{i < 3 && !cursor ? ['🥇', '🥈', '🥉'][i] : i + 1}</span><b>{item.handle}</b><span>{item.coins.toLocaleString()} coins</span></div>)}
+    {board ? <span className="muted small">Final standings · {board.player_count} players</span> : null}
+    {items.map((item) => <div className="th-board-row" key={`${item.handle}-${item.cursor_key}`}><span className="th-board-rank">{item.rank <= 3 ? ['🥇', '🥈', '🥉'][item.rank - 1] : item.rank}</span><b>{item.handle}</b><span>{item.coins.toLocaleString()} coins</span></div>)}
     {error ? <p className="error" role="alert">{error}</p> : null}
     {loading && !items.length ? <span className="muted small">Loading leaderboard…</span> : null}
     {!loading && !items.length && !error ? <span className="muted small">No players yet. Be the first!</span> : null}
