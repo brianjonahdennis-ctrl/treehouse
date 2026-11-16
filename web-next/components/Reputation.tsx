@@ -348,12 +348,14 @@ export function ChatRatePrompt({ convo, name, tick }: { convo: string; name: str
   const [stars, setStars] = useState(0);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  // Ask when the chat opens, then every 5 new messages (not on every message), and not while it's showing.
+  const step = Math.floor((tick || 0) / 5);
   useEffect(() => {
-    if (done) return;
+    if (done || show) return;
     let alive = true;
-    const t = setTimeout(() => { api.ratingPrompt(convo).then((r: any) => { if (alive) setShow(!!(r && r.show)); }).catch(() => {}); }, tick ? 2500 : 600);
+    const t = setTimeout(() => { api.ratingPrompt(convo).then((r: any) => { if (alive) setShow(!!(r && r.show)); }).catch(() => {}); }, step ? 2500 : 600);
     return () => { alive = false; clearTimeout(t); };
-  }, [convo, tick, done]);
+  }, [convo, step, done]); // eslint-disable-line react-hooks/exhaustive-deps
   if (done) return <div className="rate-prompt done" role="status"><span aria-hidden="true">⭐</span> Thanks! Your rating was submitted anonymously.</div>;
   if (!show) return null;
   const later = async () => { setShow(false); try { await api.ratingPromptLater(convo); } catch { /* shows again next time */ } };

@@ -268,15 +268,24 @@ function useDrag() {
 
 // ---- Chat header buttons ------------------------------------------------------------------------------
 /** Phone and video buttons for a chat, shown only once the database says calls are available here. */
+// Once calls are available in a chat they stay available for this session; until then we ask again
+// at most every 2 minutes and only after more messages (the answer is only yes/no).
+const callOk = new Set<string>();
+const callAsked = new Map<string, { at: number; key: number }>();
 export function ChatCallActions({ conversationId, other, refreshKey }: { conversationId: string; other: string; refreshKey: number }) {
-  const [ok, setOk] = useState(false);
+  const [ok, setOk] = useState(callOk.has(conversationId));
   const [busy, setBusy] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {
-    if (calls.callsHiddenHere() || ok) return;
-    let alive = true;
-    api.callAvailable(conversationId).then((v) => { if (alive) setOk(v); });
-    return () => { alive = false; };
-  }, [conversationId, refreshKey, ok]);
+    if (calls.callsHiddenHere()) return;
+    if (callOk.has(conversationId)) { setOk(true); return; }
+    const last = callAsked.get(conversationId);
+    if (last && (last.key === refreshKey || Date.now() - last.at < 120000)) return;
+    callAsked.set(conversationId, { at: Date.now(), key: refreshKey });
+    // The answer is kept even if this screen re-rendered meanwhile (only a yes is remembered).
+    api.callAvailable(conversationId).then((v) => { if (v) { callOk.add(conversationId); if (mounted.current) setOk(true); } });
+  }, [conversationId, refreshKey]);
   if (!ok) return null;
   const go = async (kind: calls.CallKind) => {
     if (busy) return;

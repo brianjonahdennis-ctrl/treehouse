@@ -18,7 +18,7 @@ type Board = { enabled: boolean; week_start: string; week_end: string; ends_at: 
 
 let boardCache: { at: number; b: Board } | null = null;
 export async function loadBoard(force = false): Promise<Board | null> {
-  if (!force && boardCache && Date.now() - boardCache.at < 60e3) return boardCache.b;
+  if (!force && boardCache && Date.now() - boardCache.at < 600e3) return boardCache.b;   // Home card: 10 minutes (the board page always fetches fresh)
   try { const b = await api.inviteLeaderboard(); boardCache = { at: Date.now(), b }; return b; } catch { return null; }
 }
 

@@ -28,6 +28,9 @@ type Msg = { id: string; sender_id: string; body: string; created_at: string; re
 const EDIT_WINDOW = 15 * 60 * 1000;
 const coarse = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 
+// Chats whose photos (and voice notes) are unlocked: they never lock again, so we stop asking.
+const photosOpen = new Set<string>();
+
 export default function Chat({ id }: { id: string }) {
   const s = useAppState();
   const convo: Convo | undefined = s.convos.find((c) => c.conversation_id === id);
@@ -128,19 +131,21 @@ function ChatView({ convo }: { convo: Convo }) {
 
   const scroll = useCallback(() => requestAnimationFrame(() => { const b = body.current; if (b) b.scrollTop = b.scrollHeight; }), []);
   const checkPhotos = useCallback(() => {
+    // Once unlocked, photos stay unlocked for this chat: no need to ask the database again.
+    if (photosOpen.has(id)) { setPhotoOk(true); return Promise.resolve(true); }
     if (photoCheck.current) return photoCheck.current;
     const c = state.convos.find((x) => x.conversation_id === id);
     photoCheck.current = (c && statusOf(c) === 'chat' ? api.photosUnlocked(id) : Promise.resolve(false))
-      .then((v: boolean) => { setPhotoOk(v); sinceCheck.current = 0; return v; })
+      .then((v: boolean) => { setPhotoOk(v); sinceCheck.current = 0; if (v) photosOpen.add(id); return v; })
       .catch(() => false)
       .finally(() => { photoCheck.current = null; });
     return photoCheck.current!;
   }, [id]);
   const add = useCallback((m: Msg) => {
-    if (!m.photo && ++sinceCheck.current >= 6) checkPhotos();
+    if (!m.photo && !photosOpen.has(id) && ++sinceCheck.current >= 10) checkPhotos();
     setMsgs((list) => (list.some((x) => x.id === m.id) ? list : [...list.filter((x) => !(x.pending && m.sender_id === me && x.body === m.body)), m]));
     if (!lastMsg.current || new Date(m.created_at) >= new Date(lastMsg.current.created_at)) lastMsg.current = m;
-  }, [me, checkPhotos]);
+  }, [me, id, checkPhotos]);
   const update = useCallback((m: Partial<Msg> & { id: string }) => setMsgs((list) => list.map((x) => (x.id === m.id ? { ...x, ...m } : x))), []);
   const loadOlder = useCallback(async () => {
     const first = msgsRef.current.find((x) => !x.pending);
@@ -470,7 +475,7 @@ function ChatView({ convo }: { convo: Convo }) {
             {convo.blocked ? null : <span className="chat-bird"><ConvoBird id={convo.conversation_id} /></span>}
           </span>
         </div>
-        {convo.blocked ? null : <ChatCallActions conversationId={convo.conversation_id} other={nameOf(convo)} refreshKey={Math.floor(msgs.length / 5)} />}
+        {convo.blocked ? null : <ChatCallActions conversationId={convo.conversation_id} other={nameOf(convo)} refreshKey={Math.floor(msgs.length / 10)} />}
         <RevealPill convo={convo} />
         <button className="plain-btn" aria-label="Chat options" onClick={() => chatMenu(convo)}><Icon name="more" /></button>
       </div>

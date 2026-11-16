@@ -208,6 +208,9 @@ function startLive() {
   }, () => loadDating({ minGap: 30000 }));   // live connection came back: catch up on missed messages
   api.pauseLiveInBackground();
   setInterval(() => { if (!document.hidden) loadDating(); }, 600000);
+  // "I'm here" every 4 minutes while treehouse is on screen: the database only sends live message
+  // signals to people seen in the last 15 minutes, so this keeps anyone looking at treehouse included.
+  setInterval(() => { if (!document.hidden) api.touchLastSeen().catch(() => {}); }, 240000);
   // Chatrooms kick people inactive for 10 minutes; while treehouse is on screen, keep the seat.
   const roomBeat = async () => {
     if (document.hidden || state.inRoom === false) return;

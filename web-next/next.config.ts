@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   env: { NEXT_PUBLIC_BUILD: BUILD },
   poweredByHeader: false,
+  // Screens are drawn on the phone and are the same for everyone (data loads separately, live), so a
+  // visited screen can be reused for 10 minutes instead of fetched from our server on every tap.
+  experimental: { staleTimes: { dynamic: 600, static: 1800 } },
   async headers() {
     return [{
       // The push-notification worker must always be re-checked, so updates reach phones.

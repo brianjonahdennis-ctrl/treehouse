@@ -38,7 +38,7 @@ export default function Home() {
   const profile = s.profile;
   const [myRoom, setMyRoom] = useState<any>(myRoomCache);
   useEffect(() => {
-    if (Date.now() - roomAt < 20000) return;
+    if (Date.now() - roomAt < 120000) return;   // reuse for 2 minutes (the Chatrooms tab has the live view)
     roomAt = Date.now();
     api.roomList().then((rows: any[]) => { myRoomCache = rows.find((r) => r.mine) || null; state.inRoom = !!myRoomCache; setMyRoom(myRoomCache); }).catch(() => {});
   }, []);

@@ -481,7 +481,7 @@ export function pauseLiveInBackground(afterMs = 60000) {
 export function joinChat(conversationId: string, me: string, { onMessage, onUpdate, onTyping, onPresence, onRead, onReconnect }: {
   onMessage: (m: any) => void; onUpdate?: (m: any) => void; onTyping: () => void; onPresence?: (here: boolean) => void; onRead?: () => void; onReconnect?: () => void;
 }) {
-  let fallback: any = null, joined = 0;
+  let joined = 0;
   const msg = (m: any) => { if (m && m.sender_id !== me) live.arrived('chat', m.created_at); onMessage(m); };
   const liveCh = sb.channel(`chat:${conversationId}`, { config: { private: true } })
     .on('broadcast', { event: 'message' }, ({ payload }: any) => msg(payload))
@@ -490,16 +490,8 @@ export function joinChat(conversationId: string, me: string, { onMessage, onUpda
       if (!livePaused) live.status('chat', status);
       // Joined again after a drop: fetch what was missed.
       if (status === 'SUBSCRIBED' && ++joined > 1 && onReconnect) onReconnect();
-      // Live again: the database backup route isn't needed any more (it costs database time).
-      if (status === 'SUBSCRIBED' && fallback) { sb.removeChannel(fallback); fallback = null; }
-      // Paused in the background on purpose: no backup route (the catch-up on return covers it).
-      if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && !fallback && !livePaused && !document.hidden) {
-        live.status('chat', 'fallback');
-        fallback = sb.channel(`hy-chat-db-${conversationId}`)
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dating_messages', filter: `conversation_id=eq.${conversationId}` }, (p: any) => msg(p.new))
-          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'dating_messages', filter: `conversation_id=eq.${conversationId}` }, (p: any) => { if (onUpdate) onUpdate(p.new); })
-          .subscribe();
-      }
+      // No database backup route any more (cost review 2, 16 Nov 2026): new messages reach an open chat
+      // through the inbox signal, and a dropped connection is covered by the catch-up when it rejoins.
     });
   const ch = sb.channel(`hy-chat-${conversationId}`, { config: { broadcast: { self: false }, presence: { key: me } } })
     .on('broadcast', { event: 'typing' }, (p: any) => { if (p.payload && p.payload.from !== me) onTyping(); })
@@ -511,7 +503,7 @@ export function joinChat(conversationId: string, me: string, { onMessage, onUpda
   return {
     read,
     typing() { const now = Date.now(); if (now - last > 2500) { last = now; ch.send({ type: 'broadcast', event: 'typing', payload: { from: me } }); } },
-    leave() { sb.removeChannel(ch); sb.removeChannel(liveCh); if (fallback) sb.removeChannel(fallback); },
+    leave() { sb.removeChannel(ch); sb.removeChannel(liveCh); },
   };
 }
 
