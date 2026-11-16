@@ -21,15 +21,30 @@ const distanceAndBearing = (a: Position, b: { latitude: number; longitude: numbe
   const y = Math.cos(a.latitude * rad) * Math.sin(b.latitude * rad) - Math.sin(a.latitude * rad) * Math.cos(b.latitude * rad) * Math.cos(dLon);
   const angle = (Math.atan2(x, y) * 180 / Math.PI + 360) % 360;
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad) * Math.sin(dLon / 2) ** 2;
-  return { metres: 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)), bearing: angle };
+  return { metres: 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)), bearing: angle, accuracy: a.accuracy };
+};
+const compassHeading = (raw: DeviceOrientationEvent, absoluteEvent = false): number | null => {
+  const event = raw as DeviceOrientationEvent & { webkitCompassHeading?: number };
+  const normalise = (value: number) => (value % 360 + 360) % 360;
+  if (typeof event.webkitCompassHeading === 'number' && Number.isFinite(event.webkitCompassHeading)) return normalise(event.webkitCompassHeading);
+  if (!absoluteEvent && event.absolute !== true) return null;
+  if (event.alpha == null || event.beta == null || event.gamma == null) return null;
+  const screenRotation = window.screen.orientation?.angle ?? (window as Window & { orientation?: number }).orientation ?? 0;
+  const alpha = normalise(event.alpha + screenRotation) * Math.PI / 180;
+  const beta = event.beta * Math.PI / 180;
+  const gamma = event.gamma * Math.PI / 180;
+  // Transform the back-facing camera vector into earth coordinates, accounting for
+  // the phone's pitch, roll and current screen rotation before finding its bearing.
+  const east = -(Math.cos(alpha) * Math.sin(gamma) + Math.sin(alpha) * Math.sin(beta) * Math.cos(gamma));
+  const north = -(Math.sin(alpha) * Math.sin(gamma) - Math.cos(alpha) * Math.sin(beta) * Math.cos(gamma));
+  if (Math.hypot(east, north) < 0.1) return null;
+  return normalise(Math.atan2(east, north) * 180 / Math.PI);
 };
 const relativeTime = (date: string) => {
   const ms = Math.max(0, Date.parse(date) - Date.now());
   const mins = Math.ceil(ms / 60000);
   return mins < 60 ? `in ${mins} min` : `in ${Math.ceil(mins / 60)} hr`;
 };
-const isIOSApp = () => api.isNativeApp() && typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-
 export default function TreasureHunt() {
   const [hunts, setHunts] = useState<Hunt[] | null>(null);
   const [loadError, setLoadError] = useState('');
@@ -37,11 +52,10 @@ export default function TreasureHunt() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [showBoard, setShowBoard] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [arrived, setArrived] = useState(false);
   const run = useRef(0);
 
-  useEffect(() => { setIsIOS(isIOSApp()); }, []);
   const loadHunts = useCallback(() => api.treasureHuntsActive().then(setHunts).catch((e) => setLoadError(api.friendly(e))), []);
   useEffect(() => { void loadHunts(); }, [loadHunts]);
 
@@ -50,7 +64,7 @@ export default function TreasureHunt() {
     try {
       const data = hunt.joined ? await api.treasureHuntProgress(hunt.id)
         : await api.treasureHuntJoin(hunt.id, hunt.route_assignment_required ? await positionOnce() : { latitude: 0, longitude: 0, accuracy: 1 });
-      setProgress(data); setShowCamera(false); setShowBoard(false);
+      setProgress(data); setShowCamera(false); setArrived(false); setShowBoard(false);
     } catch (e) { setNotice(api.friendly(e)); }
     setBusy(false);
   };
@@ -105,8 +119,8 @@ export default function TreasureHunt() {
   };
 
   if (progress) return <HuntProgress data={progress} busy={busy} notice={notice} showBoard={showBoard}
-    showCamera={showCamera} hideCamera={isIOS} onBack={() => { run.current++; setProgress(null); void loadHunts(); }}
-    onCollect={collect} onFinish={finish} onToggleBoard={() => setShowBoard((x) => !x)} onToggleCamera={() => setShowCamera((x) => !x)} />;
+    showCamera={showCamera} arrived={arrived} onCameraChange={setShowCamera} onArrivalChange={setArrived} onBack={() => { run.current++; setShowCamera(false); setArrived(false); setProgress(null); void loadHunts(); }}
+    onCollect={collect} onFinish={finish} onToggleBoard={() => setShowBoard((x) => !x)} />;
 
   return (
     <div className="stack-lg th-hunt">
@@ -133,17 +147,17 @@ export default function TreasureHunt() {
   );
 }
 
-function HuntProgress({ data, busy, notice, showBoard, showCamera, hideCamera, onBack, onCollect, onFinish, onToggleBoard, onToggleCamera }: {
+function HuntProgress({ data, busy, notice, showBoard, showCamera, arrived, onCameraChange, onArrivalChange, onBack, onCollect, onFinish, onToggleBoard }: {
   data: Progress; busy: boolean; notice: string; showBoard: boolean;
-  showCamera: boolean; hideCamera: boolean; onBack: () => void; onCollect: () => void; onFinish: () => void;
-  onToggleBoard: () => void; onToggleCamera: () => void;
+  showCamera: boolean; arrived: boolean; onCameraChange: (open: boolean) => void; onArrivalChange: (arrived: boolean) => void;
+  onBack: () => void; onCollect: () => void; onFinish: () => void;
+  onToggleBoard: () => void;
 }) {
   const next = data.checkpoints.find((c) => !c.claimed);
   const done = !!data.participant.completed_at;
   const startPending = !!data.route?.start && !data.route.start_claimed_at;
   const finishPending = !done && !next && !!data.route?.finish;
   const routeTarget = startPending ? data.route?.start : next || (finishPending ? data.route?.finish : null);
-  const routeTargetName = startPending ? 'Starting point' : finishPending ? 'Final treasure' : 'Next checkpoint';
   return (
     <div className="stack-lg th-hunt th-progress">
       <Hero title={data.hunt.title} sub={`📍 ${data.hunt.region}`} actions={<button className="hero-btn" aria-label="Back to hunts" onClick={onBack}><Icon name="back" /></button>} />
@@ -152,7 +166,7 @@ function HuntProgress({ data, busy, notice, showBoard, showCamera, hideCamera, o
         {done ? (
           <><div className="th-treasure-big" aria-hidden="true">{data.hunt.treasure_avatar || '🏆'}</div><h2>Hunt complete!</h2><p>You collected {data.participant.total_coins.toLocaleString()} Treehouse Coins.</p></>
         ) : startPending ? (
-          <><div className="th-treasure-big" aria-hidden="true">📍</div><h2>{data.route?.start?.name}</h2><p>Starting location · check in here to unlock your checkpoint trail.</p></>
+          <><div className="th-treasure-big" aria-hidden="true">📍</div><h2>{data.route?.start?.name}</h2><p>{arrived ? 'You’ve arrived at the starting point. Check in below to unlock your checkpoint trail.' : 'Follow the AR direction to this starting location, then check in to unlock your checkpoint trail.'}</p></>
         ) : next ? (
           <>
             <h2>{next.name}</h2><p>{next.hint || 'Follow the trail to reach this stop.'}</p>
@@ -164,14 +178,13 @@ function HuntProgress({ data, busy, notice, showBoard, showCamera, hideCamera, o
       </section>
       <div className="th-score"><span>{data.hunt.coin_avatar || '🪙'} <b>{data.participant.total_coins.toLocaleString()}</b> coins</span><span>⚑ {data.participant.last_checkpoint_sequence} of {data.checkpoints.length}</span></div>
       {notice ? <p className="error th-error" role="alert">{notice}</p> : null}
+      {routeTarget && !done ? <LocalAR checkpoint={routeTarget.name} destination={routeTarget} active={showCamera} onActiveChange={onCameraChange} onArrivalChange={onArrivalChange} /> : null}
       {routeTarget && !done ? <div className={`th-actions${showCamera ? ' th-actions-ar-open' : ''}`}>
-        {!hideCamera ? <button className={`btn btn-soft${showCamera ? ' th-ar-close-button' : ''}`} onClick={onToggleCamera} disabled={busy}>{showCamera ? 'Close AR view' : '◎ Find with camera'}</button> : null}
-        {startPending ? <button className="btn btn-primary btn-block th-collect" onClick={onCollect} disabled={busy}>{busy ? 'Checking location…' : `Check in at start · +${data.route?.start?.reward_coins || 0} coins`}</button>
+        {showCamera ? <button className="btn btn-soft th-ar-close-button" onClick={() => onCameraChange(false)} disabled={busy}>Close AR view</button> : null}
+        {startPending ? <button className="btn btn-primary btn-block th-collect" onClick={onCollect} disabled={busy}>{busy ? 'Checking location…' : arrived ? `You’re here · Check in · +${data.route?.start?.reward_coins || 0} coins` : `Check in at start · +${data.route?.start?.reward_coins || 0} coins`}</button>
           : next ? <button className="btn btn-primary btn-block th-collect" onClick={onCollect} disabled={busy}>{busy ? 'Checking location…' : `Collect checkpoint · +${next.reward_coins} coins`}</button>
           : null}
       </div> : null}
-      {hideCamera && routeTarget ? <p className="tiny muted th-ar-unavailable">Camera directions are unavailable in the iPhone app. Follow the clue to the {routeTargetName.toLowerCase()} and check in when you arrive.</p> : null}
-      {showCamera && routeTarget && !hideCamera ? <LocalAR checkpoint={routeTarget.name} destination={routeTarget} /> : null}
       <section className="card th-checkpoints">
         <div className="th-section-title"><div><h2>Checkpoint trail</h2><p className="muted">Each stop unlocks after the one before.</p></div><span className="th-progress-num">{data.participant.last_checkpoint_sequence}/{data.checkpoints.length}</span></div>
         <ol>{data.checkpoints.map((c) => <li key={c.id} className={c.claimed ? 'claimed' : c.id === next?.id ? 'next' : ''}>
@@ -220,52 +233,105 @@ function Leaderboard({ hunt }: { hunt: string }) {
   </div>;
 }
 
-function LocalAR({ checkpoint, destination }: { checkpoint: string; destination: Pick<api.TreasureHuntCheckpoint, 'latitude' | 'longitude'> }) {
+function LocalAR({ checkpoint, destination, active, onActiveChange, onArrivalChange }: {
+  checkpoint: string;
+  destination: Pick<api.TreasureHuntCheckpoint, 'latitude' | 'longitude' | 'radius_m'>;
+  active: boolean;
+  onActiveChange: (open: boolean) => void;
+  onArrivalChange: (arrived: boolean) => void;
+}) {
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
-  const [on, setOn] = useState(false);
+  const destinationRef = useRef(destination);
+  destinationRef.current = destination;
+  const [requesting, setRequesting] = useState(false);
   const [error, setError] = useState('');
   const [heading, setHeading] = useState<number | null>(null);
-  const [route, setRoute] = useState<{ metres: number; bearing: number } | null>(null);
+  const [compassAvailable, setCompassAvailable] = useState(false);
+  const [route, setRoute] = useState<{ metres: number; bearing: number; accuracy: number } | null>(null);
+  const hasArrived = !!route && route.accuracy <= 30 && route.metres <= destinationRef.current.radius_m;
+  const needsCloseGuidance = !!route && (route.accuracy > 30 || route.metres <= route.accuracy);
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${destination.latitude},${destination.longitude}`)}&travelmode=walking&dir_action=navigate`;
+  useEffect(() => {
+    if (!active) { onArrivalChange(false); return; }
+    const camera = stream.current;
+    const videoElement = video.current;
+    if (!camera || !videoElement) {
+      setError('The camera could not start. Close AR and try again.');
+      onActiveChange(false);
+      return;
+    }
+    videoElement.srcObject = camera;
+    void videoElement.play().catch(() => setError('The camera is ready, but this phone could not display its picture. Close AR and try again.'));
+    const setCompass = (ev: DeviceOrientationEvent, absoluteEvent = false) => {
+      const value = compassHeading(ev, absoluteEvent);
+      if (value == null) return;
+      setHeading(Math.round(value));
+      setCompassAvailable(true);
+    };
+    const onAbsoluteOrientation = (ev: Event) => setCompass(ev as DeviceOrientationEvent, true);
+    const onOrientation = (ev: DeviceOrientationEvent) => setCompass(ev);
+    window.addEventListener('deviceorientationabsolute', onAbsoluteOrientation);
+    window.addEventListener('deviceorientation', onOrientation);
+    let watchId: number | null = null;
+    if (!navigator.geolocation) {
+      setError('Allow location access to update directions as you walk.');
+      onArrivalChange(false);
+    } else {
+      watchId = navigator.geolocation.watchPosition((position) => {
+        const current = distanceAndBearing({ latitude: position.coords.latitude, longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy }, destinationRef.current);
+        setRoute(current);
+        onArrivalChange(current.accuracy <= 30 && current.metres <= destinationRef.current.radius_m);
+        setError('');
+      }, () => { onArrivalChange(false); setError('Allow location access to update directions as you walk.'); },
+      { enableHighAccuracy: true, maximumAge: 1500, timeout: 15000 });
+    }
+    return () => {
+      window.removeEventListener('deviceorientation', onOrientation);
+      window.removeEventListener('deviceorientationabsolute', onAbsoluteOrientation);
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      videoElement.pause();
+      videoElement.srcObject = null;
+      camera.getTracks().forEach((track) => track.stop());
+      stream.current = null;
+      onArrivalChange(false);
+    };
+  }, [active, onActiveChange, onArrivalChange]);
   useEffect(() => () => {
-    const s = stream.current as (MediaStream & { __orientationHandler?: (ev: DeviceOrientationEvent) => void }) | null;
-    if (s?.__orientationHandler) window.removeEventListener('deviceorientation', s.__orientationHandler);
-    s?.getTracks().forEach((track) => track.stop());
+    stream.current?.getTracks().forEach((track) => track.stop());
+    stream.current = null;
   }, []);
   const enable = async () => {
     setError('');
+    setRequesting(true);
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access is not available in this browser.');
-      const streamHere = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
-      stream.current = streamHere;
-      if (video.current) { video.current.srcObject = streamHere; await video.current.play(); }
-      const DeviceOrientation = (typeof DeviceOrientationEvent === 'undefined' ? {} : DeviceOrientationEvent) as { requestPermission?: () => Promise<string> };
-      if (DeviceOrientation.requestPermission) { try { await DeviceOrientation.requestPermission(); } catch {} }
-      try { setRoute(distanceAndBearing(await positionOnce(), destination)); }
-      catch (e) { setError((e as Error).message || 'Allow location to see directions in the camera view.'); }
-      const onOrientation = (ev: DeviceOrientationEvent) => {
-        const e = ev as DeviceOrientationEvent & { webkitCompassHeading?: number };
-        const value = typeof e.webkitCompassHeading === 'number' ? e.webkitCompassHeading : e.alpha == null ? null : (360 - e.alpha) % 360;
-        if (value != null && Number.isFinite(value)) setHeading(Math.round(value));
-      };
-      window.addEventListener('deviceorientation', onOrientation);
-      streamHere.getVideoTracks()[0]?.addEventListener('ended', () => setOn(false));
-      (streamHere as MediaStream & { __orientationHandler?: (ev: DeviceOrientationEvent) => void }).__orientationHandler = onOrientation;
-      setOn(true);
-    } catch (e) { setError((e as Error).message || 'Could not open the camera.'); }
-  };
-  const turnOff = () => {
-    stream.current?.getTracks().forEach((track) => track.stop());
-    const s = stream.current as (MediaStream & { __orientationHandler?: (ev: DeviceOrientationEvent) => void }) | null;
-    if (s?.__orientationHandler) window.removeEventListener('deviceorientation', s.__orientationHandler);
-    stream.current = null; setOn(false);
+      let compassNotice = '';
+      setHeading(null);
+      setCompassAvailable(false);
+      setRoute(null);
+      const DeviceOrientation = (typeof DeviceOrientationEvent === 'undefined' ? {} : DeviceOrientationEvent) as { requestPermission?: (absolute?: boolean) => Promise<string> };
+      if (DeviceOrientation.requestPermission) {
+        try { if (await DeviceOrientation.requestPermission(true) !== 'granted') compassNotice = 'Compass not available. Follow Google Maps for directions.'; }
+        catch { compassNotice = 'Compass not available. Follow Google Maps for directions.'; }
+      }
+      const camera = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+      stream.current = camera;
+      camera.getVideoTracks()[0]?.addEventListener('ended', () => onActiveChange(false), { once: true });
+      setError(compassNotice);
+      onActiveChange(true);
+    } catch (e) {
+      const cameraError = e as Error & { name?: string };
+      setError(cameraError.name === 'NotAllowedError' || cameraError.name === 'PermissionDeniedError'
+        ? 'Camera access is blocked. Allow camera access in your phone settings, then try again.'
+        : cameraError.message || 'Could not open the camera.');
+    } finally { setRequesting(false); }
   };
   return <section className="th-ar" aria-label="Camera directions">
-    {on ? <div className="th-camera"><video ref={video} playsInline muted aria-label="Camera view" /><div className="th-ar-scrim"><div className="th-ar-top">{heading == null ? 'Turn your phone to find the direction' : `Compass · ${heading}°`}</div><div className="th-ar-target"><span className="th-ar-rays">✦</span><span className="th-ar-arrow" style={{ transform: `rotate(${(route?.bearing ?? 0) - (heading ?? 0)}deg)` }} aria-label="Direction to checkpoint">↑</span></div><div className="th-ar-caption">{route ? `${route.metres < 1000 ? `${Math.round(route.metres)} metres` : `${(route.metres / 1000).toFixed(1)} km`} to ${checkpoint}` : `Look around for ${checkpoint}`}</div></div>
-      <button className="th-camera-close" onClick={turnOff} aria-label="Close camera">×</button></div>
-      : <div className="th-ar-prompt"><span aria-hidden="true">📷</span><b>Find {checkpoint}</b><p>Camera directions stay on this phone. For turn-by-turn walking directions, follow the blue line in Google Maps.</p><button className="btn btn-primary" onClick={() => void enable()}>Open AR directions</button><a className="btn btn-soft" href={mapsUrl} target="_blank" rel="noopener noreferrer">Follow route in Google Maps</a></div>}
-    {on ? <a className="btn btn-soft th-maps-link" href={mapsUrl} target="_blank" rel="noopener noreferrer">Follow the blue line in Google Maps</a> : null}
+    {active ? <><div className="th-camera"><video ref={video} playsInline muted aria-label="Camera view" /><div className="th-ar-scrim"><div className="th-ar-top">{compassAvailable && heading != null ? `Compass · ${heading}°` : 'Compass not available · follow Google Maps'}</div><div className="th-ar-target">{heading == null || needsCloseGuidance ? <span className="th-ar-arrow" aria-hidden="true">•</span> : <span className="th-ar-arrow" style={{ transform: `rotate(${route ? route.bearing - heading : 0}deg)` }} aria-label="Direction to checkpoint">↑</span>}</div><div className="th-ar-caption">{hasArrived ? `You’ve arrived at ${checkpoint}` : needsCloseGuidance ? 'You’re very close, look around' : route ? `${route.metres < 1000 ? `${Math.round(route.metres)} metres` : `${(route.metres / 1000).toFixed(1)} km`} to ${checkpoint}` : `Finding your location for ${checkpoint}`}</div></div></div>
+      <a className="btn btn-soft th-maps-link" href={mapsUrl} target="_blank" rel="noopener noreferrer">Follow the blue line in Google Maps</a></>
+      : <div className="th-ar-prompt"><span aria-hidden="true">📷</span><b>Find {checkpoint}</b><p>The arrow and distance guide you toward this point. For turn-by-turn walking directions, follow the blue line in Google Maps.</p><button className="btn btn-primary" onClick={() => void enable()} disabled={requesting}>{requesting ? 'Opening camera…' : 'Open AR directions'}</button><a className="btn btn-soft" href={mapsUrl} target="_blank" rel="noopener noreferrer">Follow route in Google Maps</a></div>}
     {error ? <p className="error" role="alert">{error}</p> : null}
   </section>;
 }
