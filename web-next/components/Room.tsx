@@ -223,6 +223,7 @@ function RoomView({ target, restart }: { target: string; restart: () => void }) 
       });
       // Safety net: every 2 minutes with the live connection up, every 30 s while it's down.
       poll = setInterval(() => {
+        if (document.hidden) return;   // off screen: the catch-up on return fetches what was missed
         const gap = api.backingOff() ? 180000 : r.live ? 120000 : 30000;
         if (Date.now() - r.lastPull >= gap) pull();
       }, 1000);

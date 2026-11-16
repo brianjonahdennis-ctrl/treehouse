@@ -202,7 +202,8 @@ function startLive() {
     if (nudgeTimer) return;
     const wait = Math.max(1500, 45000 - (Date.now() - lastNudgeLoad));
     nudgeTimer = setTimeout(() => { nudgeTimer = null; lastNudgeLoad = Date.now(); if (!document.hidden) loadDating({ force: true }); }, wait);
-  }, () => loadDating({ minGap: 15000 }));   // live connection came back: catch up on missed messages
+  }, () => loadDating({ minGap: 30000 }));   // live connection came back: catch up on missed messages
+  api.pauseLiveInBackground();
   setInterval(() => { if (!document.hidden) loadDating(); }, 600000);
   // Chatrooms kick people inactive for 10 minutes; while treehouse is on screen, keep the seat.
   const roomBeat = async () => {
@@ -216,13 +217,13 @@ function startLive() {
     } catch {}
   };
   setInterval(roomBeat, 180000);
-  // Back on screen: phones pause treehouse in the background (the Android app most of all), so the live
-  // connection may have missed messages. Away more than 10 s: refresh the chat list (at most every 20 s).
+  // Back on screen. Away over a minute: live updates were paused, so refresh the chat list (at most every
+  // 20 s). A quick look away: the live connection stayed up, so only refresh if the list is 5 minutes old.
   let awayAt = 0;
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { awayAt = Date.now(); return; }
     roomBeat();
-    loadDating({ minGap: awayAt && Date.now() - awayAt > 10000 ? 20000 : 120000 });
+    loadDating({ minGap: awayAt && Date.now() - awayAt > 60000 ? 20000 : 300000 });
   });
 }
 

@@ -186,7 +186,7 @@ export function onInboxNudge(uid: string, cb: (n: any) => void, onReconnect?: ()
       cb(n);
     })
     .subscribe((st: string) => {
-      live.status('inbox', st);
+      if (!livePaused) live.status('inbox', st);   // a deliberate pause isn't an error
       // Joined again after the connection dropped: anything sent in between was missed, so catch up.
       if (st === 'SUBSCRIBED' && ++joined > 1 && onReconnect) onReconnect();
     });
@@ -446,6 +446,34 @@ export const reportProfile = (handle: string, reason: string, details?: string) 
 export const reportPartner = (conversationId: string, reason: string, details?: string) =>
   rpc('report_conversation_partner', { p_conversation: conversationId, p_reason: reason, p_details: details || '' });
 
+// ---- Pause live updates in the background ----------------------------------------------------------
+// After a minute off screen, the live connection is closed: phones in the background don't need every
+// chatroom message and inbox signal (each one is billed by Supabase and uses a connection slot). Back on
+// screen it reconnects; every channel rejoins by itself and the usual catch-ups fetch what was missed.
+let livePaused = false, pauseTimer: ReturnType<typeof setTimeout> | null = null;
+export const isLivePaused = () => livePaused;
+let pauseStarted = false;
+export function pauseLiveInBackground(afterMs = 60000) {
+  if (pauseStarted || typeof document === 'undefined') return;
+  pauseStarted = true;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (pauseTimer) clearTimeout(pauseTimer);
+      pauseTimer = setTimeout(() => {
+        if (!document.hidden || livePaused) return;
+        livePaused = true; live.status('live', 'paused');
+        try { sb.realtime.disconnect(); } catch { /* never mind */ }
+      }, afterMs);
+    } else {
+      if (pauseTimer) { clearTimeout(pauseTimer); pauseTimer = null; }
+      if (livePaused) {
+        livePaused = false; live.status('live', 'resumed');
+        try { sb.realtime.connect(); } catch { /* never mind */ }
+      }
+    }
+  });
+}
+
 // ---- Live updates for one open chat -----------------------------------------------------------------
 export function joinChat(conversationId: string, me: string, { onMessage, onUpdate, onTyping, onPresence, onRead, onReconnect }: {
   onMessage: (m: any) => void; onUpdate?: (m: any) => void; onTyping: () => void; onPresence?: (here: boolean) => void; onRead?: () => void; onReconnect?: () => void;
@@ -456,10 +484,13 @@ export function joinChat(conversationId: string, me: string, { onMessage, onUpda
     .on('broadcast', { event: 'message' }, ({ payload }: any) => msg(payload))
     .on('broadcast', { event: 'update' }, ({ payload }: any) => { if (onUpdate) onUpdate(payload); })
     .subscribe((status: string) => {
-      live.status('chat', status);
+      if (!livePaused) live.status('chat', status);
       // Joined again after a drop: fetch what was missed.
       if (status === 'SUBSCRIBED' && ++joined > 1 && onReconnect) onReconnect();
-      if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && !fallback) {
+      // Live again: the database backup route isn't needed any more (it costs database time).
+      if (status === 'SUBSCRIBED' && fallback) { sb.removeChannel(fallback); fallback = null; }
+      // Paused in the background on purpose: no backup route (the catch-up on return covers it).
+      if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && !fallback && !livePaused && !document.hidden) {
         live.status('chat', 'fallback');
         fallback = sb.channel(`hy-chat-db-${conversationId}`)
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dating_messages', filter: `conversation_id=eq.${conversationId}` }, (p: any) => msg(p.new))

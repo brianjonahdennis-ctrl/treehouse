@@ -93,7 +93,7 @@ export default function Rooms() {
       }
     };
     refresh();
-    const tick = setInterval(() => { if (!document.hidden && !api.backingOff()) refresh(); }, 60000);
+    const tick = setInterval(() => { if (!document.hidden && !api.backingOff()) refresh(); }, 120000);
     return () => { alive = false; clearInterval(tick); };
   }, []);
   const mine = rooms && rooms.find((r) => r.mine);
