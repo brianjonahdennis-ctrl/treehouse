@@ -287,3 +287,46 @@ grant execute on function public.call_can_listen(text) to authenticated;
 
 select cron.unschedule('call-sweep') where exists (select 1 from cron.job where jobname = 'call-sweep');
 select cron.schedule('call-sweep', '15 seconds', 'select dating_private.call_sweep()');
+
+-- ---- Staff console: call numbers (no audio, no content: there is none) ------------------------------
+create or replace function public.staff_calls(p_days int default 30) returns jsonb
+language plpgsql stable security definer set search_path = public, dating_private as $$
+declare d int := least(greatest(coalesce(p_days, 30), 1), 180); today date := (now() at time zone 'Africa/Lagos')::date;
+begin
+  perform staff_need('view');
+  return (with k as (select * from dating_calls where created_at > now() - make_interval(days => d)),
+    talked as (select *, extract(epoch from ended_at - answered_at) secs from k where answered_at is not null and ended_at is not null)
+  select jsonb_build_object(
+    'live_now', (select count(*) from dating_calls where status = 'active' and greatest(caller_beat, coalesce(callee_beat, caller_beat)) > now() - interval '45 seconds'),
+    'ringing_now', (select count(*) from dating_calls where status = 'ringing' and created_at > now() - interval '40 seconds'),
+    'today', (select count(*) from dating_calls where (created_at at time zone 'Africa/Lagos')::date = today),
+    'calls', (select count(*) from k),
+    'audio', (select count(*) from k where kind = 'audio'),
+    'video', (select count(*) from k where kind = 'video'),
+    'answered', (select count(*) from k where answered_at is not null),
+    'missed', (select count(*) from k where status = 'missed'),
+    'declined', (select count(*) from k where status = 'declined'),
+    'cancelled', (select count(*) from k where status = 'cancelled'),
+    'busy', (select count(*) from k where status = 'busy'),
+    'failed', (select count(*) from k where status = 'failed' or end_reason in ('failed', 'lost')),
+    'talk_minutes', (select coalesce(round(sum(secs) / 60.0), 0) from talked),
+    'avg_seconds', (select coalesce(round(avg(secs)), 0) from talked),
+    'callers', (select count(distinct caller) from k),
+    'chats', (select count(distinct conversation_id) from k),
+    'daily', coalesce((select jsonb_agg(jsonb_build_object('day', g.day::date,
+        'calls', (select count(*) from k where (k.created_at at time zone 'Africa/Lagos')::date = g.day::date),
+        'answered', (select count(*) from k where k.answered_at is not null and (k.created_at at time zone 'Africa/Lagos')::date = g.day::date),
+        'minutes', (select coalesce(round(sum(t.secs) / 60.0), 0) from talked t where (t.created_at at time zone 'Africa/Lagos')::date = g.day::date)) order by g.day)
+      from generate_series(today - (d - 1), today, interval '1 day') g(day)), '[]'::jsonb),
+    'by_hour', coalesce((select jsonb_agg(jsonb_build_object('hour', h, 'calls', n) order by h) from (
+        select extract(hour from created_at at time zone 'Africa/Lagos')::int h, count(*) n from k group by 1) x), '[]'::jsonb),
+    'top_callers', coalesce((select jsonb_agg(x order by x.calls desc) from (
+        select p.handle, count(*) calls, count(*) filter (where k.answered_at is not null) answered,
+               count(*) filter (where k.status in ('missed', 'declined')) unanswered,
+               count(distinct k.callee) people
+        from k join dating_profiles p on p.user_id = k.caller
+        group by p.handle order by count(*) desc limit 20) x), '[]'::jsonb))
+  from (select 1) one);
+end $$;
+revoke all on function public.staff_calls(int) from public, anon;
+grant execute on function public.staff_calls(int) to authenticated;

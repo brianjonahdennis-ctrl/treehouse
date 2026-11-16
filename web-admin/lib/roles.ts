@@ -32,6 +32,7 @@ export const SECTIONS: Section[] = [
   { id: 'reports', label: 'Reports', icon: 'flag', need: 'moderate', group: 'main' },
   { id: 'members', label: 'Members', icon: 'users', need: 'moderate', group: 'main' },
   { id: 'rooms', label: 'Chatrooms', icon: 'chat', need: 'view', group: 'main' },
+  { id: 'calls', label: 'Calls', icon: 'phone', need: 'view', group: 'main' },
   { id: 'announcements', label: 'Announcements', icon: 'megaphone', need: 'view', group: 'grow' },
   { id: 'ads', label: 'Ads', icon: 'ad', need: 'view', group: 'grow' },
   { id: 'referrals', label: 'Referrals', icon: 'gift', need: 'view', group: 'grow' },

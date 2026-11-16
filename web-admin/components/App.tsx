@@ -12,6 +12,7 @@ import { Rooms, RoomPage } from './Rooms';
 import { AnnList, AnnEdit, AnnView } from './Announcements';
 import { AdsList, AdEdit } from './Ads';
 import Referrals from './Referrals';
+import Calls from './Calls';
 import { SettingsPage, StaffPage, AuditPage } from './Admin';
 
 function Route() {
@@ -30,6 +31,7 @@ function Route() {
     case 'announcements': return a === 'new' ? <AnnEdit /> : a && b === 'edit' ? <AnnEdit id={a} /> : a ? <AnnView id={a} /> : <AnnList />;
     case 'ads': return a === 'new' ? <AdEdit /> : a ? <AdEdit id={a} /> : <AdsList />;
     case 'referrals': return <Referrals />;
+    case 'calls': return <Calls />;
     case 'settings': return <SettingsPage />;
     case 'staff': return <StaffPage />;
     case 'audit': return <AuditPage />;

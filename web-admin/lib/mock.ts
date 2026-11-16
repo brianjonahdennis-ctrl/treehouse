@@ -146,6 +146,11 @@ function rpc(fn: string, a: any): any {
     case 'staff_ad_save': { const p = a.p; if (p.id) { ads = ads.map((x) => (x.id === p.id ? { ...x, ...p } : x)); return p.id; } const id = `a${ads.length + 1}`; ads = [{ ...p, id, status: 'draft', created_at: new Date().toISOString(), views: 0, taps: 0, reach: 0, live: false }, ...ads]; return id; }
     case 'staff_ad_status': ads = ads.map((x) => (x.id === a.p_id ? { ...x, status: a.p_status, live: a.p_status === 'active' } : x)); return null;
     case 'staff_ad_stats': return { daily: days(30).map((d) => ({ day: d, views: Math.floor(rnd() * 300), taps: Math.floor(rnd() * 30) })), placements: { home: { views: 3000, taps: 300 }, rooms: { views: 1210, taps: 77 } } };
+    case 'staff_calls': return { live_now: 6, ringing_now: 2, today: 214, calls: 3120, audio: 2210, video: 910, answered: 2040, missed: 610, declined: 280, cancelled: 150, busy: 40, failed: 96,
+      talk_minutes: 18450, avg_seconds: 543, callers: 1180, chats: 1720,
+      daily: days(a.p_days || 30).map((d) => { const c = 60 + Math.floor(rnd() * 90); return { day: d, calls: c, answered: Math.floor(c * 0.65), minutes: c * 6 }; }),
+      by_hour: Array.from({ length: 24 }, (_, h) => ({ hour: h, calls: Math.floor((h >= 18 || h <= 1 ? 220 : h >= 9 ? 90 : 20) * (0.7 + rnd() * 0.6)) })),
+      top_callers: [{ handle: 'Gentle Fox 610', calls: 84, answered: 61, unanswered: 23, people: 9 }, { handle: 'Spammy Hawk 202', calls: 60, answered: 4, unanswered: 56, people: 48 }] };
     case 'staff_treehouse': return { window_days: 3, referred: 354, counting: 341, network: 12, campaign: 0, by_source: { link: 340, qr: 14 }, clicks: 2554,
       disqualified: [{ handle: 'Fake Fox 101', reason: 'duplicate account', by: 'Boma', at: new Date().toISOString() }],
       top_networks: [{ handle: 'Gentle Fox 610', direct: 337, total: 349 }, { handle: 'Noble Wolf 133', direct: 8, total: 12 }],
