@@ -34,7 +34,7 @@ function mockHunts(): any[] {
     status: 'draft', starts_at: new Date(now + D).toISOString(), ends_at: new Date(now + 2 * D).toISOString(), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', participant_count: 0,
     start_points: [{ id: 'mock-start-1', sequence: 1, name: 'Wuse Market start', latitude: 9.0765, longitude: 7.4793, radius_m: 60, reward_coins: 0 }],
     finish_points: [{ id: 'mock-finish-1', sequence: 1, name: 'City Park prize', latitude: 9.0775, longitude: 7.4803, radius_m: 60, reward_coins: 0 }],
-    checkpoints: [1, 2].map((n) => ({ id: `mock-stop-${n}`, sequence: n, name: `Checkpoint ${n}`, hint: 'Sample clue', latitude: 9.0765 + n * .0002,
+    checkpoints: [1].map((n) => ({ id: `mock-stop-${n}`, sequence: n, name: `Checkpoint ${n}`, hint: 'Sample clue', latitude: 9.0765 + n * .0002,
       longitude: 7.4793 + n * .0002, radius_m: 45, reward_coins: 100 })) }];
   localStorage.setItem(HUNTS_KEY, JSON.stringify(sample)); return sample;
 }

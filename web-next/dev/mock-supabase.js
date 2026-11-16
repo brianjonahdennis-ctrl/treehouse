@@ -323,7 +323,7 @@ const RPC = {
     staff_treasure_hunts: () => JSON.parse(sessionStorage.getItem('mock-staff-hunts') || JSON.stringify([{ id: mockHuntId, title: 'Treasure Hunt Preview', region: 'Wuse, Abuja', description: 'Sample safe route.', status: 'draft',
       starts_at: new Date(Date.now() + 86400000).toISOString(), ends_at: new Date(Date.now() + 2 * 86400000).toISOString(), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', participant_count: 0,
       start_points: [{ id: 'mock-start-1', sequence: 1, name: 'Wuse Market start', latitude: 9.0765, longitude: 7.4793, radius_m: 60, reward_coins: 0 }],
-      finish_points: [{ id: 'mock-finish-1', sequence: 1, name: 'City Park prize', latitude: 9.0775, longitude: 7.4803, radius_m: 60, reward_coins: 0 }], checkpoints: mockHuntCheckpoints.slice(0, 2) }])),
+      finish_points: [{ id: 'mock-finish-1', sequence: 1, name: 'City Park prize', latitude: 9.0775, longitude: 7.4803, radius_m: 60, reward_coins: 0 }], checkpoints: mockHuntCheckpoints.slice(0, 1) }])),
     staff_treasure_hunt_save_routes: (a) => { const h = a.p_hunt || {}; const current = JSON.parse(sessionStorage.getItem('mock-staff-hunts') || '[]'); const id = h.id || `mock-hunt-${Date.now()}`;
       const value = { ...h, id, participant_count: 0, checkpoints: (a.p_checkpoints || []).map((p, i) => ({ ...p, id: `mock-stop-${i + 1}` })),
         start_points: (a.p_start_points || []).map((p, i) => ({ ...p, id: `mock-start-${i + 1}` })), finish_points: (a.p_finish_points || []).map((p, i) => ({ ...p, id: `mock-finish-${i + 1}` })) };
