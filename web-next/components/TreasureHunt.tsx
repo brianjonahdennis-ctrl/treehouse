@@ -194,6 +194,7 @@ function LocalAR({ checkpoint, destination }: { checkpoint: string; destination:
   const [error, setError] = useState('');
   const [heading, setHeading] = useState<number | null>(null);
   const [route, setRoute] = useState<{ metres: number; bearing: number } | null>(null);
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${destination.latitude},${destination.longitude}`)}&travelmode=walking&dir_action=navigate`;
   useEffect(() => () => {
     const s = stream.current as (MediaStream & { __orientationHandler?: (ev: DeviceOrientationEvent) => void }) | null;
     if (s?.__orientationHandler) window.removeEventListener('deviceorientation', s.__orientationHandler);
@@ -230,7 +231,8 @@ function LocalAR({ checkpoint, destination }: { checkpoint: string; destination:
   return <section className="th-ar" aria-label="Camera directions">
     {on ? <div className="th-camera"><video ref={video} playsInline muted aria-label="Camera view" /><div className="th-ar-scrim"><div className="th-ar-top">{heading == null ? 'Turn your phone to find the direction' : `Compass · ${heading}°`}</div><div className="th-ar-target"><span className="th-ar-rays">✦</span><span className="th-ar-arrow" style={{ transform: `rotate(${(route?.bearing ?? 0) - (heading ?? 0)}deg)` }} aria-label="Direction to checkpoint">↑</span></div><div className="th-ar-caption">{route ? `${route.metres < 1000 ? `${Math.round(route.metres)} metres` : `${(route.metres / 1000).toFixed(1)} km`} to ${checkpoint}` : `Look around for ${checkpoint}`}</div></div>
       <button className="th-camera-close" onClick={turnOff} aria-label="Close camera">×</button></div>
-      : <div className="th-ar-prompt"><span aria-hidden="true">📷</span><b>Find {checkpoint}</b><p>Open the camera to see the local direction and distance. Camera and location stay on this phone.</p><button className="btn btn-primary" onClick={() => void enable()}>Open AR directions</button></div>}
+      : <div className="th-ar-prompt"><span aria-hidden="true">📷</span><b>Find {checkpoint}</b><p>Camera directions stay on this phone. For turn-by-turn walking directions, follow the blue line in Google Maps.</p><button className="btn btn-primary" onClick={() => void enable()}>Open AR directions</button><a className="btn btn-soft" href={mapsUrl} target="_blank" rel="noopener noreferrer">Follow route in Google Maps</a></div>}
+    {on ? <a className="btn btn-soft th-maps-link" href={mapsUrl} target="_blank" rel="noopener noreferrer">Follow the blue line in Google Maps</a> : null}
     {error ? <p className="error" role="alert">{error}</p> : null}
   </section>;
 }
