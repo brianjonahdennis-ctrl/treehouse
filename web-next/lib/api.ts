@@ -575,7 +575,6 @@ export type TreasureHuntLeaderboard = {
 };
 
 let treasureHuntCache: { at: number; hunts: TreasureHuntSummary[] } | null = null;
-const treasureBoardCache = new Map<string, { at: number; data: TreasureHuntLeaderboard }>();
 export const treasureHuntsActive = async (force = false): Promise<TreasureHuntSummary[]> => {
   if (!force && treasureHuntCache && Date.now() - treasureHuntCache.at < 60000) return treasureHuntCache.hunts;
   const hunts = (await rpc('treasure_hunts_active')) || [];
@@ -591,19 +590,18 @@ export const treasureHuntProgress = (hunt: string): Promise<TreasureHuntProgress
 export const treasureHuntClaimStart = async (hunt: string, point: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = crypto.randomUUID()) => {
   const result = await rpc('treasure_hunt_claim_start', { p_hunt: hunt, p_route_point: point, p_latitude: location.latitude,
     p_longitude: location.longitude, p_accuracy_m: location.accuracy, p_request_id: requestId });
-  if (result && result.ok) { treasureHuntCache = null; treasureBoardCache.clear(); }
+  if (result && result.ok) treasureHuntCache = null;
   return result as { ok: boolean; error?: string; idempotent?: boolean; coins_awarded?: number; total_coins?: number };
 };
 export const treasureHuntClaimCheckpoint = async (hunt: string, checkpoint: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = crypto.randomUUID()) => {
   const result = await rpc('treasure_hunt_claim_checkpoint', { p_hunt: hunt, p_checkpoint: checkpoint,
     p_latitude: location.latitude, p_longitude: location.longitude, p_accuracy_m: location.accuracy, p_request_id: requestId });
-  if (result && result.ok) { treasureHuntCache = null; treasureBoardCache.clear(); }
+  if (result && result.ok) treasureHuntCache = null;
   return result as { ok: boolean; error?: string; idempotent?: boolean; coins_awarded?: number; total_coins?: number; checkpoint_sequence?: number };
 };
 export const treasureHuntFinish = async (hunt: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = crypto.randomUUID()) => {
   const result = await rpc('treasure_hunt_finish', { p_hunt: hunt, p_latitude: location.latitude, p_longitude: location.longitude,
     p_accuracy_m: location.accuracy, p_request_id: requestId });
-  if (result && result.ok) treasureBoardCache.clear();
   return result as { ok: boolean; error?: string; idempotent?: boolean; coins_awarded?: number; total_coins?: number };
 };
 export const treasureHuntsAdmin = async () => (await rpc('staff_treasure_hunts')) || [];
@@ -611,16 +609,10 @@ export const treasureHuntAdminSave = (hunt: unknown, checkpoints: unknown, start
   p_hunt: hunt, p_checkpoints: checkpoints, p_start_points: starts, p_finish_points: finishes,
 });
 export const treasureHuntLeaderboard = async (hunt: string, cursor?: TreasureHuntCursor): Promise<TreasureHuntLeaderboard> => {
-  const key = `${hunt}:${cursor ? `${cursor.coins}:${cursor.joined_at}:${cursor.board_key}` : 'first'}`;
-  const cached = treasureBoardCache.get(key);
-  if (cached && Date.now() - cached.at < 30000) return cached.data;
-  const data = await rpc('treasure_hunt_leaderboard', { p_hunt: hunt, p_limit: 25,
+  // Visibility depends on the current hunt state, so don't retain names in a
+  // client cache after staff changes the schedule or marks the hunt complete.
+  return rpc('treasure_hunt_leaderboard', { p_hunt: hunt, p_limit: 25,
     p_after_coins: cursor?.coins ?? null, p_after_joined_at: cursor?.joined_at ?? null, p_after_board_key: cursor?.board_key ?? null });
-  // A live response contains the caller's private rank and coin total. Do not
-  // keep it in a module cache that could survive an account switch in this tab.
-  if (data.visibility === 'full') treasureBoardCache.set(key, { at: Date.now(), data });
-  while (treasureBoardCache.size > 12) treasureBoardCache.delete(treasureBoardCache.keys().next().value!);
-  return data;
 };
 
 // ---- Speed Dating (three-minute video dates; rules live in the database) ----------------------------
