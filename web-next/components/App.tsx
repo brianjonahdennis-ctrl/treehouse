@@ -246,24 +246,37 @@ function watchServiceWorker() {
 }
 
 // New version? Reload by itself. Phones keep the page open for days; when treehouse comes back to the
-// screen after a minute or more (or every 30 minutes), ask which version is live and reload if it's
-// newer, unless someone is typing.
+// screen after a minute or more (or every 30 minutes), ask which version is live. When a newer one is
+// out, each phone waits its own random 2–20 minutes before reloading (or reloads as soon as the member
+// comes back to the app), so a publish at a busy hour doesn't make every open phone reload at once.
+// Never reloads while someone is typing.
 const MY_BUILD = process.env.NEXT_PUBLIC_BUILD || '';
 function watchForUpdates() {
   if (!MY_BUILD || process.env.NODE_ENV !== 'production') return;
-  let hiddenAt = 0, lastCheck = Date.now();
+  let hiddenAt = 0, lastCheck = Date.now(), pending = false, timer = 0;
+  const typing = () => [...document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('textarea, input[type="text"], input:not([type])')].some((el) => el.value && el.value.trim());
+  const reloadNow = () => {
+    if (typing()) { clearTimeout(timer); timer = window.setTimeout(reloadNow, 60000); return; }
+    location.reload();
+  };
   const check = async (force = false) => {
+    if (pending) return;
     if (!force && Date.now() - hiddenAt < 60000 && Date.now() - lastCheck < 30 * 60000) return;
     lastCheck = Date.now();
     try {
       const r = await fetch('/home-build', { cache: 'no-store' });
       const { build } = await r.json();
       if (!build || build === MY_BUILD) return;
-      const typing = [...document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('textarea, input[type="text"], input:not([type])')].some((el) => el.value && el.value.trim());
-      if (!typing) location.reload();
+      pending = true;
+      timer = window.setTimeout(reloadNow, (2 + Math.random() * 18) * 60000);
     } catch { /* offline: try next time */ }
   };
-  document.addEventListener('visibilitychange', () => { if (document.hidden) hiddenAt = Date.now(); else check(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { hiddenAt = Date.now(); return; }
+    // Back after a while with an update waiting: the screen is about to refresh anyway, so do it now.
+    if (pending && Date.now() - hiddenAt > 60000) { clearTimeout(timer); reloadNow(); return; }
+    check();
+  });
   setInterval(() => { if (!document.hidden) check(true); }, 30 * 60000);
 }
 
