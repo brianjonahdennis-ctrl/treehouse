@@ -116,7 +116,7 @@ export function CtaButton({ a, small = false, preview = false }: { a: Pick<Ann, 
   const ico = l.internal ? (/nearby/.test(l.href) ? 'pin' : 'chev') : 'link';
   if (preview) return <span className={cls}><Icon name={ico} cls="sm" />{a.cta_label}</span>;
   const track = () => { api.markAnnouncement(a.id, 'click').catch(() => {}); };
-  if (l.internal) return <Link className={cls} href={l.href} onClick={track}><Icon name={ico} cls="sm" />{a.cta_label}</Link>;
+  if (l.internal) return <Link prefetch={false} className={cls} href={l.href} onClick={track}><Icon name={ico} cls="sm" />{a.cta_label}</Link>;
   return <a className={cls} href={l.href} target="_blank" rel="noopener noreferrer nofollow" onClick={track}><Icon name={ico} cls="sm" />{a.cta_label}</a>;
 }
 
@@ -124,7 +124,7 @@ export function CtaButton({ a, small = false, preview = false }: { a: Pick<Ann, 
 function Inl({ parts, preview }: { parts: Inline[]; preview?: boolean }) {
   return <>{parts.map((p, i) => p.t === 'b' ? <strong key={i}>{p.v}</strong>
     : p.t === 'a' ? (preview ? <span key={i} className="ann-link">{p.v}</span>
-      : p.internal ? <Link key={i} className="ann-link" href={p.href}>{p.v}</Link>
+      : p.internal ? <Link prefetch={false} key={i} className="ann-link" href={p.href}>{p.v}</Link>
       : <a key={i} className="ann-link" href={p.href} target="_blank" rel="noopener noreferrer nofollow">{p.v}</a>)
     : <span key={i}>{p.v}</span>)}</>;
 }
@@ -142,7 +142,7 @@ export function AnnBody({ text, preview = false }: { text: string; preview?: boo
         if (b.t !== 'btn') return null;
         const l = safeLink(b.href)!;
         if (preview) return <span key={i} className="btn btn-soft btn-block">{b.label}</span>;
-        return l.internal ? <Link key={i} className="btn btn-soft btn-block" href={l.href}>{b.label}</Link>
+        return l.internal ? <Link prefetch={false} key={i} className="btn btn-soft btn-block" href={l.href}>{b.label}</Link>
           : <a key={i} className="btn btn-soft btn-block" href={l.href} target="_blank" rel="noopener noreferrer nofollow">{b.label}<Icon name="link" cls="sm" /></a>;
       })}
     </div>

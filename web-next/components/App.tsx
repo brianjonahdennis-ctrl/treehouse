@@ -92,7 +92,7 @@ function Shell({ pathname, children }: { pathname: string; children: ReactNode }
     const n = t.badge ? badge : 0;
     const cls = side ? `side-item${t.center ? ` side-center side-${t.route}` : ''}` : `nav-item${t.center ? ` nav-center nav-${t.route}` : ''}`;
     return (
-      <Link key={t.route} href={`/home${t.route === 'home' ? '' : '/' + t.route}`} className={cls} aria-current={tab === t.route ? 'page' : undefined}>
+      <Link prefetch={false} key={t.route} href={`/home${t.route === 'home' ? '' : '/' + t.route}`} className={cls} aria-current={tab === t.route ? 'page' : undefined}>
         {t.center && !side ? <span className="nav-orb"><Icon name={t.icon} /></span> : <Icon name={t.icon} />}
         <span>{t.label}</span>
         <span className="badge" data-n={String(n)}>{n ? (n > 99 ? '99+' : n) : ''}</span>
@@ -105,7 +105,7 @@ function Shell({ pathname, children }: { pathname: string; children: ReactNode }
         <Logo />
         {TABS.map((t) => item(t, true))}
         <div className="side-foot">
-          <Link className="side-item" href="/home/notifications"><Icon name="bell" /><span>Notifications</span><span className="badge" data-n={String(bell)}>{bell || ''}</span></Link>
+          <Link prefetch={false} className="side-item" href="/home/notifications"><Icon name="bell" /><span>Notifications</span><span className="badge" data-n={String(bell)}>{bell || ''}</span></Link>
           <p className="tiny" style={{ padding: '0 14px' }}>Anonymous users. Real connections. Identities stay hidden until both people agree.</p>
         </div>
       </nav>

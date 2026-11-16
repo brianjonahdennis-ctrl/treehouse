@@ -18,6 +18,11 @@ const nextConfig: NextConfig = {
       source: '/home-sw.js',
       headers: [{ key: 'Cache-Control', value: 'no-cache' }],
     }, {
+      // Icons, logo and the app manifest rarely change: phones (and Cloudflare) can keep them a day
+      // instead of asking our server every time a screen opens.
+      source: '/:file(icon.svg|icon-180.png|icon-192.png|icon-512.png|notif-badge.png|treehouse-mark.svg|home.webmanifest)',
+      headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }],
+    }, {
       source: '/:path*',
       headers: [
         { key: 'Referrer-Policy', value: 'no-referrer' },

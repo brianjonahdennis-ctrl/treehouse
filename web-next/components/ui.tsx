@@ -17,7 +17,7 @@ export function Icon({ name, cls = '' }: { name: string; cls?: string }) {
 
 export function Logo() {
   return (
-    <Link className="logo" href="/home" aria-label="treehouse home">
+    <Link prefetch={false} className="logo" href="/home" aria-label="treehouse home">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img className="logo-mark" src="/treehouse-mark.svg" alt="" width={36} height={36} />
       <span className="wordmark">treehouse<i className="dot" aria-hidden="true" /></span>
