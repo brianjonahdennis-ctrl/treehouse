@@ -31,7 +31,9 @@ function mockHunts(): any[] {
   const saved = localStorage.getItem(HUNTS_KEY);
   if (saved) return JSON.parse(saved);
   const sample = [{ id: 'mock-hunt-1', title: 'Treasure Hunt Preview', region: 'Wuse, Abuja · preview', description: 'A sample route for the staff preview.',
-    status: 'draft', starts_at: new Date(now + D).toISOString(), ends_at: new Date(now + 2 * D).toISOString(), completion_bonus_coins: 100, participant_count: 0,
+    status: 'draft', starts_at: new Date(now + D).toISOString(), ends_at: new Date(now + 2 * D).toISOString(), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', participant_count: 0,
+    start_points: [{ id: 'mock-start-1', sequence: 1, name: 'Wuse Market start', latitude: 9.0765, longitude: 7.4793, radius_m: 60, reward_coins: 0 }],
+    finish_points: [{ id: 'mock-finish-1', sequence: 1, name: 'City Park prize', latitude: 9.0775, longitude: 7.4803, radius_m: 60, reward_coins: 0 }],
     checkpoints: [1, 2].map((n) => ({ id: `mock-stop-${n}`, sequence: n, name: `Checkpoint ${n}`, hint: 'Sample clue', latitude: 9.0765 + n * .0002,
       longitude: 7.4793 + n * .0002, radius_m: 45, reward_coins: 100 })) }];
   localStorage.setItem(HUNTS_KEY, JSON.stringify(sample)); return sample;
@@ -189,6 +191,15 @@ function rpc(fn: string, a: any): any {
     case 'staff_treasure_hunt_save': {
       const h = a.p_hunt || {}; const hunts = mockHunts(); const id = h.id || `mock-hunt-${Date.now()}`;
       const value = { ...h, id, participant_count: 0, checkpoints: (a.p_checkpoints || []).map((c: any, i: number) => ({ ...c, id: `mock-stop-${i + 1}` })) };
+      const i = hunts.findIndex((x) => x.id === id); if (i < 0) hunts.unshift(value); else hunts[i] = value;
+      localStorage.setItem(HUNTS_KEY, JSON.stringify(hunts)); return id;
+    }
+    case 'staff_treasure_hunt_save_routes': {
+      const h = a.p_hunt || {}; const hunts = mockHunts(); const id = h.id || `mock-hunt-${Date.now()}`;
+      const value = { ...h, id, participant_count: 0,
+        checkpoints: (a.p_checkpoints || []).map((c: any, i: number) => ({ ...c, id: `mock-stop-${i + 1}` })),
+        start_points: (a.p_start_points || []).map((p: any, i: number) => ({ ...p, id: `mock-start-${i + 1}` })),
+        finish_points: (a.p_finish_points || []).map((p: any, i: number) => ({ ...p, id: `mock-finish-${i + 1}` })) };
       const i = hunts.findIndex((x) => x.id === id); if (i < 0) hunts.unshift(value); else hunts[i] = value;
       localStorage.setItem(HUNTS_KEY, JSON.stringify(hunts)); return id;
     }

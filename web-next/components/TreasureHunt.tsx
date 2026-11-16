@@ -9,6 +9,7 @@ type Hunt = api.TreasureHuntSummary;
 type Progress = api.TreasureHuntProgress;
 type Position = { latitude: number; longitude: number; accuracy: number };
 const positionOnce = () => new Promise<Position>((resolve, reject) => {
+  if (process.env.NEXT_PUBLIC_TH_MOCK === '1') { resolve({ latitude: 9.0765, longitude: 7.4793, accuracy: 10 }); return; }
   if (!navigator.geolocation) { reject(new Error('Location is not available on this device.')); return; }
   navigator.geolocation.getCurrentPosition((p) => resolve({ latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy }),
     () => reject(new Error('Turn on location, move somewhere with a clear view of the sky, then try again.')),
@@ -47,7 +48,8 @@ export default function TreasureHunt() {
   const joinOrResume = async (hunt: Hunt) => {
     setBusy(true); setNotice('');
     try {
-      const data = hunt.joined ? await api.treasureHuntProgress(hunt.id) : await api.treasureHuntJoin(hunt.id);
+      const data = hunt.joined ? await api.treasureHuntProgress(hunt.id)
+        : await api.treasureHuntJoin(hunt.id, hunt.route_assignment_required ? await positionOnce() : { latitude: 0, longitude: 0, accuracy: 1 });
       setProgress(data); setShowCamera(false); setShowBoard(false);
     } catch (e) { setNotice(api.friendly(e)); }
     setBusy(false);
@@ -55,6 +57,21 @@ export default function TreasureHunt() {
 
   const collect = async () => {
     if (!progress) return;
+    const start = progress.route?.start;
+    if (start && !progress.route?.start_claimed_at) {
+      const call = ++run.current; setBusy(true); setNotice('');
+      try {
+        const here = await positionOnce();
+        if (call !== run.current) return;
+        const result = await api.treasureHuntClaimStart(progress.hunt.id, start.id, here);
+        if (!result.ok) { setNotice(result.error || 'Your start point could not be checked. Try again.'); return; }
+        setProgress((prev) => prev ? { ...prev, route: prev.route ? { ...prev.route, start_claimed_at: new Date().toISOString() } : prev.route,
+          participant: { ...prev.participant, total_coins: result.total_coins ?? prev.participant.total_coins } } : prev);
+        toast(`Start point reached · +${result.coins_awarded || 0} coins`, 'check');
+      } catch (e) { setNotice(api.friendly(e)); }
+      finally { if (call === run.current) setBusy(false); }
+      return;
+    }
     const next = progress.checkpoints.find((c) => !c.claimed);
     if (!next) return;
     const call = ++run.current; setBusy(true); setNotice('');
@@ -77,7 +94,8 @@ export default function TreasureHunt() {
     if (!progress) return;
     setBusy(true); setNotice('');
     try {
-      const result = await api.treasureHuntFinish(progress.hunt.id);
+      const finishLocation = progress.route?.finish ? await positionOnce() : { latitude: 0, longitude: 0, accuracy: 1 };
+      const result = await api.treasureHuntFinish(progress.hunt.id, finishLocation);
       if (!result.ok) { setNotice(result.error || 'The treasure could not be claimed. Try again.'); return; }
       setProgress((prev) => prev ? { ...prev, participant: { ...prev.participant, completed_at: new Date().toISOString(),
         completion_bonus_coins: result.coins_awarded ?? prev.hunt.completion_bonus_coins, total_coins: result.total_coins ?? prev.participant.total_coins } } : prev);
@@ -94,7 +112,7 @@ export default function TreasureHunt() {
     <div className="stack-lg th-hunt">
       <Hero title="Treasure Hunt" sub="Follow the clues, find each checkpoint and collect Treehouse Coins." actions={<button className="hero-btn" aria-label="Back to Games" onClick={() => go('games')}><Icon name="back" /></button>} />
       <div className="th-hero-art" aria-hidden="true"><span className="th-spark s1">✦</span><span className="th-spark s2">✦</span><span className="th-chest">🧰</span><span className="th-coin">🪙</span></div>
-      <div className="th-privacy"><Icon name="lock" cls="sm" /><span>Camera and compass work on your phone. Location is sent only when you tap to check a checkpoint.</span></div>
+      <div className="th-privacy"><Icon name="lock" cls="sm" /><span>Camera and compass work on your phone. Location is sent only when you join to choose nearby route points or check in at a checkpoint.</span></div>
       <p className="th-coins-note">Coins are in-game points. They are not cash.</p>
       {loadError ? <EmptyState emoji="🧭" title="Hunts are taking a break" text={loadError}><button className="btn btn-soft" onClick={() => { setLoadError(''); setHunts(null); void loadHunts(); }}>Try again</button></EmptyState>
         : !hunts ? <SkeletonList n={1} />
@@ -122,34 +140,42 @@ function HuntProgress({ data, busy, notice, showBoard, showCamera, hideCamera, o
 }) {
   const next = data.checkpoints.find((c) => !c.claimed);
   const done = !!data.participant.completed_at;
+  const startPending = !!data.route?.start && !data.route.start_claimed_at;
+  const finishPending = !done && !next && !!data.route?.finish;
+  const routeTarget = startPending ? data.route?.start : next || (finishPending ? data.route?.finish : null);
+  const routeTargetName = startPending ? 'Starting point' : finishPending ? 'Final treasure' : 'Next checkpoint';
   return (
     <div className="stack-lg th-hunt th-progress">
       <Hero title={data.hunt.title} sub={`📍 ${data.hunt.region}`} actions={<button className="hero-btn" aria-label="Back to hunts" onClick={onBack}><Icon name="back" /></button>} />
       <section className={`th-map-card${done ? ' complete' : ''}`}>
         <div className="th-map-head"><span className="th-map-label">{done ? 'Treasure found' : next ? 'Next checkpoint' : 'Final treasure'}</span><span className="th-map-count">{data.participant.last_checkpoint_sequence} / {data.checkpoints.length}</span></div>
         {done ? (
-          <><div className="th-treasure-big" aria-hidden="true">🏆</div><h2>Hunt complete!</h2><p>You collected {data.participant.total_coins.toLocaleString()} Treehouse Coins.</p></>
+          <><div className="th-treasure-big" aria-hidden="true">{data.hunt.treasure_avatar || '🏆'}</div><h2>Hunt complete!</h2><p>You collected {data.participant.total_coins.toLocaleString()} Treehouse Coins.</p></>
+        ) : startPending ? (
+          <><div className="th-treasure-big" aria-hidden="true">📍</div><h2>{data.route?.start?.name}</h2><p>Starting location · check in here to unlock your checkpoint trail.</p></>
         ) : next ? (
           <>
             <h2>{next.name}</h2><p>{next.hint || 'Follow the trail to reach this stop.'}</p>
             <div className="th-route-line" aria-hidden="true">{data.checkpoints.map((c) => <span key={c.id} className={c.claimed ? 'past' : c.id === next.id ? 'current' : ''} />)}</div>
           </>
         ) : (
-          <><div className="th-treasure-big" aria-hidden="true">🧰</div><h2>The final treasure is ready</h2><p>All checkpoints reached. Claim your completion coins.</p><button className="btn btn-primary btn-block" disabled={busy} onClick={onFinish}>{busy ? 'Claiming…' : `Claim treasure · +${data.hunt.completion_bonus_coins} coins`}</button></>
+          <><div className="th-treasure-big" aria-hidden="true">{data.hunt.treasure_avatar || '🧰'}</div><h2>{finishPending ? data.route?.finish?.name : 'The final treasure is ready'}</h2><p>{finishPending ? 'Follow the route to your assigned treasure location.' : 'All checkpoints reached. Claim your completion coins.'}</p><button className="btn btn-primary btn-block" disabled={busy} onClick={onFinish}>{busy ? 'Checking treasure…' : finishPending ? 'Claim final treasure' : `Claim treasure · +${data.hunt.completion_bonus_coins} coins`}</button></>
         )}
       </section>
-      <div className="th-score"><span>🪙 <b>{data.participant.total_coins.toLocaleString()}</b> coins</span><span>⚑ {data.participant.last_checkpoint_sequence} of {data.checkpoints.length}</span></div>
+      <div className="th-score"><span>{data.hunt.coin_avatar || '🪙'} <b>{data.participant.total_coins.toLocaleString()}</b> coins</span><span>⚑ {data.participant.last_checkpoint_sequence} of {data.checkpoints.length}</span></div>
       {notice ? <p className="error th-error" role="alert">{notice}</p> : null}
-      {next ? <div className={`th-actions${showCamera ? ' th-actions-ar-open' : ''}`}>
+      {routeTarget && !done ? <div className={`th-actions${showCamera ? ' th-actions-ar-open' : ''}`}>
         {!hideCamera ? <button className={`btn btn-soft${showCamera ? ' th-ar-close-button' : ''}`} onClick={onToggleCamera} disabled={busy}>{showCamera ? 'Close AR view' : '◎ Find with camera'}</button> : null}
-        <button className="btn btn-primary btn-block th-collect" onClick={onCollect} disabled={busy}>{busy ? 'Checking location…' : `Collect checkpoint · +${next.reward_coins} coins`}</button>
+        {startPending ? <button className="btn btn-primary btn-block th-collect" onClick={onCollect} disabled={busy}>{busy ? 'Checking location…' : `Check in at start · +${data.route?.start?.reward_coins || 0} coins`}</button>
+          : next ? <button className="btn btn-primary btn-block th-collect" onClick={onCollect} disabled={busy}>{busy ? 'Checking location…' : `Collect checkpoint · +${next.reward_coins} coins`}</button>
+          : null}
       </div> : null}
-      {hideCamera && next ? <p className="tiny muted th-ar-unavailable">Camera directions are unavailable in the iPhone app. You can still follow the clue and check in at the checkpoint.</p> : null}
-      {showCamera && next && !hideCamera ? <LocalAR checkpoint={next.name} destination={next} /> : null}
+      {hideCamera && routeTarget ? <p className="tiny muted th-ar-unavailable">Camera directions are unavailable in the iPhone app. Follow the clue to the {routeTargetName.toLowerCase()} and check in when you arrive.</p> : null}
+      {showCamera && routeTarget && !hideCamera ? <LocalAR checkpoint={routeTarget.name} destination={routeTarget} /> : null}
       <section className="card th-checkpoints">
         <div className="th-section-title"><div><h2>Checkpoint trail</h2><p className="muted">Each stop unlocks after the one before.</p></div><span className="th-progress-num">{data.participant.last_checkpoint_sequence}/{data.checkpoints.length}</span></div>
         <ol>{data.checkpoints.map((c) => <li key={c.id} className={c.claimed ? 'claimed' : c.id === next?.id ? 'next' : ''}>
-          <span className="th-step-dot">{c.claimed ? '✓' : c.sequence}</span><span className="th-step-copy"><b>{c.name}</b><small>{c.claimed ? 'Reached' : `${c.reward_coins} coins · ${c.hint || 'Waiting for the previous checkpoint'}`}</small></span>
+          <span className="th-step-dot">{c.claimed ? '✓' : c.sequence}</span><span className="th-step-copy"><b>{c.name}</b><small>{c.claimed ? 'Reached' : `${data.hunt.coin_avatar || '🪙'} ${c.reward_coins} coins · ${c.hint || 'Waiting for the previous checkpoint'}`}</small></span>
         </li>)}</ol>
       </section>
       <section className="card th-board-card">

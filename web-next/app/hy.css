@@ -1796,6 +1796,13 @@ html, body { max-width: 100%; overflow-x: clip; }
 .th-ar { overflow: hidden; border: 1px solid var(--line); border-radius: var(--r-lg); background: #090d2b; color: white; }
 .th-ar-prompt { display: grid; justify-items: center; gap: 8px; padding: 22px 16px; text-align: center; }.th-ar-prompt > span { font-size: 36px; }.th-ar-prompt p { margin: 0 0 5px; color: rgba(255,255,255,.72); font-size: 12px; line-height: 1.4; }.th-ar-prompt .btn { text-decoration: none; }
 .th-maps-link { display: flex; width: fit-content; margin: 10px auto 0; text-decoration: none; }
+.th-member-form { display: grid; gap: 14px; margin-top: 16px; }
+.th-member-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.th-member-points { display: grid; gap: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+.th-member-points h3 { font-size: 17px; }
+.th-member-point { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface-2); }
+.th-admin-list { display: grid; gap: 12px; margin-top: 18px; }
+@media (max-width: 520px) { .th-member-grid { grid-template-columns: 1fr; } }
 .th-camera { position: relative; width: 100%; aspect-ratio: 3 / 4; max-height: 60vh; overflow: hidden; background: #111; }
 .th-camera video { width: 100%; height: 100%; object-fit: cover; }
 .th-ar-scrim { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 16px; pointer-events: none; background: linear-gradient(180deg, rgba(3,6,24,.45), transparent 30%, transparent 68%, rgba(3,6,24,.55)); }
