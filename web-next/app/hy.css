@@ -1771,6 +1771,7 @@ html, body { max-width: 100%; overflow-x: clip; }
 .th-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .th-actions button { min-height: 44px; }
 .th-actions .th-collect { grid-column: 1 / -1; }
+.th-actions-ar-open .th-ar-close-button { grid-column: 1 / -1; justify-self: center; width: min(100%, 220px); margin: 0 auto; }
 .th-error { margin: 0; text-align: center; }
 .th-checkpoints { display: grid; gap: 12px; }
 .th-section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

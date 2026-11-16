@@ -140,8 +140,8 @@ function HuntProgress({ data, busy, notice, showBoard, showCamera, hideCamera, o
       </section>
       <div className="th-score"><span>🪙 <b>{data.participant.total_coins.toLocaleString()}</b> coins</span><span>⚑ {data.participant.last_checkpoint_sequence} of {data.checkpoints.length}</span></div>
       {notice ? <p className="error th-error" role="alert">{notice}</p> : null}
-      {next ? <div className="th-actions">
-        {!hideCamera ? <button className="btn btn-soft" onClick={onToggleCamera} disabled={busy}>{showCamera ? 'Close AR view' : '◎ Find with camera'}</button> : null}
+      {next ? <div className={`th-actions${showCamera ? ' th-actions-ar-open' : ''}`}>
+        {!hideCamera ? <button className={`btn btn-soft${showCamera ? ' th-ar-close-button' : ''}`} onClick={onToggleCamera} disabled={busy}>{showCamera ? 'Close AR view' : '◎ Find with camera'}</button> : null}
         <button className="btn btn-primary btn-block th-collect" onClick={onCollect} disabled={busy}>{busy ? 'Checking location…' : `Collect checkpoint · +${next.reward_coins} coins`}</button>
       </div> : null}
       {hideCamera && next ? <p className="tiny muted th-ar-unavailable">Camera directions are unavailable in the iPhone app. You can still follow the clue and check in at the checkpoint.</p> : null}
