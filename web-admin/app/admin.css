@@ -463,3 +463,19 @@ input.num { width: 110px; margin-right: 8px; }
 .week-ex p { margin: 4px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .card .tabs { padding: 3px; }
 .card .tabs button { padding: 5px 11px; font-size: 13px; }
+
+/* Treasure Hunt event setup */
+.th-admin-list { display: grid; gap: 14px; margin-top: 16px; }
+.th-admin-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 4px 0 10px; font-size: 12px; color: var(--muted); }
+.th-admin-editor { margin-top: 18px; }
+.th-admin-form { display: grid; gap: 2px; }
+.th-admin-form .field { min-width: 0; }
+.th-admin-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.th-admin-stops { display: grid; gap: 12px; padding-top: 8px; }
+.th-admin-stops-head, .th-admin-stop-head, .th-admin-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.th-admin-stops-head { margin-bottom: 2px; }
+.th-admin-stop { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
+.th-admin-stop-head { margin-bottom: 12px; }
+.th-admin-remove { border: 0; padding: 4px 8px; background: transparent; color: var(--red); cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; }
+.th-admin-actions { justify-content: flex-end; padding-top: 10px; border-top: 1px solid var(--line); }
+@media (max-width: 560px) { .th-admin-row { grid-template-columns: minmax(0, 1fr); gap: 0; } }

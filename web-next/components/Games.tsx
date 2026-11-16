@@ -98,6 +98,11 @@ export function GamesHub() {
         </span>
         <span className="gm-banner-art" aria-hidden="true"><Icon name="gamepad" /></span>
       </button>
+      <button className="th-games-card" onClick={() => go('games/treasure-hunt')}>
+        <span className="th-games-art" aria-hidden="true">🧰</span>
+        <span className="th-games-copy"><b>Treasure Hunt</b><small>Explore real places. Follow clues. Collect coins.</small></span>
+        <span className="th-games-cta">Explore <Icon name="chev" cls="sm" /></span>
+      </button>
       <div className="chips gm-filters" role="group" aria-label="Show">
         {FILTERS.map(([k, label]) => <button key={k} type="button" className="chip" aria-pressed={filter === k} onClick={() => setFilter(k)}>{label}</button>)}
       </div>

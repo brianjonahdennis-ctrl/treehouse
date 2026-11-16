@@ -8,7 +8,7 @@ export const ROLE_LABEL: Record<Role, string> = {
 
 export const ROLE_HELP: Record<Role, string> = {
   super_admin: 'Everything, including staff, deleting accounts and opening any chat (with a reason).',
-  admin: 'Moderation, members (with emails), rooms, ads, referrals, settings and the audit log.',
+  admin: 'Moderation, members (with emails), rooms, ads, referrals, hunt events, settings and the audit log.',
   moderator: 'Reports, members, room bans and reported chats.',
   editor: 'Announcements and ads.',
   analyst: 'Dashboard and results only.',
@@ -36,6 +36,7 @@ export const SECTIONS: Section[] = [
   { id: 'announcements', label: 'Announcements', icon: 'megaphone', need: 'view', group: 'grow' },
   { id: 'ads', label: 'Ads', icon: 'ad', need: 'view', group: 'grow' },
   { id: 'referrals', label: 'Referrals', icon: 'gift', need: 'view', group: 'grow' },
+  { id: 'treasure-hunts', label: 'Treasure Hunts', icon: 'gift', need: 'manage', group: 'grow' },
   { id: 'settings', label: 'Settings', icon: 'gear', need: 'view', group: 'admin' },
   { id: 'staff', label: 'Staff', icon: 'shield', need: 'view', group: 'admin' },
   { id: 'audit', label: 'Audit log', icon: 'list', need: 'manage', group: 'admin' },

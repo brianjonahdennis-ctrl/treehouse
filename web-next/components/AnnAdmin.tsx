@@ -16,6 +16,7 @@ import { CATS, CAT_IDS, ROUTES, CTA_PRESETS, safeLink, safeImage, annDate, lagos
 import { Icon, EmptyState, SkeletonList } from './ui';
 import { toast, confirmSheet } from './overlay';
 import { AnnView, CatTag } from './Announcements';
+import AnnTreasureHunts from './AnnTreasureHunts';
 
 type Me = { role: string; can_publish: boolean };
 const ROLE_LABEL: Record<string, string> = { super_admin: 'Super Admin', admin: 'Admin', editor: 'Editor', analyst: 'Analyst' };
@@ -48,6 +49,7 @@ export default function AnnAdmin({ sub }: { sub: string[] }) {
   if (!me) return <EmptyState emoji="🔒" title="Staff only" text="This page is for treehouse staff. If you should have access, ask the Super Admin to add your handle." >
     <button className="btn btn-primary" onClick={() => go('home')}>Back to treehouse</button></EmptyState>;
   const [a, b] = sub;
+  if (a === 'treasure-hunts') return ['super_admin', 'admin'].includes(me.role) ? <AnnTreasureHunts /> : <EmptyState emoji="🔒" title="Admin access only" text="Treasure Hunt setup is available to Admins and Super Admins." />;
   if (a === 'staff') return <Staff me={me} />;
   if (a === 'new') return <Composer me={me} id={null} />;
   if (a && b === 'edit') return <Composer me={me} id={a} key={a} />;
@@ -91,6 +93,7 @@ function Dashboard({ me }: { me: Me }) {
     <div className="adm">
       <Head title="Product Announcements">
         {me.role === 'super_admin' ? <button className="btn btn-ghost btn-sm" onClick={() => go('admin/announcements/staff')}><Icon name="userplus" cls="sm" />Staff</button> : null}
+        {['super_admin', 'admin'].includes(me.role) ? <button className="btn btn-ghost btn-sm" onClick={() => go('admin/treasure-hunts')}>🧭 Treasure Hunt setup</button> : null}
         {me.role !== 'analyst' ? <button className="btn btn-coral" onClick={() => go('admin/announcements/new')}><Icon name="plus" cls="sm" />Create Announcement</button> : null}
       </Head>
       <p className="small muted">{`You’re signed in as ${ROLE_LABEL[me.role]}${me.can_publish ? ' · can publish' : me.role === 'analyst' ? ' · view only' : ' · drafts only'}. Counts update every minute.`}</p>
