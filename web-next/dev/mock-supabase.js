@@ -20,6 +20,7 @@
     state: 'Lagos', pref_state: 'Lagos' };
 
   const mockOrigins = {};
+  let mockRole = 'caller'; const mockCalls = [];
   const convo = (id, handle, extra) => Object.assign({ conversation_id: id, other_handle: handle, other_gender: 'female', other_age: 24, other_location: 'Lagos',
     other_intent: 'love', last_message: null, last_from_me: false, last_at: ago(30), unread: 0, i_revealed: false, they_revealed: false,
     blocked: false, i_blocked: false, status: 'chat', other_online: false, other_active_hours: 3, matched: false, other_read_at: null, accepted_at: ago(500), started_by_me: false }, extra);
@@ -326,6 +327,22 @@ const RPC = {
       if (n !== 'ada') throw Object.assign(new Error('No one on treehouse has that username.'), { code: 'P0002' });
       return { conversation_id: 'mock-friend-ada', handle: 'Gentle Fox 610', status: 'sent' }; },
     claim_referral: () => false,
+    // Calls (preview only). Two tabs share one pretend call through localStorage, so the real calling
+    // engine (offer, answer, network routes) can connect tab to tab. A call is answered from the other tab.
+    call_available: ({ p_conversation }) => ['c1', 'c2', 'c9'].includes(p_conversation),
+    call_start: ({ p_conversation, p_kind }) => { mockRole = 'caller'; localStorage.setItem('mock-signals-caller', '[]'); localStorage.setItem('mock-signals-callee', '[]');
+      const c = { id: '00000000-0000-0000-0000-00000000ca11', conversation_id: p_conversation, kind: p_kind, status: 'ringing', created_at: new Date().toISOString(), answered_at: null, ended_at: null, other_handle: 'Velvet Mango 532' };
+      localStorage.setItem('mock-call', JSON.stringify(c)); return { ...c, outgoing: true, now: new Date().toISOString() }; },
+    call_get: () => ({ ...(JSON.parse(localStorage.getItem('mock-call') || 'null') || {}), outgoing: mockRole === 'caller', now: new Date().toISOString() }),
+    call_beat: () => RPC.call_get(),
+    call_answer: ({ p_accept }) => { mockRole = 'callee'; const c = JSON.parse(localStorage.getItem('mock-call') || 'null') || {};
+      const n = { ...c, status: p_accept ? 'active' : 'declined', answered_at: p_accept ? new Date().toISOString() : null }; localStorage.setItem('mock-call', JSON.stringify(n)); return { ...n, outgoing: false, now: new Date().toISOString() }; },
+    call_end: () => { const c = JSON.parse(localStorage.getItem('mock-call') || 'null') || {}; const n = { ...c, status: c.status === 'ringing' ? 'cancelled' : 'ended', ended_at: new Date().toISOString() };
+      localStorage.setItem('mock-call', JSON.stringify(n)); mockCalls.unshift({ ...n, outgoing: mockRole === 'caller' }); return n; },
+    call_signal: ({ p_data }) => { const k = 'mock-signals-' + mockRole; const l = JSON.parse(localStorage.getItem(k) || '[]'); l.push({ id: (mockRole === 'caller' ? 0 : 100000) + l.length + 1, from: mockRole, data: p_data }); localStorage.setItem(k, JSON.stringify(l)); return null; },
+    call_signals_since: ({ p_after }) => (JSON.parse(localStorage.getItem('mock-signals-' + (mockRole === 'caller' ? 'callee' : 'caller')) || '[]')).filter((m) => m.id > (p_after || 0)),
+    call_history: ({ p_conversation }) => [...mockCalls.filter((c) => c.conversation_id === p_conversation), ...(p_conversation === 'c1' ? [{ id: 'old1', conversation_id: 'c1', kind: 'audio', status: 'missed', outgoing: false, created_at: ago(6), answered_at: null, ended_at: ago(6) }, { id: 'old2', conversation_id: 'c1', kind: 'video', status: 'ended', outgoing: true, created_at: ago(20), answered_at: ago(20), ended_at: new Date(Date.now() - 20 * 60000 + 272000).toISOString() }] : [])],
+    call_ringing: () => null,
     // My Treehouse: a made-up tree (preview only). 24 direct, some with their own invitees, one level 3.
     my_treehouse: () => { const t = mockTree(); const lv = {}; t.forEach((n) => { if (!n.hidden) lv[n.level] = (lv[n.level] || 0) + 1; });
       const direct = lv[1] || 0, total = Object.values(lv).reduce((a, b) => a + b, 0);

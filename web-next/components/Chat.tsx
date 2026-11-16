@@ -8,6 +8,7 @@
 import { openRecorder, VoiceBubble } from './Voice';
 import { BirthdayCardBubble, ChatBirthdayBanner, openCardPicker, parseBirthdayCard } from './Birthday';
 import { ConvoBird, ChatRatePrompt } from './Reputation';
+import { ChatCallActions, CallRecord } from './Call';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as api from '@/lib/api';
@@ -85,6 +86,16 @@ function ChatView({ convo }: { convo: Convo }) {
   const id = convo.conversation_id as string;
   const me = state.user.id as string;
   const [msgs, setMsgs] = useState<Msg[]>([]);
+  // Call records (audio/video calls) shown between messages; never counted as messages.
+  const [callRecs, setCallRecs] = useState<any[]>([]);
+  useEffect(() => {
+    let alive = true;
+    const load = () => api.callHistory(id).then((l: any[]) => { if (alive) setCallRecs([...l].reverse()); });
+    load();
+    const onCall = (e: Event) => { const d: any = (e as CustomEvent).detail || {}; if (d.c === id || d.conversationId === id) setTimeout(load, 600); };
+    window.addEventListener('th-call', onCall); window.addEventListener('th-call-ended', onCall);
+    return () => { alive = false; window.removeEventListener('th-call', onCall); window.removeEventListener('th-call-ended', onCall); };
+  }, [id]);
   useEffect(() => { msgsRef.current = msgs; });
   const [loaded, setLoaded] = useState(false);
   const [typing, setTyping] = useState(false);
@@ -443,6 +454,7 @@ function ChatView({ convo }: { convo: Convo }) {
   const metaText = meta({ age: convo.other_age, gender: convo.other_gender, location: convo.other_location });
   const active = convo.blocked ? null : activeText(false, convo.other_active_hours);
   let lastDay: string | null = null;
+  let recIdx = 0, recList: any[] = [];
 
   return (
     <>
@@ -458,6 +470,7 @@ function ChatView({ convo }: { convo: Convo }) {
             {convo.blocked ? null : <span className="chat-bird"><ConvoBird id={convo.conversation_id} /></span>}
           </span>
         </div>
+        {convo.blocked ? null : <ChatCallActions conversationId={convo.conversation_id} other={nameOf(convo)} refreshKey={Math.floor(msgs.length / 5)} />}
         <RevealPill convo={convo} />
         <button className="plain-btn" aria-label="Chat options" onClick={() => chatMenu(convo)}><Icon name="more" /></button>
       </div>
@@ -469,7 +482,10 @@ function ChatView({ convo }: { convo: Convo }) {
           <div className="empty" style={{ padding: '30px 10px' }}><div className="empty-art"><span>👋</span></div><h3>Say hi!</h3>
             <p>{st === 'sent' ? 'Your request is waiting for them to accept.' : isMatch(convo) ? 'You matched. Neither of you knows who the other is yet: start with something fun.' : 'Request accepted. You’re both anonymous: start with something fun.'}</p></div>
         ) : null}
+        {(() => { recIdx = 0; recList = callRecs.filter((r) => reachedStart || !msgs.length || r.created_at >= msgs[0].created_at); return null; })()}
         {msgs.map((m, i) => {
+          const recs: React.ReactNode[] = [];
+          while (recIdx < recList.length && recList[recIdx].created_at < m.created_at) { const r = recList[recIdx++]; recs.push(<CallRecord key={`call-${r.id}`} c={r} />); }
           const day = dayLabel(m.created_at);
           const sep = day !== lastDay ? <div className="day-sep">{day}</div> : null;
           lastDay = day;
@@ -484,6 +500,7 @@ function ChatView({ convo }: { convo: Convo }) {
           return (
             <Fragment key={m.id}>
               {sep}
+              {recs}
               <MsgRow m={m} mine={mine} gone={gone} canSwipe={canTalk && !gone && !m.pending} onReply={() => setReply(m)}>
                 {m.photo && !gone
                   ? <div className="bubble photo-bubble" onClick={() => photoClick(m)}>{quote}<photos.PhotoBox key={unblurred} m={m} mine={mine} localUrl={m.localUrl} blur={!photos.wasSeen(m.id)} /></div>
@@ -496,6 +513,7 @@ function ChatView({ convo }: { convo: Convo }) {
             </Fragment>
           );
         })}
+        {recList.slice(recIdx).map((r) => <CallRecord key={`call-${r.id}`} c={r} />)}
         <div className="typing" hidden={!typing} aria-label="Typing"><i /><i /><i /></div>
       </div>
 

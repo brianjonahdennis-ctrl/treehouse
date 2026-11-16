@@ -2304,3 +2304,91 @@ button.mt-nav:active { transform: scale(.99); }
   border: 1px solid color-mix(in srgb, var(--good) 40%, var(--line)); background: color-mix(in srgb, var(--good) 10%, var(--surface)); }
 .bk-invite > span:first-child { font-size: 24px; }
 .bk-invite .grow { display: grid; gap: 2px; min-width: 0; }
+
+/* ---- Audio and video calls (Hydra's mock-up, 16 Nov 2026) ------------------------------------------ */
+.call-page { position: fixed; inset: 0; z-index: 900; display: flex; flex-direction: column; color: #fff; overflow: hidden;
+  padding: max(14px, env(safe-area-inset-top)) 20px max(22px, env(safe-area-inset-bottom));
+  background: radial-gradient(90% 55% at 50% 30%, rgba(124, 58, 237, .38), transparent 70%), radial-gradient(70% 40% at 50% 100%, rgba(255, 63, 155, .22), transparent 70%), #090d2b; }
+.call-top { position: relative; z-index: 3; display: grid; justify-items: center; gap: 6px; }
+.call-logo { display: inline-flex; align-items: center; gap: 8px; font: 800 22px var(--display); letter-spacing: -.01em; }
+.call-logo i { color: var(--pink); font-style: normal; }
+.call-top-sub { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: rgba(255, 255, 255, .85); }
+.call-top-sub .icon { width: 14px; height: 14px; }
+.call-top-status { font-size: 13px; color: #ffd166; }
+.call-center { flex: 1; display: grid; place-content: center; justify-items: center; gap: 6px; text-align: center; position: relative; z-index: 2; }
+.call-center h1 { margin: 14px 0 0; font: 800 34px/1.1 var(--display); }
+.call-sub { margin: 0; font-size: 18px; color: rgba(255, 255, 255, .78); }
+.call-time { margin: 6px 0 0; font: 600 20px var(--font); font-variant-numeric: tabular-nums; min-height: 26px; }
+.call-ring { position: relative; padding: 5px; border-radius: 50%; background: linear-gradient(140deg, var(--pink), #b46cff, var(--blue)); box-shadow: 0 0 0 10px rgba(255, 63, 155, .08), 0 0 60px rgba(255, 63, 155, .45); }
+.call-ring .avatar { --size: 150px; box-shadow: 0 0 0 4px #090d2b; }
+.call-ring::after { content: ''; position: absolute; inset: -18px; border-radius: 50%; border: 2px solid rgba(255, 63, 155, .35); animation: callPulse 1.8s ease-out infinite; }
+.call-ring.live::after { animation: none; opacity: .4; }
+@keyframes callPulse { 0% { transform: scale(.92); opacity: .9; } 100% { transform: scale(1.18); opacity: 0; } }
+.call-waves { display: flex; align-items: center; justify-content: center; gap: 4px; height: 50px; margin-top: 14px; }
+.call-waves i { width: 4px; border-radius: 4px; background: linear-gradient(var(--pink), #b46cff); transition: height .12s; }
+.call-controls { position: relative; z-index: 3; display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 14px 22px; }
+.call-ctrl { display: grid; justify-items: center; gap: 8px; border: 0; background: none; color: #fff; font: 600 13.5px var(--font); cursor: pointer; }
+.call-ctrl > span { width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .14); }
+.call-ctrl.on > span { background: #fff; color: #090d2b; }
+.call-ctrl:disabled { opacity: .5; }
+.call-btn { border: 0; cursor: pointer; display: grid; place-items: center; border-radius: 50%; color: #fff; }
+.call-btn.end { width: 72px; height: 72px; background: #ef4444; box-shadow: 0 12px 30px -10px rgba(239, 68, 68, .8); flex-basis: 100%; max-width: 72px; margin: 10px auto 0; }
+.call-controls:not(.floating) .call-btn.end { flex-basis: auto; }
+.call-audio .call-controls { margin-bottom: 4px; }
+.call-audio .call-controls .call-btn.end { order: 9; margin-left: calc(50% - 36px); margin-right: calc(50% - 36px); }
+.call-btn .icon { width: 30px; height: 30px; }
+.call-answer { position: relative; z-index: 3; display: flex; justify-content: space-around; padding-bottom: 12px; }
+.call-btn.accept, .call-btn.decline { width: 76px; height: 76px; gap: 0; }
+.call-btn.accept { background: #22c55e; box-shadow: 0 12px 30px -10px rgba(34, 197, 94, .8); animation: callNudge 1.2s ease-in-out infinite; }
+.call-btn.decline { background: #ef4444; }
+.call-btn.accept span, .call-btn.decline span { position: absolute; transform: translateY(58px); font: 600 14px var(--font); }
+.call-btn { position: relative; }
+@keyframes callNudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@media (prefers-reduced-motion: reduce) { .call-btn.accept, .call-ring::after { animation: none; } }
+/* Video */
+.call-video { padding: 0; }
+.call-video .call-top { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 16px; justify-items: start; text-shadow: 0 1px 6px rgba(0, 0, 0, .5); }
+.call-remote { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; z-index: 1; }
+.call-novideo { padding-top: 40px; }
+.call-pip { position: absolute; z-index: 4; top: max(14px, env(safe-area-inset-top)); right: 14px; width: 112px; height: 156px; border-radius: 18px; overflow: hidden;
+  background: #1c2360; border: 2px solid rgba(255, 255, 255, .85); box-shadow: 0 10px 30px rgba(0, 0, 0, .45); touch-action: none; cursor: grab; }
+.call-pip video { width: 100%; height: 100%; object-fit: cover; }
+.call-pip video.mirror { transform: scaleX(-1); }
+.call-pip-off { position: absolute; inset: 0; display: grid; place-items: center; }
+.call-pip-flip { position: absolute; right: 6px; bottom: 6px; width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; background: rgba(0, 0, 0, .5); color: #fff; cursor: pointer; }
+.call-controls.floating { position: absolute; z-index: 3; left: 12px; right: 12px; bottom: max(16px, env(safe-area-inset-bottom)); flex-wrap: nowrap; justify-content: space-between; align-items: center; gap: 6px;
+  padding: 12px 14px; border-radius: 28px; background: rgba(20, 16, 50, .62); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, .12); }
+.call-controls.floating .call-ctrl > span { width: 52px; height: 52px; }
+.call-controls.floating .call-ctrl { font-size: 12.5px; }
+.call-controls.floating .call-btn.end { width: 62px; height: 62px; margin: 0; flex: none; }
+.call-quality { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+.call-quality i { width: 4px; border-radius: 2px; background: rgba(255, 255, 255, .3); }
+.call-quality i:nth-child(1) { height: 5px; } .call-quality i:nth-child(2) { height: 9px; } .call-quality i:nth-child(3) { height: 13px; }
+.call-quality i.on { background: #22c55e; }
+.call-quality.q1 i.on, .call-quality.q0 i.on { background: #f59e0b; }
+/* Chat header buttons and call records */
+.chat-calls { display: inline-flex; align-items: center; }
+.chat-head .chat-calls .plain-btn { width: 40px; height: 40px; }
+.call-record { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px auto; padding: 6px 14px; width: fit-content; max-width: 90%;
+  border-radius: 999px; background: var(--surface-2); color: var(--ink-2); font-size: 13px; }
+.call-record span { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.call-record time { color: var(--muted); font-size: 12px; }
+.call-record.missed span { color: var(--bad); }
+@media (max-width: 380px) {
+  .call-ring .avatar { --size: 120px; }
+  .call-center h1 { font-size: 28px; }
+  .call-ctrl > span { width: 54px; height: 54px; }
+  .call-controls.floating { padding: 10px; }
+  .call-controls.floating .call-ctrl > span { width: 46px; height: 46px; }
+  .call-controls.floating .call-ctrl { font-size: 11px; }
+  .chat-head .chat-calls .plain-btn { width: 34px; height: 34px; }
+}
+/* Chat header with call buttons: keep the badge row on one line and give the name more room. */
+.chat-head { gap: 6px; }
+.chat-head .chat-bird { white-space: nowrap; overflow: hidden; }
+.chat-head .chat-bird .bk-compact { flex-wrap: nowrap; }
+@media (max-width: 420px) {
+  .chat-head .chat-calls .plain-btn { width: 34px; height: 34px; }
+  .chat-head .chat-calls .icon { width: 20px; height: 20px; }
+  .chat-head > .plain-btn { width: 36px; height: 36px; }
+}

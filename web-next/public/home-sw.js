@@ -9,6 +9,8 @@ const TEXT = {
   like: ['💘 Someone liked you', 'Open treehouse to see who’s interested.'],
   match: ['✨ It’s a match!', 'You have a new match. Open treehouse to say hi.'],
   friend: ['👋 New friend request', 'Someone wants to be your friend. Open treehouse to accept.'],
+  call: ['📞 Incoming call', 'Someone is calling you on treehouse. Open it now to answer.'],
+  missed_call: ['📞 Missed call', 'You missed a call on treehouse. Open it to call back.'],
   announcement: ['Treehouse Update 🎉', 'We have something new for you. Open Treehouse to see what’s new.'],
 };
 
@@ -26,6 +28,9 @@ self.addEventListener('push', (event) => {
     badge: '/notif-badge.png',
     tag: `treehouse-${data.kind || 'update'}`,   // newer notifications of the same kind replace older ones
     renotify: true,
+    // An incoming call stays on screen until tapped or dismissed, and buzzes like a phone ringing.
+    requireInteraction: data.kind === 'call',
+    vibrate: data.kind === 'call' ? [400, 300, 400, 300, 400] : undefined,
     data: { url },
   }));
 });

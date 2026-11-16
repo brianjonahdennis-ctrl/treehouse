@@ -451,6 +451,9 @@ export const reportPartner = (conversationId: string, reason: string, details?: 
 // chatroom message and inbox signal (each one is billed by Supabase and uses a connection slot). Back on
 // screen it reconnects; every channel rejoins by itself and the usual catch-ups fetch what was missed.
 let livePaused = false, pauseTimer: ReturnType<typeof setTimeout> | null = null;
+// While a call is ringing or live, never pause (the call needs its live channel even off screen).
+let liveHeld = false;
+export function holdLive(on: boolean) { liveHeld = on; if (on && livePaused) { livePaused = false; try { sb.realtime.connect(); } catch { /* never mind */ } } }
 export const isLivePaused = () => livePaused;
 let pauseStarted = false;
 export function pauseLiveInBackground(afterMs = 60000) {
@@ -460,7 +463,7 @@ export function pauseLiveInBackground(afterMs = 60000) {
     if (document.hidden) {
       if (pauseTimer) clearTimeout(pauseTimer);
       pauseTimer = setTimeout(() => {
-        if (!document.hidden || livePaused) return;
+        if (!document.hidden || livePaused || liveHeld) return;
         livePaused = true; live.status('live', 'paused');
         try { sb.realtime.disconnect(); } catch { /* never mind */ }
       }, afterMs);
@@ -673,3 +676,31 @@ export const myUsername = () => rpc('my_username');
 export const checkUsername = (name: string) => rpc('check_username', { p_username: name });
 export const setUsername = (name: string) => rpc('set_username', { p_username: name });
 export const addFriendByUsername = (name: string) => rpc('add_friend_by_username', { p_username: name });
+
+// ---- Audio and video calls (migration 121) -----------------------------------------------------------
+// The database decides who can call (call_available is only yes/no) and keeps the call record; the call
+// itself goes phone to phone. Setup messages go through call_signal and the private channel call:<id>.
+export const callAvailable = async (conversationId: string) => { try { return !!(await rpc('call_available', { p_conversation: conversationId })); } catch { return false; } };
+export const callStart = (conversationId: string, kind: 'audio' | 'video') => rpc('call_start', { p_conversation: conversationId, p_kind: kind });
+export const callGet = (id: string) => rpc('call_get', { p_call: id });
+export const callAnswer = (id: string, accept: boolean) => rpc('call_answer', { p_call: id, p_accept: accept });
+export const callEnd = (id: string, reason = 'hangup') => rpc('call_end', { p_call: id, p_reason: reason });
+export const callBeat = (id: string) => rpc('call_beat', { p_call: id });
+export const callSignal = (id: string, data: unknown) => rpc('call_signal', { p_call: id, p_data: data });
+export const callSignalsSince = async (id: string, after: number) => (await rpc('call_signals_since', { p_call: id, p_after: after })) || [];
+export const callHistory = async (conversationId: string) => { try { return (await rpc('call_history', { p_conversation: conversationId, p_limit: 50 })) || []; } catch { return []; } };
+export const callRinging = async () => { try { return await rpc('call_ringing'); } catch { return null; } };
+export async function callIce(id: string) {
+  if (process.env.NEXT_PUBLIC_TH_MOCK) return { iceServers: [], relay: false };   // design preview: no relay
+  const { data } = await sb.auth.getSession();
+  const r = await fetch('/api/call-ice', { method: 'POST', headers: { 'content-type': 'application/json', Authorization: `Bearer ${data.session && data.session.access_token}` }, body: JSON.stringify({ call: id }) });
+  if (!r.ok) throw new Error('Couldn’t set up the call. Try again.');
+  return r.json();
+}
+export function callChannel(id: string, h: { onState: (s: any) => void; onSignal: (m: any) => void; onStatus?: (st: string) => void }) {
+  const ch = sb.channel(`call:${id}`, { config: { private: true } })
+    .on('broadcast', { event: 'state' }, ({ payload }: any) => h.onState(payload))
+    .on('broadcast', { event: 'signal' }, ({ payload }: any) => h.onSignal(payload))
+    .subscribe((st: string) => h.onStatus && h.onStatus(st));
+  return { leave() { sb.removeChannel(ch); } };
+}

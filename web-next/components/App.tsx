@@ -19,6 +19,7 @@ import { OverlayHost, openSheet, toast } from './overlay';
 import { Landing, NewPassword, Underage } from './Auth';
 import Onboarding from './Onboarding';
 import ForceUpdate from './ForceUpdate';
+import CallLayer from './Call';
 import { deliverToOpenChat } from './chatBus';
 import { connectWaiting, rememberConnect } from '@/lib/kickrs';
 import { loadAnnUnread } from '@/lib/announcements';
@@ -67,7 +68,7 @@ export default function App({ children }: { children: ReactNode }) {
   else if (s.profile.dob_underage_at) screen = <Underage />;
   else screen = <Shell pathname={pathname}>{children}</Shell>;
 
-  return <div id="app">{screen}<OverlayHost /><ForceUpdate /></div>;
+  return <div id="app">{screen}{state.profile ? <CallLayer /> : null}<OverlayHost /><ForceUpdate /></div>;
 }
 
 function Shell({ pathname, children }: { pathname: string; children: ReactNode }) {
@@ -184,6 +185,8 @@ function startLive() {
   // The server nudges this device when something new arrives; at most one full refresh every 20 s.
   let nudgeTimer: ReturnType<typeof setTimeout> | null = null, lastNudgeLoad = 0;
   api.onInboxNudge(state.user.id, (n) => {
+    // Calls: ringing / answered / ended (the call screens and the chat's call records listen for this).
+    if (n.k === 'call') { window.dispatchEvent(new CustomEvent('th-call', { detail: n })); return; }
     if (n.k === 'closed' && n.c) {
       closeChatLocal(n.c);
       if (state.openChat === n.c) go('matches', { replace: true });
