@@ -1765,8 +1765,6 @@ html, body { max-width: 100%; overflow-x: clip; }
 .th-route-line span { position: relative; z-index: 1; width: 12px; height: 12px; border: 2px solid #8f7ab5; border-radius: 50%; background: #26264e; }
 .th-route-line span.past { border-color: #ff5bc8; background: #ff5bc8; box-shadow: 0 0 9px #ff5bc8; }
 .th-route-line span.current { width: 18px; height: 18px; border-color: #fff; background: #31c3ff; box-shadow: 0 0 0 5px rgba(49,195,255,.2), 0 0 12px #31c3ff; }
-.th-direction { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-radius: 12px; background: rgba(255,255,255,.1); font-weight: 700; font-size: 13px; }
-.th-arrow { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #2cbcff; color: #06122d; font-size: 25px; transition: transform .25s; }
 .th-treasure-big { font-size: 64px; filter: drop-shadow(0 0 18px rgba(255,203,68,.6)); }
 .th-score { display: flex; justify-content: space-between; gap: 8px; padding: 11px 13px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); font-size: 13px; color: var(--ink); }
 .th-score b { color: #d18a00; }
@@ -1801,7 +1799,9 @@ html, body { max-width: 100%; overflow-x: clip; }
 .th-ar-scrim { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 16px; pointer-events: none; background: linear-gradient(180deg, rgba(3,6,24,.45), transparent 30%, transparent 68%, rgba(3,6,24,.55)); }
 .th-ar-top, .th-ar-caption { padding: 8px 12px; border-radius: 999px; background: rgba(8,12,40,.72); font-size: 12px; font-weight: 800; }
 .th-ar-target { display: grid; place-items: center; width: 112px; height: 112px; border: 2px solid rgba(65,220,255,.85); border-radius: 50%; box-shadow: 0 0 0 12px rgba(65,220,255,.12), 0 0 26px rgba(65,220,255,.6); font-size: 52px; animation: th-float 2.4s ease-in-out infinite; }
+.th-ar-arrow { color: #fff; font-size: 58px; font-weight: 900; line-height: 1; filter: drop-shadow(0 0 9px #23c9ff); transition: transform .25s; }
 .th-ar-rays { position: absolute; color: #ffe06c; font-size: 24px; transform: translate(-38px,-32px); }
+.th-ar-unavailable { margin: -5px 0 0; text-align: center; line-height: 1.45; }
 .th-camera-close { position: absolute; top: 9px; right: 9px; display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: rgba(0,0,0,.65); color: white; font-size: 24px; cursor: pointer; }
 @media (min-width: 640px) { .th-hunt-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 

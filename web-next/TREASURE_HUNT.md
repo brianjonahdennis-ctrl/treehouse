@@ -2,7 +2,7 @@
 
 ## Design
 
-Camera frames, visual overlay, compass and route directions run in the member's browser or phone. The camera is never uploaded. GPS is read locally for directions and sent only after the member taps to claim a checkpoint; the database uses that one reading for the distance check and does not save it. The iOS app shell hides the camera view, while the clue and location check remain available.
+Camera frames, visual overlay, compass heading and distance guidance run in the member's browser or phone. Direction and distance appear only inside the camera view. The camera is never uploaded. GPS is read locally for AR directions and sent only after the member taps to claim a checkpoint; the database uses that one reading for the distance check and does not save it. The iOS app shell hides the camera view, so the clue and location check-in remain available there but camera directions do not.
 
 The member app calls existing Supabase RPCs through `lib/api.ts`. A screen visit loads the active hunt list once (kept in a 60-second in-memory cache per open app), joining loads the route, and a claim sends one request. There is no hunt polling or new live channel. Leaderboard pages are fetched only when opened or when the member asks for another page; pages are cached in memory for 30 seconds. The active-hunt list returns counts and no checkpoint coordinates; route coordinates are returned only to a member who joins.
 
