@@ -10,17 +10,17 @@ Checkpoint and finish RPCs lock the participant row and enforce one award per ch
 
 ## Capacity model (estimates, not measured results)
 
-Assumptions: a 90-minute hunt, five checkpoints, one catalogue open and join/resume, one final claim, and leaderboard use by a minority of participants. A typical active player is expected to make about **0.08–0.15 Treasure Hunt API requests per minute** averaged across the hunt. The average includes the first screen and later checkpoint actions; during a short launch burst, requests will be higher. A checkpoint or finish action is a single RPC transaction, with roughly 3–6 indexed reads/writes. A catalogue RPC performs a bounded set of hunt/checkpoint/participant lookups. A leaderboard page reads at most 51 ordered rows from its board index and joins profile handles.
+Assumptions: a 90-minute hunt, five checkpoints, one catalogue open and join/resume, one final claim, and leaderboard use by a minority of participants. A typical active player is expected to make about **0.08–0.15 Treasure Hunt API requests per minute** averaged across the hunt. The average includes the first screen and later checkpoint actions; during a short launch burst, requests will be higher. A successful checkpoint RPC is one transaction with about 9 SQL statements (eligibility, participant lock, duplicate checks, rate counter, hunt/checkpoint reads, claim insert and progress update); error/retry paths are shorter. Across the mixed event, use about 5–10 DB statements per RPC as a rough estimate. A catalogue RPC performs a bounded set of hunt/checkpoint/participant lookups. A leaderboard page reads at most 51 ordered rows from its board index and joins profile handles.
 
 | Concurrent players | Estimated steady Hunt requests | Estimated steady DB statements* | Estimated Hunt bandwidth** |
 |---:|---:|---:|---:|
-| 100 | 8–15/min (0.13–0.25/sec) | about 0.5–1.5/sec | about 0.01–0.06 Mbit/sec |
-| 1,000 | 80–150/min (1.3–2.5/sec) | about 5–15/sec | about 0.1–0.6 Mbit/sec |
-| 10,000 | 800–1,500/min (13–25/sec) | about 50–150/sec | about 1–6 Mbit/sec |
+| 100 | 8–15/min (0.13–0.25/sec) | about 0.7–2.5/sec | about 0.01–0.06 Mbit/sec |
+| 1,000 | 80–150/min (1.3–2.5/sec) | about 7–25/sec | about 0.1–0.6 Mbit/sec |
+| 10,000 | 800–1,500/min (13–25/sec) | about 70–250/sec | about 1–6 Mbit/sec |
 
-\*Statement estimates multiply the request rate by approximately 4–6 statements per RPC. They exclude unrelated Treehouse activity and should be replaced with observed database query counts. \**Assumes 10–30 KB round-trip per RPC with text/JSON responses, no maps or image uploads. Mobile radio/protocol overhead and initial app assets are excluded.
+\*Statement estimates multiply the request rate by approximately 5–10 statements per RPC. They exclude unrelated Treehouse activity and should be replaced with observed database query counts. \**Assumes 10–30 KB round-trip per RPC with text/JSON responses, no maps or image uploads. Mobile radio/protocol overhead and initial app assets are excluded.
 
-The normal server workload is small JSON and indexed database work; camera rendering and route math consume the member's device CPU and memory. At 10,000 concurrent participants, database connection capacity, transaction wait time, database CPU, and overlap with chat/authentication are the main unknowns. There is no test result yet: this repository has no safe staging database or load-test credentials, and the live database must not be used for this test. These estimates are not a promise that the current infrastructure supports 10,000 concurrent players.
+The normal server workload is small JSON and indexed database work; camera rendering and route math consume the member's device CPU and memory. At 10,000 concurrent participants, this model gives roughly 70–250 DB statements/second; database connection capacity, transaction wait time, database CPU, and overlap with chat/authentication are the main unknowns. There is no test result yet: this repository has no safe staging database or load-test credentials, and the live database must not be used for this test. These estimates are not a promise that the current infrastructure supports 10,000 concurrent players.
 
 ## Safe capacity test and scaling signals
 
