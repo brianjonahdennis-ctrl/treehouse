@@ -40,7 +40,9 @@ export function arrived(source: string, createdAt?: string) {
   const ms = Date.now() + skew - Date.parse(createdAt);
   if (!isFinite(ms) || ms < -5000) return;
   if (ms > 600000) { bump(`${source}_over10min`); return; }
-  if (source === 'chat') d.push(Math.max(0, ms)); else bump('inbox_n');
+  // Every incoming message reaches the phone through the inbox signal (an open chat shows it from there
+  // too), so that's the one timed; the open chat's own channel is only counted, to avoid timing twice.
+  if (source === 'inbox') { d.push(Math.max(0, ms)); bump('inbox_n'); } else bump('chat_n');
   if (d.length > 400) d = d.slice(-400);
 }
 /** A live channel changed state ('chat' / 'inbox' + SUBSCRIBED, CHANNEL_ERROR, TIMED_OUT, CLOSED, fallback). */
