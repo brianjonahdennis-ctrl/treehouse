@@ -13,6 +13,7 @@ import { ago } from '@/lib/util';
 import { Icon, Logo, Hero, Avatar, EmptyState, SkeletonList } from './ui';
 import { toast, openSheet, confirmSheet } from './overlay';
 import { BellButton, statusEditor } from './Home';
+import { PushCard } from './PushInstall';
 import { meta, activeText, shortName, acceptRequest, declineRequest, cancelSent, cancelMatchAsk, askFriend, requestMenu, partnerProfile } from './convo';
 import Chat from './Chat';
 import AdSlot from './AdSlot';
@@ -123,6 +124,7 @@ function Hub() {
         </nav>
       </Hero>
       <div className="below-hero ib-body stack-lg">
+        <PushCard />
         {s.convosLoaded ? <WhoOnline /> : <SkeletonList n={2} />}
       </div>
     </>

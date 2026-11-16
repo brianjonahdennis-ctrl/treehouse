@@ -127,17 +127,64 @@ export function HomeAppCard() {
       </div>
     </div>
   );
-  if (push.dismissedRecently() || push.needsInstall() || !push.supported() || !push.ready() || push.isOn() || push.permission() === 'denied') return null;
+  return <PushCard />;
+}
+
+// Older Android app (1.6/1.7): notifications need the new version. Opens the download in Chrome
+// (inside the app a download would silently do nothing).
+const APK = 'https://app.treehouse.ng/download/android';
+function updateApp() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const B = (window as any).Capacitor?.Plugins?.Browser;
+  if (B && B.open) B.open({ url: APK }).catch(() => { location.href = APK; });
+  else location.href = APK;
+}
+
+// ---- "Never miss a message" card: on Home and at the top of the Inbox --------------------------
+const showPushCard = () => !push.dismissedRecently() && !push.needsInstall() && push.supported() && push.ready() && !push.isOn() && push.permission() !== 'denied';
+export function PushCard() {
+  useAppState();
+  if (!useMounted()) return null;
+  if (push.appNeedsUpdate() && !push.dismissedRecently()) return (
+    <div className="card push-card">
+      <span className="push-icon"><Icon name="bell" /></span>
+      <div className="grow"><b>Get notifications in the app</b><p className="small muted">Update treehouse to get a notification when someone messages, likes or matches with you. You’ll stay signed in.</p></div>
+      <div className="push-actions">
+        <button className="btn btn-primary btn-sm" onClick={updateApp}>Update</button>
+        <button className="btn btn-soft btn-sm" onClick={() => { push.dismiss(); refresh(); }}>Not now</button>
+      </div>
+    </div>
+  );
+  if (!showPushCard()) return null;
   return (
     <div className="card push-card">
       <span className="push-icon"><Icon name="bell" /></span>
-      <div className="grow"><b>Never miss a message</b><p className="small muted">Get a notification when someone messages, likes or matches with you.</p></div>
+      <div className="grow"><b>Never miss a message</b><p className="small muted">Get a notification when someone messages, likes or matches with you. It never shows names or what was said.</p></div>
       <div className="push-actions">
         <button className="btn btn-primary btn-sm" onClick={turnOn}>Turn on</button>
         <button className="btn btn-soft btn-sm" onClick={() => { push.dismiss(); refresh(); }}>Not now</button>
       </div>
     </div>
   );
+}
+
+// After someone sends their first message (once per device): "Know when they reply".
+export function nudgeAfterSend() {
+  try {
+    if (localStorage.getItem('hy-push-nudged') || !showPushCard()) return;
+    localStorage.setItem('hy-push-nudged', '1');
+  } catch { return; }
+  setTimeout(() => openSheet((close) => (
+    <>
+      <div className="install-art"><span className="push-icon big"><Icon name="bell" /></span></div>
+      <h2 className="center">Know when they reply</h2>
+      <p className="muted center">Turn on notifications and we’ll tell you when you get a reply, a match or a friend request. They never show names or messages.</p>
+      <div className="sheet-actions">
+        <button className="btn btn-primary btn-block" onClick={() => { close(); turnOn(); }}>Turn on notifications</button>
+        <button className="btn btn-soft btn-block" onClick={() => { push.dismiss(); close(); refresh(); }}>Not now</button>
+      </div>
+    </>
+  ), { label: 'Turn on notifications' }), 900);
 }
 
 // ---- Profile → Notifications rows ---------------------------------------------------------------
@@ -150,7 +197,8 @@ export function PushRow() {
   useAppState();
   if (!useMounted()) return null;
   if (push.needsInstall()) return <SettingsRow sub="Add treehouse to your Home Screen first" control={<Chev />} onClick={iphonePushSheet} />;
-  if (push.isNative()) return <SettingsRow sub="Coming soon in the app. For now, use treehouse from your Home Screen" />;
+  if (push.appNeedsUpdate()) return <SettingsRow sub="Update the app to get notifications. You’ll stay signed in" control={<Chev />} onClick={updateApp} />;
+  if (push.isNative() && !push.appPush()) return <SettingsRow sub="Coming soon in the app. For now, use treehouse from your Home Screen" />;
   if (!push.supported()) return <SettingsRow sub="Not available in this browser" />;
   if (!push.ready()) return <SettingsRow sub="Not available right now" />;
   if (push.permission() === 'denied') return <SettingsRow sub="Blocked in your phone settings. Tap to see how to allow them" control={<Chev />} onClick={blockedSheet} />;
