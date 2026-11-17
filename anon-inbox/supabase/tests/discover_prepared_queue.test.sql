@@ -58,19 +58,6 @@ select pg_temp.seed_discover_profile('00000000-0000-0000-0000-00000000d111', 'dq
 select pg_temp.seed_discover_profile('00000000-0000-0000-0000-00000000d112', 'dq_no_dob', 'male', 30,
   now(), array['female']::public.dating_gender[], 'Lagos', null);
 
-select pg_temp.admin();
-insert into public.dating_likes (from_user, to_user, liked)
-values ('00000000-0000-0000-0000-00000000d104', '00000000-0000-0000-0000-00000000d101', true);
-update public.dating_profiles set birth_date = (current_date - interval '17 years')::date
-where user_id = '00000000-0000-0000-0000-00000000d109';
-insert into public.dating_conversations (user_a, user_b)
-values ('00000000-0000-0000-0000-00000000d101', '00000000-0000-0000-0000-00000000d108');
-insert into public.dating_likes (from_user, to_user, liked)
-values ('00000000-0000-0000-0000-00000000d101', '00000000-0000-0000-0000-00000000d105', false);
-insert into public.dating_blocks (blocker_id, blocked_id)
-values ('00000000-0000-0000-0000-00000000d101', '00000000-0000-0000-0000-00000000d106');
-update public.dating_profiles set suspended = true where user_id = '00000000-0000-0000-0000-00000000d107';
-
 select pg_temp.login('00000000-0000-0000-0000-00000000d101');
 select set_config('role', 'postgres', true);
 select is(
@@ -91,6 +78,22 @@ select ok((select count(*) <= 200 from dating_private.discover_queue where user_
   'Only about 200 source candidates are stored per member');
 select ok(not has_table_privilege('authenticated', 'dating_private.discover_queue', 'SELECT'),
   'Members cannot read the private queue directly');
+
+select pg_temp.admin();
+insert into public.dating_likes (from_user, to_user, liked)
+values ('00000000-0000-0000-0000-00000000d104', '00000000-0000-0000-0000-00000000d101', true);
+insert into public.dating_likes (from_user, to_user, liked)
+values ('00000000-0000-0000-0000-00000000d101', '00000000-0000-0000-0000-00000000d105', false);
+insert into public.dating_blocks (blocker_id, blocked_id)
+values ('00000000-0000-0000-0000-00000000d101', '00000000-0000-0000-0000-00000000d106');
+insert into public.dating_conversations (user_a, user_b)
+values ('00000000-0000-0000-0000-00000000d101', '00000000-0000-0000-0000-00000000d108');
+update public.dating_profiles set suspended = true where user_id = '00000000-0000-0000-0000-00000000d107';
+update public.dating_profiles set birth_date = (current_date - interval '17 years')::date
+where user_id = '00000000-0000-0000-0000-00000000d109';
+select pg_temp.login('00000000-0000-0000-0000-00000000d101');
+select set_config('role', 'postgres', true);
+
 select is((select count(*)::integer from public.discover_cards(50, '{}'::text[]) where handle = 'dq_passed'), 0,
   'A pass is rechecked and removed');
 select is((select count(*)::integer from public.discover_cards(50, '{}'::text[]) where handle = 'dq_blocked'), 0,
