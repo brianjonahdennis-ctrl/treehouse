@@ -69,16 +69,21 @@ export default function TreasureHunt() {
   const [showBoard, setShowBoard] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [arrived, setArrived] = useState(false);
+  const [mockRoutePlayer, setMockRoutePlayer] = useState('1');
   const run = useRef(0);
 
   const loadHunts = useCallback(() => api.treasureHuntsActive().then(setHunts).catch((e) => setLoadError(api.friendly(e))), []);
   useEffect(() => { void loadHunts(); }, [loadHunts]);
+  useEffect(() => { if (process.env.NEXT_PUBLIC_TH_MOCK === '1') setMockRoutePlayer(sessionStorage.getItem('mock-hunt-player') || '1'); }, []);
+  const chooseMockPlayer = (player: string) => {
+    sessionStorage.setItem('mock-hunt-player', player); setMockRoutePlayer(player); setLoadError(''); setHunts(null); void loadHunts();
+  };
 
   const joinOrResume = async (hunt: Hunt) => {
     setBusy(true); setNotice('');
     try {
       const data = hunt.joined ? await api.treasureHuntProgress(hunt.id)
-        : await api.treasureHuntJoin(hunt.id, hunt.route_assignment_required ? await positionOnce() : { latitude: 0, longitude: 0, accuracy: 1 });
+        : await api.treasureHuntJoin(hunt.id, await positionOnce());
       setProgress(data); setShowCamera(false); setArrived(false); setShowBoard(false);
     } catch (e) { setNotice(api.friendly(e)); }
     setBusy(false);
@@ -86,34 +91,28 @@ export default function TreasureHunt() {
 
   const collect = async (): Promise<boolean> => {
     if (!progress) return false;
-    const start = progress.route?.start;
-    if (start && !progress.route?.start_claimed_at) {
+    const target = progress.current_target;
+    if (!target || target.kind === 'finish') return false;
+    if (target.kind === 'start') {
       const call = ++run.current; setBusy(true); setNotice('');
       try {
         const here = await positionOnce();
         if (call !== run.current) return false;
-        const result = await api.treasureHuntClaimStart(progress.hunt.id, start.id, here);
+        const result = await api.treasureHuntClaimStart(progress.hunt.id, target.id, here);
         if (!result.ok) { setNotice(result.error || 'Your start point could not be checked. Try again.'); return false; }
-        setProgress((prev) => prev ? { ...prev, route: prev.route ? { ...prev.route, start_claimed_at: new Date().toISOString() } : prev.route,
-          participant: { ...prev.participant, total_coins: result.total_coins ?? prev.participant.total_coins } } : prev);
+        setProgress(result.progress);
         toast(`Start point reached · +${result.coins_awarded || 0} coins`, 'check');
         return true;
       } catch (e) { setNotice(api.friendly(e)); return false; }
       finally { if (call === run.current) setBusy(false); }
     }
-    const next = progress.checkpoints.find((c) => !c.claimed);
-    if (!next) return false;
     const call = ++run.current; setBusy(true); setNotice('');
     try {
       const here = await positionOnce();
       if (call !== run.current) return false;
-      const result = await api.treasureHuntClaimCheckpoint(progress.hunt.id, next.id, here);
+      const result = await api.treasureHuntClaimCheckpoint(progress.hunt.id, target.id, here);
       if (!result.ok) { setNotice(result.error || 'That checkpoint could not be checked. Try again.'); return false; }
-      setProgress((prev) => prev ? { ...prev,
-        participant: { ...prev.participant, last_checkpoint_sequence: result.checkpoint_sequence ?? prev.participant.last_checkpoint_sequence,
-          total_coins: result.total_coins ?? prev.participant.total_coins },
-        checkpoints: prev.checkpoints.map((c) => ({ ...c, claimed: c.sequence <= (result.checkpoint_sequence ?? prev.participant.last_checkpoint_sequence) }))
-      } : prev);
+      setProgress(result.progress);
       toast(`Checkpoint reached · +${result.coins_awarded || 0} coins`, 'check');
       return true;
     } catch (e) { setNotice(api.friendly(e)); return false; }
@@ -124,11 +123,12 @@ export default function TreasureHunt() {
     if (!progress) return false;
     setBusy(true); setNotice('');
     try {
-      const finishLocation = progress.route?.finish ? await positionOnce() : { latitude: 0, longitude: 0, accuracy: 1 };
+      const finishLocation = progress.current_target?.kind === 'finish' ? await positionOnce() : { latitude: 0, longitude: 0, accuracy: 1 };
       const result = await api.treasureHuntFinish(progress.hunt.id, finishLocation);
       if (!result.ok) { setNotice(result.error || 'The treasure could not be claimed. Try again.'); return false; }
-      setProgress((prev) => prev ? { ...prev, participant: { ...prev.participant, completed_at: new Date().toISOString(),
-        completion_bonus_coins: result.coins_awarded ?? prev.hunt.completion_bonus_coins, total_coins: result.total_coins ?? prev.participant.total_coins } } : prev);
+      setProgress((prev) => prev ? { ...prev, participant: { ...prev.participant,
+        completed_at: new Date().toISOString(), completion_bonus_coins: result.coins_awarded ?? prev.participant.completion_bonus_coins,
+        total_coins: result.total_coins ?? prev.participant.total_coins }, current_target: null } : prev);
       toast(`Treasure claimed · +${result.coins_awarded || 0} coins`, 'check');
       return true;
     } catch (e) { setNotice(api.friendly(e)); return false; }
@@ -143,7 +143,8 @@ export default function TreasureHunt() {
     <div className="stack-lg th-hunt">
       <Hero title="Treasure Hunt" sub="Follow the clues, find each checkpoint and collect Treehouse Coins." actions={<button className="hero-btn" aria-label="Back to Games" onClick={() => go('games')}><Icon name="back" /></button>} />
       <div className="th-hero-art" aria-hidden="true"><span className="th-spark s1">✦</span><span className="th-spark s2">✦</span><span className="th-chest">🧰</span><span className="th-coin">🪙</span></div>
-      <div className="th-privacy"><Icon name="lock" cls="sm" /><span>Camera and compass work on your phone. Location is sent only when you join to choose nearby route points or check in at a checkpoint.</span></div>
+      <div className="th-privacy"><Icon name="lock" cls="sm" /><span>Camera and compass work on your phone. Location is sent once when you join to choose your nearest starting checkpoint, then only when you check in.</span></div>
+      {process.env.NEXT_PUBLIC_TH_MOCK === '1' ? <section className="card" aria-label="Preview player routes"><b>Preview route spread</b><p className="tiny muted">Both players start at Wuse Market Gate. Player A goes to Garden Gate; Player B goes to River Walk.</p><div className="row" style={{ gap: 8 }}><button className={`btn ${mockRoutePlayer === '1' ? 'btn-primary' : 'btn-soft'}`} onClick={() => chooseMockPlayer('1')}>Preview Player A</button><button className={`btn ${mockRoutePlayer === '2' ? 'btn-primary' : 'btn-soft'}`} onClick={() => chooseMockPlayer('2')}>Preview Player B</button></div></section> : null}
       <p className="th-coins-note">Coins are in-game points. They are not cash.</p>
       {loadError ? <EmptyState emoji="🧭" title="Hunts are taking a break" text={loadError}><button className="btn btn-soft" onClick={() => { setLoadError(''); setHunts(null); void loadHunts(); }}>Try again</button></EmptyState>
         : !hunts ? <SkeletonList n={1} />
@@ -170,11 +171,11 @@ function HuntProgress({ data, busy, notice, showBoard, showCamera, arrived, onCa
   onBack: () => void; onCollect: () => Promise<boolean>; onFinish: () => Promise<boolean>;
   onToggleBoard: () => void;
 }) {
-  const next = data.checkpoints.find((c) => !c.claimed);
+  const target = data.current_target;
   const done = !!data.participant.completed_at;
-  const startPending = !!data.route?.start && !data.route.start_claimed_at;
-  const finishPending = !done && !next && !!data.route?.finish;
-  const routeTarget = startPending ? data.route?.start : next || (finishPending ? data.route?.finish : null);
+  const startPending = target?.kind === 'start';
+  const finishPending = !done && data.found_count >= data.total_count;
+  const routeTarget = target;
   const [coinBurst, setCoinBurst] = useState<{ amount: number; avatar: string } | null>(null);
   const burstTimer = useRef<number | null>(null);
   useEffect(() => () => { if (burstTimer.current !== null) window.clearTimeout(burstTimer.current); }, []);
@@ -190,26 +191,23 @@ function HuntProgress({ data, busy, notice, showBoard, showCamera, arrived, onCa
   };
   const targetKind = finishPending ? 'treasure' : startPending ? 'start' : 'coin';
   const targetAvatar = finishPending ? data.hunt.treasure_avatar || '🧰' : data.hunt.coin_avatar || '🪙';
-  const targetReward = finishPending ? data.hunt.completion_bonus_coins : startPending ? data.route?.start?.reward_coins || 0 : next?.reward_coins || 0;
+  const targetReward = finishPending ? data.hunt.completion_bonus_coins + (target?.reward_coins || 0) : target?.reward_coins || 0;
   return (
     <div className="stack-lg th-hunt th-progress">
       <Hero title={data.hunt.title} sub={`📍 ${data.hunt.region}`} actions={<button className="hero-btn" aria-label="Back to hunts" onClick={onBack}><Icon name="back" /></button>} />
       <section className={`th-map-card${done ? ' complete' : ''}`}>
-        <div className="th-map-head"><span className="th-map-label">{done ? 'Treasure found' : next ? 'Next checkpoint' : 'Final treasure'}</span><span className="th-map-count">{data.participant.last_checkpoint_sequence} / {data.checkpoints.length}</span></div>
+        <div className="th-map-head"><span className="th-map-label">{done ? 'Treasure found' : startPending ? 'Starting point' : finishPending ? 'Final treasure' : 'Next checkpoint'}</span><span className="th-map-count">{data.found_count} of {data.total_count} found</span></div>
         {done ? (
           <><div className="th-treasure-big" aria-hidden="true">{data.hunt.treasure_avatar || '🏆'}</div><h2>Hunt complete!</h2><p>You collected {data.participant.total_coins.toLocaleString()} Treehouse Coins.</p></>
         ) : startPending ? (
-          <><div className="th-treasure-big" aria-hidden="true">📍</div><h2>{data.route?.start?.name}</h2><p>{arrived ? 'You’ve arrived at the starting point. Check in below to unlock your checkpoint trail.' : 'Follow the AR direction to this starting location, then check in to unlock your checkpoint trail.'}</p></>
-        ) : next ? (
-          <>
-            <h2>{next.name}</h2><p>{next.hint || 'Follow the trail to reach this stop.'}</p>
-            <div className="th-route-line" aria-hidden="true">{data.checkpoints.map((c) => <span key={c.id} className={c.claimed ? 'past' : c.id === next.id ? 'current' : ''} />)}</div>
-          </>
+          <><div className="th-treasure-big" aria-hidden="true">📍</div><h2>{target?.name || 'Nearby checkpoint'}</h2><p>{arrived ? 'You’ve arrived at your starting point. Collect this checkpoint to begin.' : target?.hint || 'Follow the AR direction to your starting checkpoint.'}</p></>
+        ) : target?.kind === 'checkpoint' ? (
+          <><h2>{target.name}</h2><p>{target.hint || 'Follow the trail to reach this stop.'}</p></>
         ) : (
-          <><div className="th-treasure-big" aria-hidden="true">{data.hunt.treasure_avatar || '🧰'}</div><h2>{finishPending ? data.route?.finish?.name : 'The final treasure is ready'}</h2><p>{finishPending ? 'Follow the route to your assigned treasure location.' : 'All checkpoints reached. Claim your completion coins.'}</p><button className="btn btn-primary btn-block" disabled={busy} onClick={onFinish}>{busy ? 'Checking treasure…' : finishPending ? 'Claim final treasure' : `Claim treasure · +${data.hunt.completion_bonus_coins} coins`}</button></>
+          <><div className="th-treasure-big" aria-hidden="true">{data.hunt.treasure_avatar || '🧰'}</div><h2>{target?.name || 'The final treasure is ready'}</h2><p>{target?.hint || 'All checkpoints reached. Claim your completion coins.'}<br />{target ? 'Follow the route to your final treasure.' : ''}</p><button className="btn btn-primary btn-block" disabled={busy} onClick={onFinish}>{busy ? 'Checking treasure…' : target ? 'Claim final treasure' : `Claim treasure · +${data.hunt.completion_bonus_coins} coins`}</button></>
         )}
       </section>
-      <div className="th-score"><span>{data.hunt.coin_avatar || '🪙'} <b>{data.participant.total_coins.toLocaleString()}</b> coins</span><span>⚑ {data.participant.last_checkpoint_sequence} of {data.checkpoints.length}</span></div>
+      <div className="th-score"><span>{data.hunt.coin_avatar || '🪙'} <b>{data.participant.total_coins.toLocaleString()}</b> coins</span><span>⚑ {data.found_count} of {data.total_count} found</span></div>
       {notice ? <p className="error th-error" role="alert">{notice}</p> : null}
       {coinBurst ? <div className="th-coin-burst th-progress-burst" aria-live="polite"><i>+{coinBurst.amount}</i><span>✦</span><b>{coinBurst.avatar}</b><span>✦</span></div> : null}
       {routeTarget && !done ? <LocalAR checkpoint={routeTarget.name} destination={routeTarget} active={showCamera}
@@ -217,16 +215,9 @@ function HuntProgress({ data, busy, notice, showBoard, showCamera, arrived, onCa
         busy={busy} claimNotice={notice} onClaim={claimFromAR} onActiveChange={onCameraChange} onArrivalChange={onArrivalChange} /> : null}
       {routeTarget && !done ? <div className={`th-actions${showCamera ? ' th-actions-ar-open' : ''}`}>
         {showCamera ? <button className="btn btn-soft th-ar-close-button" onClick={() => onCameraChange(false)} disabled={busy}>Close AR view</button> : null}
-        {startPending ? <button className="btn btn-primary btn-block th-collect" onClick={onCollect} disabled={busy}>{busy ? 'Checking location…' : arrived ? `You’re here · Check in · +${data.route?.start?.reward_coins || 0} coins` : `Check in at start · +${data.route?.start?.reward_coins || 0} coins`}</button>
-          : next ? <button className="btn btn-primary btn-block th-collect" onClick={onCollect} disabled={busy}>{busy ? 'Checking location…' : `Collect checkpoint · +${next.reward_coins} coins`}</button>
-          : null}
+        {target?.kind !== 'finish' ? <button className="btn btn-primary btn-block th-collect" onClick={onCollect} disabled={busy}>{busy ? 'Checking location…' : startPending ? arrived ? `You’re here · Collect starting point · +${targetReward} coins` : `Collect starting point · +${targetReward} coins` : `Collect checkpoint · +${targetReward} coins`}</button> : null}
       </div> : null}
-      <section className="card th-checkpoints">
-        <div className="th-section-title"><div><h2>Checkpoint trail</h2><p className="muted">Each stop unlocks after the one before.</p></div><span className="th-progress-num">{data.participant.last_checkpoint_sequence}/{data.checkpoints.length}</span></div>
-        <ol>{data.checkpoints.map((c) => <li key={c.id} className={c.claimed ? 'claimed' : c.id === next?.id ? 'next' : ''}>
-          <span className="th-step-dot">{c.claimed ? '✓' : c.sequence}</span><span className="th-step-copy"><b>{c.name}</b><small>{c.claimed ? 'Reached' : `${data.hunt.coin_avatar || '🪙'} ${c.reward_coins} coins · ${c.hint || 'Waiting for the previous checkpoint'}`}</small></span>
-        </li>)}</ol>
-      </section>
+      {process.env.NEXT_PUBLIC_TH_MOCK === '1' ? <p className="tiny muted th-route-preview">Preview only · Two players at one starting point can get different next stops: Player A → Garden Gate; Player B → River Walk.</p> : null}
       <section className="card th-board-card">
         <button className="th-board-toggle" onClick={onToggleBoard} aria-expanded={showBoard}><span>🏆 Leaderboard <small>Your standing now; full names after the hunt ends</small></span><Icon name="chev" cls="sm" /></button>
         {showBoard ? <Leaderboard hunt={data.hunt.id} /> : null}
