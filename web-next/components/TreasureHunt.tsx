@@ -262,6 +262,8 @@ function Leaderboard({ hunt }: { hunt: string }) {
 
 type ARDestination = { id: string; name: string; latitude: number; longitude: number; radius_m: number };
 type ProjectedItem = { x: number; y: number; size: number; visible: boolean; arrowRotation: number; arrowX: number; arrowY: number };
+type RoutePosition = { along_m: number; off_route_m: number; total_m: number; snapped: api.TreasureHuntRoutePoint };
+type GroundMarker = { x: number; y: number; rotation: number; size: number; distance_m: number };
 const dot3 = (a: Vector3, b: Vector3) => a.east * b.east + a.north * b.north + a.up * b.up;
 const isIOSAppEnvironment = () => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
@@ -294,6 +296,73 @@ const projectItem = (route: { east: number; north: number; metres: number }, pos
   return { x: rawX, y: rawY, size, visible, arrowRotation, arrowX, arrowY };
 };
 const metresLabel = (metres: number) => metres < 1000 ? `${Math.max(1, Math.round(metres))} m` : `${(metres / 1000).toFixed(1)} km`;
+const maneuverLabel = (instruction: string, distance: number | null) => {
+  if (distance == null) return instruction;
+  const amount = metresLabel(distance);
+  const turn = /^(Turn\s+(?:(?:slight|sharp)\s+)?(?:left|right))(.*)$/i.exec(instruction);
+  const keep = /^(Keep\s+(?:left|right))(.*)$/i.exec(instruction);
+  const match = turn || keep;
+  return match ? `${match[1]} in ${amount}${match[2]}` : `${instruction} · ${amount}`;
+};
+
+const routePosition = (position: Position, points: api.TreasureHuntRoute['points']): RoutePosition => {
+  if (points.length < 2) return { along_m: 0, off_route_m: Number.POSITIVE_INFINITY, total_m: 0, snapped: position };
+  const local = points.map((point) => distanceAndBearing(position, point));
+  let passed = 0, closest = Number.POSITIVE_INFINITY, along = 0, snappedEast = 0, snappedNorth = 0;
+  for (let i = 0; i < local.length - 1; i++) {
+    const a = local[i], b = local[i + 1], east = b.east - a.east, north = b.north - a.north;
+    const length = Math.hypot(east, north);
+    const t = length ? Math.min(1, Math.max(0, -((a.east * east) + (a.north * north)) / (length * length))) : 0;
+    const offsetEast = a.east + east * t, offsetNorth = a.north + north * t;
+    const distance = Math.hypot(offsetEast, offsetNorth);
+    if (distance < closest) {
+      closest = distance; along = passed + length * t;
+      snappedEast = a.east + east * t; snappedNorth = a.north + north * t;
+    }
+    passed += length;
+  }
+  const latitude = position.latitude + snappedNorth / 111_320;
+  const longitude = position.longitude + snappedEast / (111_320 * Math.max(0.01, Math.cos(position.latitude * Math.PI / 180)));
+  return { along_m: along, off_route_m: closest, total_m: passed, snapped: { latitude, longitude } };
+};
+
+const groundMarkers = (position: Position, points: api.TreasureHuntRoute['points'], pose: CameraPose,
+  width: number, height: number, progress: RoutePosition): GroundMarker[] => {
+  if (points.length < 2) return [];
+  const local = points.map((point) => distanceAndBearing(position, point));
+  const focal = height / (2 * Math.tan(30 * Math.PI / 180));
+  const project = (east: number, north: number) => {
+    const world: Vector3 = { east, north, up: -1.4 };
+    const depth = dot3(world, pose.forward);
+    if (depth <= 1) return null;
+    const side = dot3(world, pose.right), vertical = dot3(world, pose.up);
+    const x = width / 2 + focal * side / depth, y = height / 2 - focal * vertical / depth;
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y, depth } : null;
+  };
+  const markers: GroundMarker[] = [];
+  const spacing = 9, endAt = progress.along_m + 90;
+  let total = 0, nextAt = Math.max(5, Math.ceil((progress.along_m + 5) / spacing) * spacing);
+  for (let i = 0; i < local.length - 1 && markers.length < 18; i++) {
+    const a = local[i], b = local[i + 1], east = b.east - a.east, north = b.north - a.north;
+    const segment = Math.hypot(east, north);
+    if (!segment) continue;
+    while (total + segment >= nextAt && nextAt <= endAt && markers.length < 18) {
+      const t = (nextAt - total) / segment;
+      if (t >= 0 && t <= 1) {
+        const e = a.east + east * t, n = a.north + north * t;
+        const screen = project(e, n), next = project(e + east * Math.min(1, t + Math.min(0.35, 4 / segment)), n + north * Math.min(1, t + Math.min(0.35, 4 / segment)));
+        if (screen && next && screen.x > -50 && screen.x < width + 50 && screen.y > 70 && screen.y < height - 100) {
+          markers.push({ x: screen.x, y: screen.y, rotation: Math.atan2(next.x - screen.x, screen.y - next.y) * 180 / Math.PI,
+            size: Math.max(10, Math.min(40, 850 / Math.max(1, screen.depth))), distance_m: nextAt - progress.along_m });
+        }
+      }
+      nextAt += spacing;
+    }
+    total += segment;
+    if (total > endAt) break;
+  }
+  return markers;
+};
 
 function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoins, totalCoins, busy,
   claimNotice, onClaim, onActiveChange, onArrivalChange }: {
@@ -321,22 +390,43 @@ function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoin
   const [error, setError] = useState('');
   const [pose, setPose] = useState<CameraPose | null>(null);
   const [route, setRoute] = useState<{ metres: number; bearing: number; east: number; north: number; accuracy: number } | null>(null);
+  const [playerPosition, setPlayerPosition] = useState<Position | null>(null);
+  const [navigation, setNavigation] = useState<{ key: string; route: api.TreasureHuntRoute } | null>(null);
+  const [navigationError, setNavigationError] = useState('');
+  const [travelMode, setTravelMode] = useState<'WALK' | 'DRIVE'>('WALK');
+  const [recenterVersion, setRecenterVersion] = useState(0);
   const [cameraAvailable, setCameraAvailable] = useState(false);
   const [iosApp, setIosApp] = useState(false);
   const [safetyReminder, setSafetyReminder] = useState(false);
   const [pendingCamera, setPendingCamera] = useState(true);
   const [viewport, setViewport] = useState({ width: 360, height: 640 });
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${destination.latitude},${destination.longitude}`)}&travelmode=walking&dir_action=navigate`;
+  const navigationRequest = useRef<{ key: string; route: api.TreasureHuntRoute | null; lastAttemptAt: number; inFlight: boolean; rerouteLatched: boolean }>({ key: '', route: null, lastAttemptAt: 0, inFlight: false, rerouteLatched: false });
+  const lastRouteRequestAt = useRef(0);
+  const handledRecenter = useRef(0);
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${destination.latitude},${destination.longitude}`)}&travelmode=${travelMode === 'WALK' ? 'walking' : 'driving'}&dir_action=navigate`;
   const compassAvailable = pose != null;
   const mockCamera = process.env.NEXT_PUBLIC_TH_MOCK === '1';
   const locationAccurate = !!route && route.accuracy <= 30;
-  const hasArrived = !!route && locationAccurate && route.metres <= destinationRef.current.radius_m;
+  const hasArrived = !!route && locationAccurate && route.metres <= 60;
   const canClaim = hasArrived && !busy;
-  const projected = route && locationAccurate && pose ? projectItem(route, pose, viewport.width, viewport.height)
+  const projected = route && pose ? projectItem(route, pose, viewport.width, viewport.height)
     : route && locationAccurate && hasArrived ? {
       x: viewport.width / 2, y: viewport.height * 0.43, size: 76, visible: true,
       arrowRotation: 0, arrowX: viewport.width / 2, arrowY: viewport.height * 0.43,
     } : null;
+  const navigationKey = `${destination.id}:${travelMode}`;
+  const navigationRoute = navigation?.key === navigationKey ? navigation.route : null;
+  const navigationPosition = playerPosition && navigationRoute ? routePosition(playerPosition, navigationRoute.points) : null;
+  const remainingRouteMetres = navigationRoute && navigationPosition ? Math.max(0, navigationRoute.distance_m - navigationPosition.along_m) : null;
+  const nextManeuver = navigationRoute?.steps.find((step) => step.distance_from_start_m > (navigationPosition?.along_m || 0) + 12);
+  const maneuverDistance = nextManeuver && navigationPosition ? Math.max(0, nextManeuver.distance_from_start_m - navigationPosition.along_m) : null;
+  const snappedPosition = playerPosition && navigationPosition && navigationPosition.off_route_m <= 40
+    ? { ...playerPosition, ...navigationPosition.snapped } : playerPosition;
+  const etaMinutes = navigationRoute && remainingRouteMetres != null && navigationRoute.distance_m > 0
+    ? Math.max(1, Math.round(navigationRoute.duration_seconds * remainingRouteMetres / navigationRoute.distance_m / 60)) : null;
+  const roadMarkers = navigationRoute && snappedPosition && pose && navigationPosition
+    ? groundMarkers(snappedPosition, navigationRoute.points, pose, viewport.width, viewport.height, navigationPosition) : [];
+  const roadOpacity = playerPosition ? Math.max(0.14, Math.min(1, 1 - Math.max(0, playerPosition.accuracy - 10) / 55)) : 0;
   const isRadar = active && !cameraAvailable;
   const viewInCamera = !isRadar && !!projected?.visible;
   const distanceText = route ? metresLabel(route.metres) : 'Finding you…';
@@ -354,20 +444,18 @@ function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoin
     if (last) {
       const current = distanceAndBearing(last, destination);
       setRoute(current);
-      onArrivalChange(current.accuracy <= 30 && current.metres <= destination.radius_m);
+      onArrivalChange(current.accuracy <= 30 && current.metres <= 60);
     }
   }, [destination.id, destination.latitude, destination.longitude, destination.radius_m, onArrivalChange]);
   useEffect(() => {
     if (!active) { onArrivalChange(false); return; }
     const camera = cameraAvailable && !mockCamera ? stream.current : null;
     const videoElement = cameraAvailable && !mockCamera ? video.current : null;
-    if (cameraAvailable && !mockCamera && (!camera || !videoElement)) {
-      setError('Camera could not start. Showing the compass view instead.');
-      setCameraAvailable(false);
-      return;
-    }
+    let onVideoPlaying: (() => void) | null = null;
     if (camera && videoElement) {
       videoElement.srcObject = camera;
+      onVideoPlaying = () => setError((value) => /camera|picture/i.test(value) ? '' : value);
+      videoElement.addEventListener('playing', onVideoPlaying);
       void videoElement.play().catch(() => {
         setError('Camera picture is unavailable. Showing the compass view instead.');
         camera.getTracks().forEach((track) => track.stop());
@@ -407,13 +495,6 @@ function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoin
         const currentPosition: Position = { latitude: position.coords.latitude, longitude: position.coords.longitude,
           accuracy: position.coords.accuracy };
         const previous = lastPosition.current;
-        const speedKph = Math.max(0, position.coords.speed || 0) * 3.6;
-        if (speedKph > 25) {
-          setError('Treasure Hunt paused while you’re moving. Open it again when you have stopped safely.');
-          onArrivalChange(false);
-          onActiveChange(false);
-          return;
-        }
         if (previous) {
           const jump = distanceAndBearing(previous.value, currentPosition).metres;
           const elapsed = Math.max(0, (now - previous.timestamp) / 1000);
@@ -421,9 +502,10 @@ function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoin
           if (elapsed < 30 && jump > Math.max(8, plausible)) return;
         }
         lastPosition.current = { value: currentPosition, timestamp: now };
+        setPlayerPosition(currentPosition);
         const current = distanceAndBearing(currentPosition, destinationRef.current);
         setRoute(current);
-        onArrivalChange(current.accuracy <= 30 && current.metres <= destinationRef.current.radius_m);
+        onArrivalChange(current.accuracy <= 30 && current.metres <= 60);
         if (current.accuracy <= 30) setError((value) => value.startsWith('Allow location') ? '' : value);
       }, () => {
         onArrivalChange(false);
@@ -437,12 +519,53 @@ function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoin
       window.screen.orientation?.removeEventListener?.('change', onScreenOrientation);
       document.removeEventListener('visibilitychange', onVisibility);
       if (watchId !== null) navigator.geolocation?.clearWatch(watchId);
-      if (videoElement) { videoElement.pause(); videoElement.srcObject = null; }
+      if (videoElement) {
+        if (onVideoPlaying) videoElement.removeEventListener('playing', onVideoPlaying);
+        videoElement.pause(); videoElement.srcObject = null;
+      }
       camera?.getTracks().forEach((track) => track.stop());
       stream.current = null;
       onArrivalChange(false);
     };
   }, [active, cameraAvailable, mockCamera, onActiveChange, onArrivalChange]);
+  useEffect(() => {
+    if (!active || !playerPosition || playerPosition.accuracy > 30) return;
+    const key = `${destination.id}:${travelMode}`;
+    let state = navigationRequest.current;
+    if (state.key !== key) {
+      state = { key, route: null, lastAttemptAt: 0, inFlight: false, rerouteLatched: false };
+      navigationRequest.current = state;
+      setNavigation(null);
+      setNavigationError('');
+    }
+    if (state.inFlight) return;
+    const now = Date.now();
+    const requestWindowReady = now - lastRouteRequestAt.current >= 20_000;
+    const force = recenterVersion !== handledRecenter.current;
+    const offRoute = state.route ? routePosition(playerPosition, state.route.points).off_route_m : 0;
+    if (state.route && offRoute <= 40) state.rerouteLatched = false;
+    const initial = !state.route && state.lastAttemptAt === 0 && requestWindowReady;
+    const reroute = !!state.route && offRoute > 40 && !state.rerouteLatched && requestWindowReady;
+    const recenter = force && requestWindowReady;
+    if (!initial && !reroute && !recenter) return;
+    if (recenter) handledRecenter.current = recenterVersion;
+    if (reroute) state.rerouteLatched = true;
+    state.inFlight = true;
+    state.lastAttemptAt = now;
+    lastRouteRequestAt.current = now;
+    setNavigationError('');
+    void api.treasureHuntNavigationRoute(playerPosition, destination, travelMode).then((nextRoute) => {
+      if (navigationRequest.current !== state) return;
+      state.route = nextRoute;
+      setNavigation({ key, route: nextRoute });
+    }).catch((cause) => {
+      if (navigationRequest.current !== state) return;
+      state.route = null;
+      setNavigationError(api.friendly(cause));
+    }).finally(() => {
+      if (navigationRequest.current === state) state.inFlight = false;
+    });
+  }, [active, destination.id, destination.latitude, destination.longitude, playerPosition, recenterVersion, travelMode]);
   useEffect(() => () => {
     stream.current?.getTracks().forEach((track) => track.stop());
     stream.current = null;
@@ -454,8 +577,8 @@ function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoin
     catch { return false; }
   };
   const open = async (withCamera: boolean) => {
-    setError(''); setPose(null); smoothedHeading.current = null; lastPosition.current = null;
-    setRoute(null); setRequesting(true);
+    setError(''); setNavigationError(''); setPose(null); smoothedHeading.current = null; lastPosition.current = null;
+    setPlayerPosition(null); setRoute(null); setRequesting(true);
     const compassGranted = await requestOrientation();
     if (!compassGranted) setError('Compass not available, use Google Maps.');
     if (withCamera && !iosApp && mockCamera) {
@@ -490,12 +613,12 @@ function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoin
   const requestOpen = (withCamera: boolean) => {
     setPendingCamera(withCamera);
     let reminded = false;
-    try { reminded = localStorage.getItem('treehouse-hunt-road-reminder') === 'seen'; } catch { /* continue without storage */ }
+    try { reminded = localStorage.getItem('treehouse-hunt-passenger-reminder-v2') === 'seen'; } catch { /* continue without storage */ }
     if (!reminded) { setSafetyReminder(true); return; }
     void open(withCamera);
   };
   const confirmSafety = () => {
-    try { localStorage.setItem('treehouse-hunt-road-reminder', 'seen'); } catch { /* the reminder still appears now */ }
+    try { localStorage.setItem('treehouse-hunt-passenger-reminder-v2', 'seen'); } catch { /* the reminder still appears now */ }
     setSafetyReminder(false);
     void open(pendingCamera);
   };
@@ -522,6 +645,9 @@ function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoin
       {error ? <p className="error th-error" role="status">{error}</p> : null}
       <a className="btn btn-soft" href={mapsUrl} target="_blank" rel="noopener noreferrer">Follow route in Google Maps</a>
     </div> : <div className={`th-ar-live${isRadar ? ' th-ar-live-radar' : ''}`}>
+      <div className={`th-camera th-camera-feed${cameraAvailable && !mockCamera ? ' is-active' : ''}`} aria-hidden={!(cameraAvailable && !mockCamera)}>
+        <video ref={video} playsInline muted aria-label="Live rear camera picture" /><div className="th-camera-tint" />
+      </div>
       {cameraAvailable && mockCamera ? <div className="th-camera th-camera-mock" aria-label="Illustrated camera preview">
           <div className="th-mock-sky" /><div className="th-mock-horizon" /><div className="th-mock-street" />
           <div className="th-mock-road-line" />
@@ -529,18 +655,29 @@ function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoin
           <div className="th-mock-camera-label">TREEHOUSE HUNT · PREVIEW</div>
           <div className="th-camera-tint" />
         </div>
-        : cameraAvailable ? <div className="th-camera"><video ref={video} playsInline muted aria-label="Live rear camera picture" /><div className="th-camera-tint" /></div>
-        : <div className="th-radar-scene" aria-hidden="true"><div className="th-radar-rings"><i /><i /><i /><span className="th-radar-player">⌖</span></div></div>}
-      <button className="th-camera-close" onClick={() => onActiveChange(false)} aria-label="Close Treasure Hunt view">×</button>
+        : !cameraAvailable ? <div className="th-radar-scene" aria-hidden="true"><div className="th-radar-rings"><i /><i /><i /><span className="th-radar-player">⌖</span></div></div> : null}
       <div className="th-ar-live-top"><div className="th-ar-chip">{isRadar ? 'Treehouse compass' : mockCamera ? 'Treehouse Hunt · Preview' : 'Treehouse Hunt'}</div><div className="th-ar-chip th-ar-score">{avatar} {totalCoins.toLocaleString()} coins</div></div>
+      <div className="th-route-banner" aria-live="polite">
+        <span aria-hidden="true" className={`th-route-turn-icon${maneuverDistance != null && maneuverDistance < 45 ? ' near' : ''}`}>{nextManeuver ? /left/i.test(nextManeuver.instruction) ? '↶' : /right/i.test(nextManeuver.instruction) ? '↷' : '↱' : '↑'}</span>
+        <div><b>{nextManeuver ? maneuverLabel(nextManeuver.instruction, maneuverDistance) : navigationRoute ? `Continue to ${checkpoint}` : `Head toward ${checkpoint}`}</b>
+          <small>{navigationRoute && remainingRouteMetres != null ? `${metresLabel(remainingRouteMetres)} left${etaMinutes ? ` · about ${etaMinutes} min` : ''}` : navigationError ? 'Road directions unavailable · use Google Maps' : route ? `${distanceText} straight line · getting road route…` : 'Getting road directions…'}</small>
+        </div>
+      </div>
+      <div className="th-route-mode" role="group" aria-label="Travel mode">
+        <button className={travelMode === 'WALK' ? 'selected' : ''} onClick={() => setTravelMode('WALK')} aria-pressed={travelMode === 'WALK'}>Walking</button>
+        <button className={travelMode === 'DRIVE' ? 'selected' : ''} onClick={() => setTravelMode('DRIVE')} aria-pressed={travelMode === 'DRIVE'}>On a bus / in a car</button>
+      </div>
       <div className="th-ar-world">
+      {roadMarkers.length ? <div className="th-ground-route" aria-hidden="true" style={{ opacity: roadOpacity }}>
+        {roadMarkers.map((marker, index) => <i key={`${index}-${Math.round(marker.distance_m)}`} className="th-ground-chevron" style={{ left: `${marker.x}px`, top: `${marker.y}px`, width: `${marker.size}px`, height: `${marker.size}px`, fontSize: `${marker.size}px`, transform: `translate(-50%, -50%) rotate(${marker.rotation}deg)` }} />)}
+      </div> : null}
       {isRadar && route && locationAccurate && (pose || hasArrived) ? <div className="th-radar-item" style={radarItemStyle}>
         <button className={`th-world-item-button ${itemKind === 'treasure' ? 'treasure' : 'coin'}`} onClick={() => void claimItem()} disabled={!canClaim || busy}
           aria-label={canClaim ? `Collect ${checkpoint}` : `${checkpoint}, ${distanceText} away`}><span className="th-world-item-face"><i className="th-world-item-ring" /><b>{avatar}</b><i className="th-world-item-glint" /></span></button>
         <small>{distanceText}</small>{canClaim ? <b>{busy ? 'Checking…' : itemKind === 'start' ? 'Tap to arrive' : `Tap to collect · +${rewardCoins}`}</b> : null}
       </div> : null}
-      {!isRadar && route && pose && locationAccurate && projected && !viewInCamera ? <div className="th-ar-edge" style={arrowStyle} aria-label={`Target is off screen, ${distanceText} away`}>↑</div> : null}
-      {!isRadar && route && locationAccurate && projected?.visible ? <div className={`th-world-item${canClaim && itemKind !== 'start' ? ' ready' : ''}`} style={{ left: `${projected.x}px`, top: `${projected.y}px`, width: `${projected.size}px`, height: `${projected.size}px` }}>
+      {!isRadar && route && pose && projected && (!hasArrived || !viewInCamera || !locationAccurate) ? <div className={`th-ar-edge${locationAccurate ? '' : ' uncertain'}`} style={arrowStyle} aria-label={`Target is ${distanceText} away`}>↑</div> : null}
+      {!isRadar && route && locationAccurate && hasArrived && projected?.visible ? <div className={`th-world-item${canClaim && itemKind !== 'start' ? ' ready' : ''}`} style={{ left: `${projected.x}px`, top: `${projected.y}px`, width: `${projected.size}px`, height: `${projected.size}px` }}>
         <button className={`th-world-item-button ${itemKind === 'treasure' ? 'treasure' : 'coin'}`} onClick={() => void claimItem()} disabled={!canClaim || busy}
           aria-label={canClaim ? `${itemKind === 'start' ? 'Check in at start' : `Collect ${rewardCoins} coins`} at ${checkpoint}` : `${checkpoint}, ${distanceText} away`}>
           <span className="th-world-item-face"><i className="th-world-item-ring" /><b>{avatar}</b><i className="th-world-item-glint" /></span>
@@ -555,17 +692,19 @@ function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoin
           <b>{route && route.accuracy > 30 ? 'Getting a better location…' : !compassAvailable ? 'Compass not available, use Google Maps' : hasArrived ? 'You’re close enough to collect' : viewInCamera ? checkpoint : route ? `${distanceText} to ${checkpoint}` : `Finding ${checkpoint}…`}</b>
           <small>{route ? `GPS accuracy about ${Math.round(route.accuracy)} m · ${distanceText}` : 'Waiting for a clear GPS position'}</small>
         </div>
-        <div className="th-ar-hud-actions">
-          {isRadar && !iosApp ? <button className="th-ar-camera-again" onClick={() => requestOpen(true)}>Try camera</button> : null}
-          <a href={mapsUrl} target="_blank" rel="noopener noreferrer">Follow the blue line in Google Maps</a>
-        </div>
+        {isRadar && !iosApp ? <button className="th-ar-camera-again" onClick={() => requestOpen(true)}>Try camera</button> : null}
+      </div>
+      <div className="th-ar-bottom-bar">
+        <a href={mapsUrl} target="_blank" rel="noopener noreferrer">Destination</a>
+        <button onClick={() => setRecenterVersion((version) => version + 1)} aria-label="Recenter and refresh route">◎ Recenter</button>
+        <button onClick={() => onActiveChange(false)}>Close</button>
       </div>
       {claimNotice || error ? <div className="th-ar-error" role="status">{claimNotice || error}</div> : null}
     </div>}
     {safetyReminder ? <div className="th-safety-modal" role="dialog" aria-modal="true" aria-labelledby="th-road-title">
       <div className="th-safety-card"><span aria-hidden="true">⚠️</span><h2 id="th-road-title">Stay safe while you play</h2>
-        <p>Look up and watch the road. Never play while driving.</p>
-        <button className="btn btn-primary btn-block" onClick={confirmSafety}>I’ll watch my surroundings</button>
+        <p>Passengers only: never play while driving. Watch out for traffic.</p>
+        <button className="btn btn-primary btn-block" onClick={confirmSafety}>OK</button>
       </div>
     </div> : null}
   </section>;
