@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(35);
+select plan(38);
 
 insert into auth.users (id, email, aud, role, email_confirmed_at, created_at, updated_at) values
   ('00000000-0000-0000-0000-0000000000e1', 'hunt1@test.invalid', 'authenticated', 'authenticated', now(), now(), now()),
@@ -86,6 +86,36 @@ select is((treasure_hunt_claim_start(current_setting('test.hunt')::uuid,current_
 select ok((treasure_hunt_progress_with_routes(current_setting('test.hunt')::uuid)->'current_target'->>'id') <> current_setting('test.p1next'),'players with the same starting checkpoint are sent to different next stops');
 select pg_temp.admin();
 select is((select count(*)::integer from treasure_hunt_routes r where r.participant_id=(select id from treasure_hunt_participants where user_id='00000000-0000-0000-0000-0000000000e2') and r.hunt_id=current_setting('test.hunt')::uuid),4,'the second player receives every checkpoint exactly once');
+
+-- Route spreading must choose among complete nearest-neighbour routes. The
+-- far checkpoint makes zig-zagging candidates fail the 30% distance rule.
+insert into treasure_hunts (id, title, region, description, status, starts_at, ends_at, completion_bonus_coins)
+values ('00000000-0000-4000-8000-0000000000e2', 'Route spreading preview', 'Rivers', 'Shared start route test', 'active', now() - interval '1 hour', now() + interval '1 day', 100);
+insert into treasure_hunt_checkpoints (id, hunt_id, sequence, name, hint, latitude, longitude, radius_m, reward_coins) values
+ ('10000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000e2', 1, 'Gate', 'Start here.', 5.0000, 7.0000, 80, 100),
+ ('10000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-0000000000e2', 2, 'Mall', 'Nearby stop.', 5.0010, 7.0000, 80, 100),
+ ('10000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-0000000000e2', 3, 'Stadium', 'Nearby stop.', 5.0000, 7.0010, 80, 100),
+ ('10000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-0000000000e2', 4, 'Park', 'Nearby stop.', 4.9990, 7.0000, 80, 100),
+ ('10000000-0000-4000-8000-000000000005', '00000000-0000-4000-8000-0000000000e2', 5, 'Far lookout', 'Distant stop.', 5.0500, 7.0000, 80, 100);
+insert into treasure_hunt_participants (hunt_id, user_id, legacy_route_order) values
+ ('00000000-0000-4000-8000-0000000000e2', '00000000-0000-0000-0000-0000000000e1', false),
+ ('00000000-0000-4000-8000-0000000000e2', '00000000-0000-0000-0000-0000000000e2', false),
+ ('00000000-0000-4000-8000-0000000000e2', '00000000-0000-0000-0000-0000000000e3', false);
+insert into treasure_hunt_routes (participant_id, hunt_id, position, checkpoint_id)
+select p.id, p.hunt_id, 1, '10000000-0000-4000-8000-000000000001'
+from treasure_hunt_participants p where p.hunt_id = '00000000-0000-4000-8000-0000000000e2';
+do $$ declare p record; begin
+  for p in select id from treasure_hunt_participants where hunt_id = '00000000-0000-4000-8000-0000000000e2' order by user_id loop
+    perform dating_private.treasure_hunt_assign_remaining('00000000-0000-4000-8000-0000000000e2', p.id);
+  end loop;
+end $$;
+select is((select count(distinct checkpoint_id)::integer from treasure_hunt_routes where hunt_id='00000000-0000-4000-8000-0000000000e2' and position=2),3,'three players sharing a start get three different next stops');
+select is((select count(*)::integer from treasure_hunt_routes where hunt_id='00000000-0000-4000-8000-0000000000e2' and checkpoint_id='10000000-0000-4000-8000-000000000005' and position=5),3,'the distant checkpoint remains in every complete route without becoming the next stop');
+select ok((select max(route_length) <= min(route_length) * 1.3 from (
+  select dating_private.treasure_hunt_route_length('00000000-0000-4000-8000-0000000000e2', array_agg(checkpoint_id order by position)) as route_length
+  from treasure_hunt_routes where hunt_id='00000000-0000-4000-8000-0000000000e2' group by participant_id
+) routes),'spread routes stay within 30% of the shortest complete route');
+
 select pg_temp.login('00000000-0000-0000-0000-0000000000e2');
 select is((treasure_hunt_leaderboard(current_setting('test.hunt')::uuid,25)->>'visibility'),'self','an active hunt hides the named leaderboard');
 select ok(not (treasure_hunt_leaderboard(current_setting('test.hunt')::uuid,25)::text like '%Lucky Heron 101%'),'the active leaderboard does not reveal another player');

@@ -79,16 +79,24 @@ create or replace function dating_private.treasure_hunt_assign_remaining(p_hunt 
 returns void language plpgsql security definer set search_path = public as $$
 declare
   start_id uuid; checkpoint_total integer; route_count integer;
-  shortest uuid[]; balanced uuid[]; selected_route uuid[]; selected_id uuid;
-  shortest_length double precision; balanced_length double precision;
+  origin treasure_hunt_checkpoints%rowtype;
+  shortest uuid[]; candidate_route uuid[]; selected_route uuid[]; selected_id uuid;
+  shortest_length double precision; candidate_length double precision; selected_length double precision;
+  candidate record; best_load2 integer; best_load3 integer; current_load2 integer; current_load3 integer;
   pos integer;
 begin
-  select checkpoint_id into start_id from treasure_hunt_routes
-    where participant_id = p_participant and hunt_id = p_hunt and position = 1;
-  if start_id is null then return; end if;
+  select c.* into origin from treasure_hunt_routes r
+    join treasure_hunt_checkpoints c on c.id = r.checkpoint_id and c.hunt_id = r.hunt_id
+    where r.participant_id = p_participant and r.hunt_id = p_hunt and r.position = 1;
+  if not found then return; end if;
+  start_id := origin.id;
   select count(*)::integer into checkpoint_total from treasure_hunt_checkpoints where hunt_id = p_hunt;
   select count(*)::integer into route_count from treasure_hunt_routes where participant_id = p_participant and hunt_id = p_hunt;
   if route_count = checkpoint_total then return; end if;
+
+  -- Serialize route choices for players who share a start, so simultaneous
+  -- arrivals see each other's newly assigned route when spreading out.
+  perform pg_advisory_xact_lock(hashtextextended(p_hunt::text || ':' || start_id::text, 0));
 
   shortest := array[start_id]::uuid[];
   while cardinality(shortest) < checkpoint_total loop
@@ -105,49 +113,61 @@ begin
   end loop;
   shortest_length := dating_private.treasure_hunt_route_length(p_hunt, shortest);
 
-  balanced := array[start_id]::uuid[];
-  while cardinality(balanced) < checkpoint_total loop
-    pos := cardinality(balanced) + 1;
-    with nearby as materialized (
-      select c.id, c.latitude, c.longitude,
-        dating_private.treasure_hunt_distance_m(
-          (select latitude from treasure_hunt_checkpoints where id = balanced[cardinality(balanced)]),
-          (select longitude from treasure_hunt_checkpoints where id = balanced[cardinality(balanced)]),
-          c.latitude, c.longitude) as metres
-      from treasure_hunt_checkpoints c
-      where c.hunt_id = p_hunt and not (c.id = any(balanced))
-      order by metres, c.sequence, c.id limit 4
-    ), scored as (
-      select n.*,
-        (select count(*) from treasure_hunt_routes r
-          where r.hunt_id = p_hunt and r.position = pos and r.checkpoint_id = n.id
-            and r.participant_id <> p_participant
-            and exists (select 1 from treasure_hunt_participants cohort
-              join treasure_hunt_routes s on s.participant_id = cohort.id and s.hunt_id = cohort.hunt_id
-              where cohort.id = r.participant_id and cohort.legacy_route_order = false
-                and s.hunt_id = p_hunt and s.position = 1 and s.checkpoint_id = start_id)) as current_load,
-        coalesce((select count(*) from treasure_hunt_routes r
-          where r.hunt_id = p_hunt and r.position = pos + 1
-            and r.checkpoint_id = (select future.id from treasure_hunt_checkpoints future
-              where future.hunt_id = p_hunt and not (future.id = any(balanced || n.id))
-              order by dating_private.treasure_hunt_distance_m(n.latitude,n.longitude,future.latitude,future.longitude),future.sequence,future.id
-              limit 1)
-            and r.participant_id <> p_participant
-            and exists (select 1 from treasure_hunt_participants cohort
-              join treasure_hunt_routes s on s.participant_id = cohort.id and s.hunt_id = cohort.hunt_id
-              where cohort.id = r.participant_id and cohort.legacy_route_order = false
-                and s.hunt_id = p_hunt and s.position = 1 and s.checkpoint_id = start_id)), 0) as next_load
-      from nearby n
-    )
-    select id into selected_id from scored order by current_load, next_load, metres, id limit 1;
-    if selected_id is null then exit; end if;
-    balanced := array_append(balanced, selected_id);
-  end loop;
-  balanced_length := dating_private.treasure_hunt_route_length(p_hunt, balanced);
-  if cardinality(shortest) <> checkpoint_total or cardinality(balanced) <> checkpoint_total then
+  if cardinality(shortest) <> checkpoint_total then
     raise exception 'Could not create a complete route for this hunt.' using errcode = '22023';
   end if;
-  selected_route := case when shortest_length = 0 or balanced_length <= shortest_length * 1.3 then balanced else shortest end;
+
+  -- Try the four closest choices for the next stop. Each candidate's rest is
+  -- always a nearest-neighbour route, so balancing cannot create zig-zags.
+  for candidate in
+    select c.id from treasure_hunt_checkpoints c
+    where c.hunt_id = p_hunt and c.id <> start_id
+    order by dating_private.treasure_hunt_distance_m(origin.latitude, origin.longitude, c.latitude, c.longitude), c.sequence, c.id
+    limit 4
+  loop
+    candidate_route := array[start_id, candidate.id]::uuid[];
+    while cardinality(candidate_route) < checkpoint_total loop
+      select c.id into selected_id
+      from treasure_hunt_checkpoints c
+      where c.hunt_id = p_hunt and not (c.id = any(candidate_route))
+      order by dating_private.treasure_hunt_distance_m(
+        (select latitude from treasure_hunt_checkpoints where id = candidate_route[cardinality(candidate_route)]),
+        (select longitude from treasure_hunt_checkpoints where id = candidate_route[cardinality(candidate_route)]),
+        c.latitude, c.longitude), c.sequence, c.id
+      limit 1;
+      if selected_id is null then exit; end if;
+      candidate_route := array_append(candidate_route, selected_id);
+    end loop;
+    candidate_length := dating_private.treasure_hunt_route_length(p_hunt, candidate_route);
+    if cardinality(candidate_route) = checkpoint_total
+      and (shortest_length = 0 or candidate_length <= shortest_length * 1.3) then
+      select count(*)::integer into current_load2
+      from treasure_hunt_routes r
+      join treasure_hunt_participants participant on participant.id = r.participant_id and participant.legacy_route_order = false
+      join treasure_hunt_routes start_route on start_route.participant_id = r.participant_id
+        and start_route.hunt_id = r.hunt_id and start_route.position = 1 and start_route.checkpoint_id = start_id
+      where r.hunt_id = p_hunt and r.position = 2 and r.checkpoint_id = candidate_route[2]
+        and r.participant_id <> p_participant;
+
+      select count(*)::integer into current_load3
+      from treasure_hunt_routes r
+      join treasure_hunt_participants participant on participant.id = r.participant_id and participant.legacy_route_order = false
+      join treasure_hunt_routes start_route on start_route.participant_id = r.participant_id
+        and start_route.hunt_id = r.hunt_id and start_route.position = 1 and start_route.checkpoint_id = start_id
+      where r.hunt_id = p_hunt and r.position = 3 and r.checkpoint_id = candidate_route[3]
+        and r.participant_id <> p_participant;
+
+      if selected_route is null or current_load2 < best_load2
+        or (current_load2 = best_load2 and current_load3 < best_load3)
+        or (current_load2 = best_load2 and current_load3 = best_load3 and candidate_length < selected_length) then
+        selected_route := candidate_route;
+        selected_length := candidate_length;
+        best_load2 := current_load2;
+        best_load3 := current_load3;
+      end if;
+    end if;
+  end loop;
+  if selected_route is null then selected_route := shortest; end if;
 
   delete from treasure_hunt_routes where participant_id = p_participant and hunt_id = p_hunt and position > 1;
   for pos in 2..cardinality(selected_route) loop

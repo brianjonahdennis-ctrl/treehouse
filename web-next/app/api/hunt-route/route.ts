@@ -63,38 +63,6 @@ function compactPolyline(points: Point[]): Point[] {
   return Array.from({ length: 2000 }, (_, index) => points[Math.round(index * last / 1999)]);
 }
 
-function mockRoute(origin: Point, destination: Point): NavigationRoute {
-  const latitudeDelta = destination.latitude - origin.latitude;
-  const longitudeDelta = destination.longitude - origin.longitude;
-  const bend = Math.sign(longitudeDelta || 1) * Math.min(Math.abs(longitudeDelta) * 0.22, 0.00016);
-  const points = [
-    origin,
-    { latitude: origin.latitude + latitudeDelta * 0.24, longitude: origin.longitude + longitudeDelta * 0.24 - bend },
-    { latitude: origin.latitude + latitudeDelta * 0.47, longitude: origin.longitude + longitudeDelta * 0.47 - bend },
-    { latitude: origin.latitude + latitudeDelta * 0.53, longitude: origin.longitude + longitudeDelta * 0.53 + bend },
-    { latitude: origin.latitude + latitudeDelta * 0.77, longitude: origin.longitude + longitudeDelta * 0.77 + bend },
-    destination,
-  ];
-  let distance = 0;
-  const segmentDistances = points.slice(1).map((point, index) => {
-    const previous = points[index];
-    const dLat = (point.latitude - previous.latitude) * Math.PI / 180;
-    const dLon = (point.longitude - previous.longitude) * Math.PI / 180;
-    const meanLat = (point.latitude + previous.latitude) * Math.PI / 360;
-    const metres = 6_371_000 * Math.hypot(dLat, dLon * Math.cos(meanLat));
-    distance += metres;
-    return metres;
-  });
-  const labels = ['Continue along the road', 'Turn right at the next street', 'Keep left at the fork', 'Continue toward the checkpoint', 'Arrive at your destination'];
-  let offset = 0;
-  const steps = segmentDistances.map((metres, index) => {
-    const step = { instruction: labels[index] || labels[labels.length - 1], distance_m: Math.round(metres), distance_from_start_m: Math.round(offset) };
-    offset += metres;
-    return step;
-  });
-  return { distance_m: Math.round(distance), duration_seconds: Math.round(distance / 1.15), points, steps };
-}
-
 function routeKey(origin: Point, destination: Point, travelMode: string) {
   return `${origin.latitude.toFixed(6)},${origin.longitude.toFixed(6)}:${destination.latitude.toFixed(6)},${destination.longitude.toFixed(6)}:${travelMode}`;
 }
@@ -121,42 +89,46 @@ export async function POST(request: Request) {
     body = JSON.parse(raw);
   } catch { return response(400, { error: 'bad_request', message: 'Invalid route request.' }); }
   if (!body || typeof body !== 'object' || Array.isArray(body)
-    || Object.keys(body).length !== 3 || !Object.keys(body).every((key) => ['origin', 'destination', 'travelMode'].includes(key))
-    || !isPoint(body.origin) || !isPoint(body.destination) || !['WALK', 'DRIVE'].includes(String(body.travelMode))) {
+    || Object.keys(body).length !== 3 || !Object.keys(body).every((key) => ['hunt', 'origin', 'travelMode'].includes(key))
+    || typeof body.hunt !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.hunt)
+    || !isPoint(body.origin) || !['WALK', 'DRIVE'].includes(String(body.travelMode))) {
     return response(400, { error: 'bad_request', message: 'Invalid route request.' });
   }
-  const origin = body.origin, destination = body.destination, travelMode = String(body.travelMode);
+  const origin = body.origin, hunt = body.hunt, travelMode = String(body.travelMode);
   const token = (/^Bearer ([A-Za-z0-9._~-]{12,4000})$/.exec(request.headers.get('authorization') || '') || [])[1];
   if (!token) return response(401, { error: 'signed_out', message: 'Sign in to get road directions.' });
 
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
+  if (!url || !publishableKey) return response(503, { error: 'unavailable', message: 'Road directions are unavailable. Follow the direction arrow or Google Maps.' });
   let member = '';
-  if (process.env.NEXT_PUBLIC_TH_MOCK === '1' && token.startsWith('mock.')) member = 'mock-member';
-  else {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
-    if (!url || !publishableKey) return response(503, { error: 'unavailable', message: 'Road directions are unavailable. Follow the direction arrow or Google Maps.' });
-    try {
-      const supabase = createClient(url, publishableKey, {
-        global: { headers: { Authorization: `Bearer ${token}` } },
-        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-      });
-      const { data, error } = await supabase.auth.getUser(token);
-      if (error || !data.user) return response(401, { error: 'signed_out', message: 'Sign in again to get road directions.' });
-      member = data.user.id;
-    } catch { return response(401, { error: 'signed_out', message: 'Sign in again to get road directions.' }); }
-  }
+  let supabase;
+  try {
+    supabase = createClient(url, publishableKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user) return response(401, { error: 'signed_out', message: 'Sign in again to get road directions.' });
+    member = data.user.id;
+  } catch { return response(401, { error: 'signed_out', message: 'Sign in again to get road directions.' }); }
   if (limited(member)) return response(429, { error: 'too_many', message: 'Please wait before refreshing road directions.' });
+
+  let destination: Point;
+  try {
+    const { data, error } = await supabase.rpc('treasure_hunt_progress', { p_hunt: hunt });
+    if (error) return response(403, { error: 'target_unavailable', message: 'Join this hunt to get directions to your next checkpoint.' });
+    const target = data?.current_target;
+    if (!target || typeof target !== 'object' || !isPoint({ latitude: target.latitude, longitude: target.longitude })) {
+      return response(409, { error: 'target_unavailable', message: 'There is no next checkpoint to route to.' });
+    }
+    destination = { latitude: target.latitude, longitude: target.longitude };
+  } catch { return response(503, { error: 'unavailable', message: 'Road directions are unavailable. Follow the direction arrow or Google Maps.' }); }
 
   const key = routeKey(origin, destination, travelMode);
   const cached = routeCache.get(key);
   if (cached && Date.now() - cached.at < CACHE_MS) return response(200, cached.route as unknown as Record<string, unknown>);
   routeCache.delete(key);
-
-  if (process.env.NEXT_PUBLIC_TH_MOCK === '1') {
-    const route = mockRoute(origin, destination);
-    routeCache.set(key, { at: Date.now(), route });
-    return response(200, route as unknown as Record<string, unknown>);
-  }
 
   const googleKey = process.env.GOOGLE_ROUTES_KEY || '';
   if (!googleKey) return response(503, { error: 'unavailable', message: 'Road directions are unavailable. Follow the direction arrow or Google Maps.' });

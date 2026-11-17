@@ -210,7 +210,7 @@ function HuntProgress({ data, busy, notice, showBoard, showCamera, arrived, onCa
       <div className="th-score"><span>{data.hunt.coin_avatar || '🪙'} <b>{data.participant.total_coins.toLocaleString()}</b> coins</span><span>⚑ {data.found_count} of {data.total_count} found</span></div>
       {notice ? <p className="error th-error" role="alert">{notice}</p> : null}
       {coinBurst ? <div className="th-coin-burst th-progress-burst" aria-live="polite"><i>+{coinBurst.amount}</i><span>✦</span><b>{coinBurst.avatar}</b><span>✦</span></div> : null}
-      {routeTarget && !done ? <LocalAR checkpoint={routeTarget.name} destination={routeTarget} active={showCamera}
+      {routeTarget && !done ? <LocalAR huntId={data.hunt.id} checkpoint={routeTarget.name} destination={routeTarget} active={showCamera}
         avatar={targetAvatar} itemKind={targetKind} rewardCoins={targetReward} totalCoins={data.participant.total_coins}
         busy={busy} claimNotice={notice} onClaim={claimFromAR} onActiveChange={onCameraChange} onArrivalChange={onArrivalChange} /> : null}
       {routeTarget && !done ? <div className={`th-actions${showCamera ? ' th-actions-ar-open' : ''}`}>
@@ -364,8 +364,9 @@ const groundMarkers = (position: Position, points: api.TreasureHuntRoute['points
   return markers;
 };
 
-function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoins, totalCoins, busy,
+function LocalAR({ huntId, checkpoint, destination, active, avatar, itemKind, rewardCoins, totalCoins, busy,
   claimNotice, onClaim, onActiveChange, onArrivalChange }: {
+  huntId: string;
   checkpoint: string;
   destination: ARDestination;
   active: boolean;
@@ -456,10 +457,18 @@ function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoin
       videoElement.srcObject = camera;
       onVideoPlaying = () => setError((value) => /camera|picture/i.test(value) ? '' : value);
       videoElement.addEventListener('playing', onVideoPlaying);
-      void videoElement.play().catch(() => {
+      void videoElement.play().catch((cause: unknown) => {
+        const playError = cause as DOMException | undefined;
+        if (playError?.name === 'AbortError') return;
+        const unavailable = ['NotAllowedError', 'PermissionDeniedError', 'NotFoundError', 'NotReadableError', 'OverconstrainedError', 'SecurityError']
+          .includes(playError?.name || '');
+        if (!unavailable) {
+          setError('Camera is still starting. Keep this screen open or use the compass view.');
+          return;
+        }
         setError('Camera picture is unavailable. Showing the compass view instead.');
+        if (stream.current === camera) stream.current = null;
         camera.getTracks().forEach((track) => track.stop());
-        stream.current = null;
         setCameraAvailable(false);
       });
     }
@@ -554,7 +563,7 @@ function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoin
     state.lastAttemptAt = now;
     lastRouteRequestAt.current = now;
     setNavigationError('');
-    void api.treasureHuntNavigationRoute(playerPosition, destination, travelMode).then((nextRoute) => {
+      void api.treasureHuntNavigationRoute(huntId, playerPosition, destination, travelMode).then((nextRoute) => {
       if (navigationRequest.current !== state) return;
       state.route = nextRoute;
       setNavigation({ key, route: nextRoute });
@@ -565,7 +574,7 @@ function LocalAR({ checkpoint, destination, active, avatar, itemKind, rewardCoin
     }).finally(() => {
       if (navigationRequest.current === state) state.inFlight = false;
     });
-  }, [active, destination.id, destination.latitude, destination.longitude, playerPosition, recenterVersion, travelMode]);
+  }, [active, destination.id, destination.latitude, destination.longitude, huntId, playerPosition, recenterVersion, travelMode]);
   useEffect(() => () => {
     stream.current?.getTracks().forEach((track) => track.stop());
     stream.current = null;

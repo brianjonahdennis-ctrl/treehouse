@@ -607,13 +607,41 @@ export const treasureHuntJoin = async (hunt: string, location: { latitude: numbe
   return data;
 };
 export const treasureHuntProgress = (hunt: string): Promise<TreasureHuntProgress> => rpc('treasure_hunt_progress_with_routes', { p_hunt: hunt });
-export async function treasureHuntNavigationRoute(origin: TreasureHuntRoutePoint, destination: TreasureHuntRoutePoint, travelMode: 'WALK' | 'DRIVE'): Promise<TreasureHuntRoute> {
+function mockTreasureHuntRoute(origin: TreasureHuntRoutePoint, destination: TreasureHuntRoutePoint): TreasureHuntRoute {
+  const rad = Math.PI / 180;
+  const latitudeDelta = destination.latitude - origin.latitude;
+  const longitudeDelta = destination.longitude - origin.longitude;
+  const bend = Math.sign(longitudeDelta || 1) * Math.min(Math.abs(longitudeDelta) * 0.22, 0.00016);
+  const points = [origin,
+    { latitude: origin.latitude + latitudeDelta * 0.24, longitude: origin.longitude + longitudeDelta * 0.24 - bend },
+    { latitude: origin.latitude + latitudeDelta * 0.47, longitude: origin.longitude + longitudeDelta * 0.47 - bend },
+    { latitude: origin.latitude + latitudeDelta * 0.53, longitude: origin.longitude + longitudeDelta * 0.53 + bend },
+    { latitude: origin.latitude + latitudeDelta * 0.77, longitude: origin.longitude + longitudeDelta * 0.77 + bend }, destination];
+  let distance = 0;
+  let offset = 0;
+  const labels = ['Continue along the road', 'Turn right at the next street', 'Keep left at the fork', 'Continue toward the checkpoint', 'Arrive at your destination'];
+  const steps = points.slice(1).map((point, index) => {
+    const previous = points[index];
+    const dLat = (point.latitude - previous.latitude) * rad;
+    const dLon = (point.longitude - previous.longitude) * rad;
+    const meanLat = (point.latitude + previous.latitude) * Math.PI / 360;
+    const metres = 6_371_000 * Math.hypot(dLat, dLon * Math.cos(meanLat));
+    distance += metres;
+    const step = { instruction: labels[index] || labels[labels.length - 1], distance_m: Math.round(metres), distance_from_start_m: Math.round(offset) };
+    offset += metres;
+    return step;
+  });
+  return { distance_m: Math.round(distance), duration_seconds: Math.round(distance / 1.15), points, steps };
+}
+export async function treasureHuntNavigationRoute(hunt: string, origin: TreasureHuntRoutePoint, destination: TreasureHuntRoutePoint, travelMode: 'WALK' | 'DRIVE'): Promise<TreasureHuntRoute> {
+  // Mock mode stays local so previews do not need a session or send a target to the route API.
+  if (process.env.NEXT_PUBLIC_TH_MOCK === '1') return mockTreasureHuntRoute(origin, destination);
   const { data } = await sb.auth.getSession();
-  const token = data.session?.access_token || (process.env.NEXT_PUBLIC_TH_MOCK === '1' ? 'mock.treasure-hunt' : '');
+  const token = data.session?.access_token || '';
   const response = await fetch('/api/hunt-route', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ origin, destination, travelMode }),
+    body: JSON.stringify({ hunt, origin, travelMode }),
     cache: 'no-store',
   });
   const result = await response.json().catch(() => ({}));
