@@ -70,6 +70,8 @@ let lastTouch = 0, lastLoad = 0, loading: Promise<void> | null = null;
 // Full chat-list reloads are the database's heaviest job, so they're spaced out: live signals keep the
 // list fresh in between (new messages are patched in directly).
 export async function loadDating({ force = false, minGap = 30000 } = {}) {
+  // A retry timer can fire after the member backgrounds the app. Do no database work until it returns.
+  if (typeof document !== 'undefined' && document.hidden) return;
   if (loading) return loading;
   if (!force && (api.backingOff() || Date.now() - lastLoad < minGap)) return;
   lastLoad = Date.now();
@@ -80,7 +82,9 @@ export async function loadDating({ force = false, minGap = 30000 } = {}) {
 }
 async function loadDatingNow() {
   try {
-    const [{ convos, requests, pending, myStatus, friendStatuses, origins }, asks, annUnread] = await Promise.all([api.datingSummary(), api.myFriendAsks().catch(() => null), api.announcementsUnread().catch(() => null)]);
+    const [summary, annUnread] = await Promise.all([api.datingSummary(), api.announcementsUnread().catch(() => null)]);
+    const asks = summary.friendAsks !== undefined ? summary.friendAsks : await api.myFriendAsks().catch(() => null);
+    const { convos, requests, pending, myStatus, friendStatuses, origins } = summary;
     if (annUnread != null) state.annUnread = annUnread;
     state.convos = convos; state.requests = requests; state.pendingLikes = pending || 0;
     if (origins) state.origins = origins;
