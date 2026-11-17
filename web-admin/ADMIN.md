@@ -12,8 +12,10 @@ every permission is checked inside the database.
 1. Sign in with their treehouse account (Google, or email and password).
 2. The first time, scan a QR code with Google Authenticator (or any authenticator app) and type the 6-digit code.
    After that, every sign-in asks for a fresh code.
-3. Only people on the staff list get past this point. The database also refuses every staff action
+3. Only people on the staff list get past this point. The database also refuses staff actions
    from a session that hasn't passed the authenticator step, even if someone calls it directly.
+   Exception: Hydra can manage Treasure Hunts from the signed-in Treehouse app without a code; the
+   admin website and all other staff actions still require the authenticator step.
 
 ## Roles
 
@@ -29,7 +31,7 @@ Roles live in the existing `announcement_staff` table (the announcements roles, 
 
 ## Treasure Hunts
 
-Admins and Super Admins can create and manage Treasure Hunts from **Grow → Treasure Hunts**. The same setup is available in the Treehouse app under **Profile → Product Announcements → Treasure Hunt setup**. Add at least two public checkpoints, set their map pin, clue, check radius and in-game coin reward, then add one or more start and grand-prize locations. Staff can open an area in Google Maps and paste a shared link or coordinate pair to fill a pin; no Maps API key is needed. Choose the coin and treasure designs, then set hunt dates and status. Double-check every location for safety before opening a route. When a player joins, the nearest start and grand-prize locations are assigned from that one location reading; the member follows the route in Google Maps and checks in at each stop. After a player joins, locations, dates and rewards are locked; staff can still cancel the hunt. The staff page shows player counts, not member location history. Coins are game points and are not cash.
+Admins and Super Admins can create and manage Treasure Hunts from **Grow → Treasure Hunts**. The same setup is available in the Treehouse app under **Profile → Product Announcements → Treasure Hunt setup**. Every new hunt starts with one required public checkpoint, one start and one grand-prize location. Add as many extra checkpoints as the route needs; any checkpoint can be removed as long as one remains. Set each pin, clue, check radius and in-game coin reward. Staff can open an area in Google Maps and paste a shared link or coordinate pair to fill a pin; no Maps API key is needed. Choose the coin and treasure designs, then set hunt dates and status. Double-check every location for safety before opening a route. When a player joins, the nearest start and grand-prize locations are assigned from that one location reading; the member follows the route in Google Maps and checks in at each stop. After a player joins, locations, dates and rewards are locked; staff can still cancel the hunt. The staff page shows player counts, not member location history. Coins are game points and are not cash.
 
 ## What's private and what's logged
 

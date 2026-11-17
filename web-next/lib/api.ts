@@ -575,6 +575,17 @@ export type TreasureHuntLeaderboard = {
 };
 
 let treasureHuntCache: { at: number; hunts: TreasureHuntSummary[] } | null = null;
+const treasureHuntRequestId = () => {
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID();
+  // randomUUID is missing on older browsers and non-secure local phone previews.
+  const bytes = new Uint8Array(16);
+  if (typeof globalThis.crypto?.getRandomValues === 'function') globalThis.crypto.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
 export const treasureHuntsActive = async (force = false): Promise<TreasureHuntSummary[]> => {
   if (!force && treasureHuntCache && Date.now() - treasureHuntCache.at < 60000) return treasureHuntCache.hunts;
   const hunts = (await rpc('treasure_hunts_active')) || [];
@@ -587,25 +598,25 @@ export const treasureHuntJoin = async (hunt: string, location: { latitude: numbe
   return data;
 };
 export const treasureHuntProgress = (hunt: string): Promise<TreasureHuntProgress> => rpc('treasure_hunt_progress_with_routes', { p_hunt: hunt });
-export const treasureHuntClaimStart = async (hunt: string, point: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = crypto.randomUUID()) => {
+export const treasureHuntClaimStart = async (hunt: string, point: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = treasureHuntRequestId()) => {
   const result = await rpc('treasure_hunt_claim_start', { p_hunt: hunt, p_route_point: point, p_latitude: location.latitude,
     p_longitude: location.longitude, p_accuracy_m: location.accuracy, p_request_id: requestId });
   if (result && result.ok) treasureHuntCache = null;
   return result as { ok: boolean; error?: string; idempotent?: boolean; coins_awarded?: number; total_coins?: number };
 };
-export const treasureHuntClaimCheckpoint = async (hunt: string, checkpoint: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = crypto.randomUUID()) => {
+export const treasureHuntClaimCheckpoint = async (hunt: string, checkpoint: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = treasureHuntRequestId()) => {
   const result = await rpc('treasure_hunt_claim_checkpoint', { p_hunt: hunt, p_checkpoint: checkpoint,
     p_latitude: location.latitude, p_longitude: location.longitude, p_accuracy_m: location.accuracy, p_request_id: requestId });
   if (result && result.ok) treasureHuntCache = null;
   return result as { ok: boolean; error?: string; idempotent?: boolean; coins_awarded?: number; total_coins?: number; checkpoint_sequence?: number };
 };
-export const treasureHuntFinish = async (hunt: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = crypto.randomUUID()) => {
+export const treasureHuntFinish = async (hunt: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = treasureHuntRequestId()) => {
   const result = await rpc('treasure_hunt_finish', { p_hunt: hunt, p_latitude: location.latitude, p_longitude: location.longitude,
     p_accuracy_m: location.accuracy, p_request_id: requestId });
   return result as { ok: boolean; error?: string; idempotent?: boolean; coins_awarded?: number; total_coins?: number };
 };
-export const treasureHuntsAdmin = async () => (await rpc('staff_treasure_hunts')) || [];
-export const treasureHuntAdminSave = (hunt: unknown, checkpoints: unknown, starts: unknown, finishes: unknown) => rpc('staff_treasure_hunt_save_routes', {
+export const treasureHuntsAdmin = async () => (await rpc('staff_treasure_hunts_personal')) || [];
+export const treasureHuntAdminSave = (hunt: unknown, checkpoints: unknown, starts: unknown, finishes: unknown) => rpc('staff_treasure_hunt_save_routes_personal', {
   p_hunt: hunt, p_checkpoints: checkpoints, p_start_points: starts, p_finish_points: finishes,
 });
 export const treasureHuntLeaderboard = async (hunt: string, cursor?: TreasureHuntCursor): Promise<TreasureHuntLeaderboard> => {

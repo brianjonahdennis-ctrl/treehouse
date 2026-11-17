@@ -6,8 +6,49 @@
   if (q.get('empty')) sessionStorage.setItem('mock-empty', '1');
   if (q.get('reset')) { sessionStorage.clear(); }
   const signedOut = sessionStorage.getItem('mock-out') === '1';
-  // Preview only: pretend the phone is in Wuse, Abuja (no real location is read).
-  try { Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition: (ok) => setTimeout(() => ok({ coords: { latitude: 9.0765, longitude: 7.4793 } }), 300) } }); } catch {}
+  // Preview only: a small walking route, changing true-north heading and
+  // illustrated rear-camera feed let the AR placement be checked without a phone.
+  let mockLatitude = 9.07624, mockLongitude = 7.47918, mockGeoSequence = 0;
+  const mockWatchers = new Map();
+  const mockGeoPosition = () => ({ coords: { latitude: mockLatitude, longitude: mockLongitude, accuracy: 8, speed: 1.1, heading: 35 }, timestamp: Date.now() });
+  const mockBearingTo = (target) => {
+    if (!target) return 25;
+    const rad = Math.PI / 180, dLat = (target.latitude - mockLatitude) * rad;
+    const dLon = (target.longitude - mockLongitude) * rad;
+    return (Math.atan2(Math.sin(dLon) * Math.cos(target.latitude * rad), Math.cos(mockLatitude * rad) * Math.sin(target.latitude * rad) - Math.sin(mockLatitude * rad) * Math.cos(target.latitude * rad) * Math.cos(dLon)) * 180 / Math.PI + 360) % 360;
+  };
+  const mockOrientation = () => {
+    const last = Number(sessionStorage.getItem('mock-hunt-last') || 0);
+    const target = sessionStorage.getItem('mock-hunt-started') === '1'
+      ? mockHuntCheckpoints[Math.min(last, mockHuntCheckpoints.length - 1)]
+      : { latitude: 9.0765, longitude: 7.4793 };
+    const alpha = -mockBearingTo(target);
+    const event = new Event('deviceorientationabsolute');
+    for (const [key, value] of Object.entries({ alpha, beta: 90, gamma: 0, absolute: true })) {
+      Object.defineProperty(event, key, { configurable: true, value });
+    }
+    window.dispatchEvent(event);
+  };
+  const mockWatchTick = () => {
+    mockLatitude += 0.000006;
+    mockLongitude += 0.000005;
+    mockOrientation();
+    const position = mockGeoPosition();
+    for (const watcher of mockWatchers.values()) watcher(position);
+  };
+  const fakeGeolocation = {
+    getCurrentPosition: (ok) => setTimeout(() => ok(mockGeoPosition()), 180),
+    watchPosition: (ok) => {
+      const id = ++mockGeoSequence;
+      mockWatchers.set(id, ok);
+      setTimeout(() => { if (mockWatchers.has(id)) ok(mockGeoPosition()); }, 120);
+      if (mockWatchers.size === 1) { mockOrientation(); fakeGeolocation.timer = setInterval(mockWatchTick, 900); }
+      return id;
+    },
+    clearWatch: (id) => { mockWatchers.delete(id); if (!mockWatchers.size && fakeGeolocation.timer) { clearInterval(fakeGeolocation.timer); fakeGeolocation.timer = null; } },
+    timer: null,
+  };
+  try { Object.defineProperty(navigator, 'geolocation', { configurable: true, value: fakeGeolocation }); } catch {}
   const empty = sessionStorage.getItem('mock-empty') === '1';
   const ME = '00000000-0000-0000-0000-000000000001';
   const ago = (min) => new Date(Date.now() - min * 60000).toISOString();
@@ -320,11 +361,11 @@ const RPC = {
         { rank: 3, handle: 'Quiet Falcon 086', coins: 300, checkpoints: 3, completed_at: null, cursor_key: 'd0000000-0000-4000-8000-000000000012', cursor_coins: 300, cursor_joined_at: new Date(Date.now() - 60000).toISOString() },
       ], has_more: false };
     },
-    staff_treasure_hunts: () => JSON.parse(sessionStorage.getItem('mock-staff-hunts') || JSON.stringify([{ id: mockHuntId, title: 'Treasure Hunt Preview', region: 'Wuse, Abuja', description: 'Sample safe route.', status: 'draft',
+    staff_treasure_hunts_personal: () => JSON.parse(sessionStorage.getItem('mock-staff-hunts') || JSON.stringify([{ id: mockHuntId, title: 'Treasure Hunt Preview', region: 'Wuse, Abuja', description: 'Sample safe route.', status: 'draft',
       starts_at: new Date(Date.now() + 86400000).toISOString(), ends_at: new Date(Date.now() + 2 * 86400000).toISOString(), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', participant_count: 0,
       start_points: [{ id: 'mock-start-1', sequence: 1, name: 'Wuse Market start', latitude: 9.0765, longitude: 7.4793, radius_m: 60, reward_coins: 0 }],
-      finish_points: [{ id: 'mock-finish-1', sequence: 1, name: 'City Park prize', latitude: 9.0775, longitude: 7.4803, radius_m: 60, reward_coins: 0 }], checkpoints: mockHuntCheckpoints.slice(0, 2) }])),
-    staff_treasure_hunt_save_routes: (a) => { const h = a.p_hunt || {}; const current = JSON.parse(sessionStorage.getItem('mock-staff-hunts') || '[]'); const id = h.id || `mock-hunt-${Date.now()}`;
+      finish_points: [{ id: 'mock-finish-1', sequence: 1, name: 'City Park prize', latitude: 9.0775, longitude: 7.4803, radius_m: 60, reward_coins: 0 }], checkpoints: mockHuntCheckpoints.slice(0, 1) }])),
+    staff_treasure_hunt_save_routes_personal: (a) => { const h = a.p_hunt || {}; const current = JSON.parse(sessionStorage.getItem('mock-staff-hunts') || '[]'); const id = h.id || `mock-hunt-${Date.now()}`;
       const value = { ...h, id, participant_count: 0, checkpoints: (a.p_checkpoints || []).map((p, i) => ({ ...p, id: `mock-stop-${i + 1}` })),
         start_points: (a.p_start_points || []).map((p, i) => ({ ...p, id: `mock-start-${i + 1}` })), finish_points: (a.p_finish_points || []).map((p, i) => ({ ...p, id: `mock-finish-${i + 1}` })) };
       const at = current.findIndex((x) => x.id === id); if (at < 0) current.unshift(value); else current[at] = value; sessionStorage.setItem('mock-staff-hunts', JSON.stringify(current)); return id; },

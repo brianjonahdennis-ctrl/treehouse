@@ -13,7 +13,7 @@ type Draft = { id?: string; title: string; region: string; description: string; 
 const localValue = (v?: string) => { const d = v ? new Date(v) : new Date(Date.now() + 86400000); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 const emptyStop = (sequence: number): Stop => ({ sequence, name: '', hint: '', latitude: '', longitude: '', radius_m: 45, reward_coins: 100, map_ref: '' });
 const emptyRoutePoint = (sequence: number): RoutePoint => ({ sequence, name: '', latitude: '', longitude: '', radius_m: 60, reward_coins: 0, map_ref: '' });
-const blank = (): Draft => ({ title: '', region: '', description: '', status: 'draft', starts_at: localValue(), ends_at: localValue(new Date(Date.now() + 2 * 86400000).toISOString()), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', checkpoints: [emptyStop(1), emptyStop(2)], start_points: [emptyRoutePoint(1)], finish_points: [emptyRoutePoint(1)], participant_count: 0 });
+const blank = (): Draft => ({ title: '', region: '', description: '', status: 'draft', starts_at: localValue(), ends_at: localValue(new Date(Date.now() + 2 * 86400000).toISOString()), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', checkpoints: [emptyStop(1)], start_points: [emptyRoutePoint(1)], finish_points: [emptyRoutePoint(1)], participant_count: 0 });
 function coordinatesFrom(value: string): [string, string] | null {
   let text = value.trim();
   try { if (/^https?:\/\//i.test(text)) { const url = new URL(text); const q = url.searchParams.get('q') || url.searchParams.get('query'); if (q) text = q; else text = decodeURIComponent(text); } } catch { text = value.trim(); }
@@ -32,8 +32,9 @@ export default function TreasureHunts() {
     setDraft(h ? { id: h.id, title: h.title, region: h.region, description: h.description, status: h.status as Draft['status'],
       starts_at: localValue(h.starts_at), ends_at: localValue(h.ends_at), completion_bonus_coins: h.completion_bonus_coins,
       coin_avatar: h.coin_avatar || '🪙', treasure_avatar: h.treasure_avatar || '🧰',
-      participant_count: h.participant_count, checkpoints: h.checkpoints.map((c) => ({ sequence: c.sequence, name: c.name, hint: c.hint,
-        latitude: String(c.latitude), longitude: String(c.longitude), radius_m: c.radius_m, reward_coins: c.reward_coins, map_ref: '' })),
+      participant_count: h.participant_count, checkpoints: h.checkpoints.length ? h.checkpoints.map((c) => ({ sequence: c.sequence, name: c.name, hint: c.hint,
+        latitude: String(c.latitude), longitude: String(c.longitude), radius_m: c.radius_m, reward_coins: c.reward_coins, map_ref: '' }))
+        : [emptyStop(1)],
       start_points: (h.start_points || []).map((p, i) => ({ sequence: i + 1, name: p.name, latitude: String(p.latitude), longitude: String(p.longitude), radius_m: p.radius_m, reward_coins: p.reward_coins, map_ref: '' })),
       finish_points: (h.finish_points || []).map((p, i) => ({ sequence: i + 1, name: p.name, latitude: String(p.latitude), longitude: String(p.longitude), radius_m: p.radius_m, reward_coins: p.reward_coins, map_ref: '' })) } : blank());
   };
@@ -59,8 +60,8 @@ export default function TreasureHunts() {
     if (!draft) return;
     setError('');
     if (draft.title.trim().length < 3 || draft.region.trim().length < 2) { setError('Add a hunt name and area.'); return; }
-    if (draft.checkpoints.length < 2 || draft.checkpoints.some((c) => !c.name.trim() || !Number.isFinite(Number(c.latitude)) || !Number.isFinite(Number(c.longitude)) || c.latitude === '' || c.longitude === '')) {
-      setError('Add at least two checkpoints, each with a name and map coordinates.'); return;
+    if (!draft.checkpoints.length || draft.checkpoints.some((c) => !c.name.trim() || !Number.isFinite(Number(c.latitude)) || !Number.isFinite(Number(c.longitude)) || c.latitude === '' || c.longitude === '')) {
+      setError('Keep at least one named checkpoint and add its map coordinates.'); return;
     }
     const routePoints = [...draft.start_points, ...draft.finish_points];
     if (!draft.start_points.length || !draft.finish_points.length || draft.start_points.some((p) => !p.name.trim() || p.latitude === '' || p.longitude === '' || !Number.isFinite(Number(p.latitude)) || !Number.isFinite(Number(p.longitude))) || draft.finish_points.some((p) => !p.name.trim() || p.latitude === '' || p.longitude === '' || !Number.isFinite(Number(p.latitude)) || !Number.isFinite(Number(p.longitude)))) {
@@ -135,9 +136,10 @@ export default function TreasureHunts() {
                 </section>)}
               </div>;
             })}
-            <div className="th-admin-stops"><div className="th-admin-stops-head"><b>Checkpoints</b>{!frozen && draft.checkpoints.length < 25 ? <Btn kind="soft" onClick={() => change('checkpoints', [...draft.checkpoints, emptyStop(draft.checkpoints.length + 1)])}>Add stop</Btn> : null}</div>
+            <div className="th-admin-stops"><div className="th-admin-stops-head"><b>Checkpoints</b>{!frozen ? <Btn kind="soft" onClick={() => change('checkpoints', [...draft.checkpoints, emptyStop(draft.checkpoints.length + 1)])}>Add stop</Btn> : null}</div>
+              <p className="muted small">Keep one checkpoint for the route to work. Add as many extra stops as you need and remove any extras before the hunt starts.</p>
               {draft.checkpoints.map((c, i) => <section className="th-admin-stop" key={i}>
-                <div className="th-admin-stop-head"><b>Stop {i + 1}</b>{!frozen && draft.checkpoints.length > 2 ? <button className="th-admin-remove" onClick={() => change('checkpoints', draft.checkpoints.filter((_, at) => at !== i).map((s, at) => ({ ...s, sequence: at + 1 })))}>Remove</button> : null}</div>
+                <div className="th-admin-stop-head"><b>Checkpoint {i + 1}{i === 0 ? ' · Required' : ''}</b>{!frozen && draft.checkpoints.length > 1 ? <button className="th-admin-remove" onClick={() => change('checkpoints', draft.checkpoints.filter((_, at) => at !== i).map((s, at) => ({ ...s, sequence: at + 1 })))}>Remove</button> : null}</div>
                 <Field label="Place name"><input disabled={frozen} value={c.name} maxLength={80} onChange={(e) => changeStop(i, 'name', e.target.value)} placeholder="Isaac Boro Park" /></Field>
                 <Field label="Clue"><input disabled={frozen} value={c.hint} maxLength={240} onChange={(e) => changeStop(i, 'hint', e.target.value)} placeholder="Look near the entrance." /></Field>
                 <Field label="Google Maps link or coordinates" hint="Some short links omit the pin. If it does not fill in, copy the coordinate pair from Google Maps."><input disabled={frozen} value={c.map_ref} onChange={(e) => changeStop(i, 'map_ref', e.target.value)} placeholder="4.8156, 7.0498" /></Field>
