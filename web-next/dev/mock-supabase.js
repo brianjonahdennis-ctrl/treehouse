@@ -59,6 +59,8 @@
     state: 'Lagos', pref_state: 'Lagos' };
 
   const mockOrigins = {};
+  let mockInboxVersion = 0;
+  const mockInboxListeners = new Set();
   let mockRole = 'caller'; const mockCalls = [];
   const convo = (id, handle, extra) => Object.assign({ conversation_id: id, other_handle: handle, other_gender: 'female', other_age: 24, other_location: 'Lagos',
     other_intent: 'love', last_message: null, last_from_me: false, last_at: ago(30), unread: 0, i_revealed: false, they_revealed: false,
@@ -268,6 +270,20 @@ const RPC = {
       const out = { changed: rows.filter((r) => p_known[r.conversation_id] !== r._fp), removed: Object.keys(p_known).filter((k) => !ids.has(k)), requests: rf === p_req ? null : full.requests, req_fp: rf,
         pending: full.pending, my_status: full.my_status, friend_statuses: full.friend_statuses, origins: full.origins };
       window.__mockListBytes += JSON.stringify(out).length; window.__mockListCalls = (window.__mockListCalls || 0) + 1; return out; },
+    dating_summary_changes_v2: ({ p_known = {}, p_req = '', p_version = null }) => {
+      window.__mockListCalls = (window.__mockListCalls || 0) + 1;
+      if (p_version != null && Number(p_version) === mockInboxVersion) {
+        window.__mockListBytes = (window.__mockListBytes || 0) + 40;
+        return { unchanged: true, version: mockInboxVersion };
+      }
+      const full = RPC.dating_summary(); const fp = (o) => { let h = 0; const t = JSON.stringify(o); for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return String(h >>> 0); };
+      const rows = full.convos.map((c) => ({ ...c, _fp: fp(c) })); const ids = new Set(rows.map((r) => r.conversation_id)); const rf = fp(full.requests);
+      const out = { unchanged: false, version: mockInboxVersion, changed: rows.filter((r) => p_known[r.conversation_id] !== r._fp), removed: Object.keys(p_known).filter((k) => !ids.has(k)),
+        requests: rf === p_req ? null : full.requests, req_fp: rf, pending: full.pending, my_status: full.my_status, friend_statuses: full.friend_statuses,
+        origins: full.origins, friend_asks: RPC.my_friend_asks() };
+      window.__mockListBytes = (window.__mockListBytes || 0) + JSON.stringify(out).length;
+      return out;
+    },
     __unused_dating_summary: () => ({ convos, requests: likes, pending: likes.length, my_status: myStatus, origins: empty ? {} : { c12: 'nearby', c13: 'nearby', c14: 'nearby', ...mockOrigins },
       friend_statuses: [{ conversation_id: 'c8', body: 'Weekend vibes already! 🎉', updated_at: ago(17) }, { conversation_id: 'c9', body: 'At work, hit me up later 💼', updated_at: ago(180) }] }),
     set_my_status: ({ p_body }) => { myStatus = { body: p_body, updated_at: new Date().toISOString() }; return [myStatus]; },
@@ -501,6 +517,16 @@ const RPC = {
     ann_staff: () => [{ handle: 'Lucky Dolphin 214', role: 'super_admin', can_publish: true, added_at: ago(9000) }, { handle: 'Quiet Comet 118', role: 'editor', can_publish: false, added_at: ago(3000) }],
     ann_set_staff: () => null,
   };
+  window.__mockInboxMessage = () => {
+    const at = new Date().toISOString(), body = 'Mock realtime message — inbox updated';
+    const c = convos.find((row) => row.conversation_id === 'c1');
+    if (c) { c.last_message = body; c.last_at = at; c.last_from_me = false; c.unread = (c.unread || 0) + 1; }
+    const event = { payload: { k: 'message', c: 'c1', at, b: body, m: { id: ++msgId, sender_id: 'mock-other', body, created_at: at, reply_to: null, edited_at: null, deleted_at: null } } };
+    mockInboxVersion++;
+    mockInboxListeners.forEach((listener) => listener(event));
+    return { delivered: mockInboxListeners.size > 0, version: mockInboxVersion, body };
+  };
+  if (q.get('mock-inbox') === '1') setTimeout(() => window.__mockInboxMessage(), 3000);
 
   let mockAvatars = [];
   const mockFiles = new Map();
@@ -556,6 +582,15 @@ const RPC = {
       speedBus.addEventListener('message', (e) => { const m = e.data; if (m && m.topic === name) handlers.forEach(([ev, cb]) => { if (ev === m.event) cb({ payload: m.payload }); }); });
       return ch;
     }
+    if (typeof name === 'string' && name.startsWith('user:')) {
+      let inboxHandler = null;
+      const ch = { on(type, filter, cb) { if (type === 'broadcast' && filter && filter.event === 'inbox') inboxHandler = cb; return ch; },
+        subscribe(cb) { setTimeout(() => cb && cb('SUBSCRIBED'), 50); return ch; }, track() {}, send() {}, presenceState() { return {}; },
+        __leave() { if (inboxHandler) mockInboxListeners.delete(inboxHandler); } };
+      const register = () => { if (inboxHandler) mockInboxListeners.add(inboxHandler); };
+      setTimeout(register, 0);
+      return ch;
+    }
     const ch = { on() { return ch; }, subscribe(cb) { setTimeout(() => cb && cb('SUBSCRIBED'), 50); return ch; }, track() {}, send() {}, presenceState() { return {}; } };
     return ch;
   }
@@ -564,7 +599,7 @@ const RPC = {
     createClient() {
       return {
         rpc(fn, args) { const f = RPC[fn]; try { return result(f ? f(args || {}) : null); } catch (e) { return Promise.resolve({ data: null, error: { message: e.message, code: e.code || 'P0001' } }); } },
-        from, channel, removeChannel() {},
+        from, channel, removeChannel(ch) { if (ch && ch.__leave) ch.__leave(); },
         storage: { from: () => ({
           upload: (path, blob) => { mockFiles.set(path, URL.createObjectURL(blob)); return result({ path }); },
           createSignedUrl: (path) => result({ signedUrl: mockFiles.get(path) || '/icon-512.png?mock-photo' }),
