@@ -557,6 +557,13 @@ export const kickrsFriendRequest = (kickrsId: string) => rpc('kickrs_friend_requ
 // ---- Treehouse Treasure Hunt ----------------------------------------------------------------------
 export type TreasureHuntSummary = { id: string; title: string; region: string; description: string; starts_at: string; ends_at: string; checkpoint_count: number; participants: number; joined: boolean };
 export type TreasureHuntTarget = { kind: 'start' | 'checkpoint' | 'finish'; id: string; name: string; hint: string; latitude: number; longitude: number; radius_m: number; reward_coins: number };
+export type TreasureHuntRoutePoint = { latitude: number; longitude: number };
+export type TreasureHuntRoute = {
+  distance_m: number;
+  duration_seconds: number;
+  points: TreasureHuntRoutePoint[];
+  steps: { instruction: string; distance_m: number; distance_from_start_m: number }[];
+};
 export type TreasureHuntProgress = {
   hunt: { id: string; title: string; region: string; description: string; starts_at: string; ends_at: string; completion_bonus_coins: number; coin_avatar?: string; treasure_avatar?: string; checkpoint_count: number };
   participant: { joined_at: string; total_coins: number; completion_bonus_coins: number; completed_at: string | null };
@@ -600,6 +607,19 @@ export const treasureHuntJoin = async (hunt: string, location: { latitude: numbe
   return data;
 };
 export const treasureHuntProgress = (hunt: string): Promise<TreasureHuntProgress> => rpc('treasure_hunt_progress_with_routes', { p_hunt: hunt });
+export async function treasureHuntNavigationRoute(origin: TreasureHuntRoutePoint, destination: TreasureHuntRoutePoint, travelMode: 'WALK' | 'DRIVE'): Promise<TreasureHuntRoute> {
+  const { data } = await sb.auth.getSession();
+  const token = data.session?.access_token || (process.env.NEXT_PUBLIC_TH_MOCK === '1' ? 'mock.treasure-hunt' : '');
+  const response = await fetch('/api/hunt-route', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ origin, destination, travelMode }),
+    cache: 'no-store',
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.message || 'Road directions are unavailable right now. Follow the direction arrow or open Google Maps.');
+  return result as TreasureHuntRoute;
+}
 export const treasureHuntClaimStart = async (hunt: string, point: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = treasureHuntRequestId()) => {
   const result = await rpc('treasure_hunt_claim_start', { p_hunt: hunt, p_route_point: point, p_latitude: location.latitude,
     p_longitude: location.longitude, p_accuracy_m: location.accuracy, p_request_id: requestId });
