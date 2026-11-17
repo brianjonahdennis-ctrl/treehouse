@@ -13,6 +13,7 @@ import { copyText } from '@/lib/util';
 import { useAppState, state, statusOf } from '@/lib/state';
 import { composeTo } from './Discover';
 import { Icon, Hero, Avatar, SkeletonList } from './ui';
+import { FeatureCard } from './FeatureCard';
 import { openSheet, toast } from './overlay';
 import { BellButton } from './Home';
 import { chooseUsername } from './Username';
@@ -478,14 +479,7 @@ function ListRow({ n, depth, sort, flat = false, onChange }: { n: Node; depth: n
 export function TreehouseCard() {
   const [th, setTh] = useState<TH | null>(thCache ? thCache.d : null);
   useEffect(() => { loadTH().then(setTh); }, []);
-  return (
-    <button className="hm-games mt-card" onClick={() => go('treehouse')}>
-      <span className="hg-text">
-        <span className="hg-kicker"><Icon name="network" cls="sm" />My Treehouse</span>
-        <b>{th && th.total ? `${n0(th.total)} ${th.total === 1 ? 'person' : 'people'} in your network` : 'Your network. Your growth.'}</b>
-        <span className="hg-go">View My Treehouse<Icon name="chev" cls="sm" /></span>
-      </span>
-      <span className="hg-art" aria-hidden="true"><span>🌳</span><span>🌱</span></span>
-    </button>
-  );
+  const total = th?.total ?? 0;
+  return <FeatureCard kind="treehouse" iconName="network" title="My Treehouse"
+    text={`${n0(total)} ${total === 1 ? 'person' : 'people'} in your network`} actionText="View" onClick={() => go('treehouse')} />;
 }
