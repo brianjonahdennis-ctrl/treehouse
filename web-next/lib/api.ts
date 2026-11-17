@@ -193,28 +193,66 @@ export function onInboxNudge(uid: string, cb: (n: any) => void, onReconnect?: ()
   return { leave() { sb.removeChannel(ch); } };
 }
 export const friendStatuses = async () => (await rpc('friend_statuses')) || [];
-// The chat list, sending only what changed (dating_summary_changes, migration 119): this phone keeps the
-// last list it got, with a short fingerprint per chat, and the database sends back only chats whose
-// fingerprint differs (plus ids to drop, and the likes list only when it changed). Same data as before.
-// Callers get fresh copies, so local edits (unread counts, previews) never touch this cache.
-type ListCache = { uid: string; rows: Map<string, any>; reqFp: string; requests: any[] };
+// The chat list uses a private server version so unchanged refreshes return before the database
+// rebuilds the list. Changed refreshes still use migration 119's per-chat fingerprints. The cache is
+// memory-only; callers get copies so local unread counts and previews never alter it.
+type ListCache = {
+  uid: string; rows: Map<string, any>; reqFp: string; requests: any[]; version: number | null;
+  lastFullAt: number; pending: number; myStatus: any; friendStatuses: any[]; origins: Record<string, string>;
+  friendAsks: any[] | undefined;
+};
 let listCache: ListCache | null = null;
 let changesMissing = false;
+let versionedChangesMissing = false;
 export function forgetChatList() { listCache = null; }
 async function datingSummaryChanges(uid: string): Promise<any> {
-  if (!listCache || listCache.uid !== uid) listCache = { uid, rows: new Map(), reqFp: '', requests: [] };
+  if (!listCache || listCache.uid !== uid) listCache = {
+    uid, rows: new Map(), reqFp: '', requests: [], version: null, lastFullAt: 0,
+    pending: 0, myStatus: null, friendStatuses: [], origins: {}, friendAsks: undefined,
+  };
   const c = listCache;
   const known: Record<string, string> = {};
   c.rows.forEach((r, id) => { known[id] = r._fp; });
-  const d = await rpc('dating_summary_changes', { p_known: known, p_req: c.reqFp });
+  const pVersion = c.version != null && Date.now() - c.lastFullAt < 180000 ? c.version : null;
+  let d: any;
+  if (!versionedChangesMissing) {
+    try {
+      d = await rpc('dating_summary_changes_v2', { p_known: known, p_req: c.reqFp, p_version: pVersion });
+    } catch (e) {
+      if (!missingFn(e)) throw e;
+      versionedChangesMissing = true;
+    }
+  }
+  // An older app deployment may reach the site before the migration is applied. Keep the existing
+  // RPC as a compatibility path until Hydra applies the migration.
+  if (versionedChangesMissing) d = await rpc('dating_summary_changes', { p_known: known, p_req: c.reqFp });
   if (listCache !== c) return datingSummaryChanges(uid);
+  if (d.unchanged) {
+    return {
+      convos: [...c.rows.values()].map(({ _fp, ...row }) => row).sort((x, y) => +new Date(y.last_at) - +new Date(x.last_at)),
+      requests: c.requests.map((r) => ({ ...r })), pending: c.pending, myStatus: c.myStatus,
+      friendStatuses: c.friendStatuses.map((r) => ({ ...r })), origins: { ...c.origins },
+      friendAsks: c.friendAsks?.map((r) => ({ ...r })),
+    };
+  }
   for (const id of d.removed || []) c.rows.delete(id);
   for (const r of d.changed || []) c.rows.set(r.conversation_id, r);
-  if (d.requests) { c.requests = d.requests; }
+  if (d.requests != null) c.requests = d.requests;
   c.reqFp = d.req_fp || '';
+  if (d.version != null) c.version = Number(d.version);
+  c.lastFullAt = Date.now();
+  c.pending = d.pending ?? c.pending;
+  c.myStatus = d.my_status ?? null;
+  c.friendStatuses = d.friend_statuses || [];
+  c.origins = d.origins || {};
+  if (d.friend_asks !== undefined) c.friendAsks = d.friend_asks || [];
   const convos = [...c.rows.values()].map((r) => { const { _fp, ...row } = r; void _fp; return row; })
     .sort((x, y) => +new Date(y.last_at) - +new Date(x.last_at));
-  return { convos, requests: c.requests.map((r) => ({ ...r })), pending: d.pending || 0, myStatus: d.my_status || null, friendStatuses: d.friend_statuses || [], origins: d.origins || {} };
+  return {
+    convos, requests: c.requests.map((r) => ({ ...r })), pending: c.pending, myStatus: c.myStatus,
+    friendStatuses: c.friendStatuses.map((r) => ({ ...r })), origins: { ...c.origins },
+    friendAsks: c.friendAsks?.map((r) => ({ ...r })),
+  };
 }
 export async function datingSummary(): Promise<any> {
   const uid = (await sb.auth.getSession()).data.session?.user?.id;
