@@ -143,5 +143,6 @@ select throws_ok('select * from public.discover_cards(10, array[]::text[])', '42
   'Add your date of birth first. It’s private, and keeps treehouse 18+.',
   'The existing date-of-birth lock still applies');
 
+select pg_temp.admin();
 select * from finish();
 rollback;
