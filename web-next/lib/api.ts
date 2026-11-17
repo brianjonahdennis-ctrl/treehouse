@@ -555,15 +555,22 @@ export const kickrsDisconnect = () => rpc('kickrs_disconnect');
 export const kickrsFriendRequest = (kickrsId: string) => rpc('kickrs_friend_request', { p_kickrs_id: kickrsId });
 
 // ---- Treehouse Treasure Hunt ----------------------------------------------------------------------
-export type TreasureHuntSummary = { id: string; title: string; region: string; description: string; starts_at: string; ends_at: string; checkpoint_count: number; participants: number; joined: boolean; route_assignment_required?: boolean };
-export type TreasureHuntCheckpoint = { id: string; sequence: number; name: string; hint: string; latitude: number; longitude: number; radius_m: number; reward_coins: number; claimed: boolean };
-export type TreasureHuntProgress = {
-  hunt: { id: string; title: string; region: string; description: string; starts_at: string; ends_at: string; completion_bonus_coins: number; coin_avatar?: string; treasure_avatar?: string };
-  participant: { joined_at: string; last_checkpoint_sequence: number; total_coins: number; completion_bonus_coins: number; completed_at: string | null };
-  checkpoints: TreasureHuntCheckpoint[];
-  route?: { start_claimed_at: string | null; start: TreasureHuntRoutePoint | null; finish: TreasureHuntRoutePoint | null };
+export type TreasureHuntSummary = { id: string; title: string; region: string; description: string; starts_at: string; ends_at: string; checkpoint_count: number; participants: number; joined: boolean };
+export type TreasureHuntTarget = { kind: 'start' | 'checkpoint' | 'finish'; id: string; name: string; hint: string; latitude: number; longitude: number; radius_m: number; reward_coins: number };
+export type TreasureHuntRoutePoint = { latitude: number; longitude: number };
+export type TreasureHuntRoute = {
+  distance_m: number;
+  duration_seconds: number;
+  points: TreasureHuntRoutePoint[];
+  steps: { instruction: string; distance_m: number; distance_from_start_m: number }[];
 };
-export type TreasureHuntRoutePoint = { id: string; name: string; latitude: number; longitude: number; radius_m: number; reward_coins: number };
+export type TreasureHuntProgress = {
+  hunt: { id: string; title: string; region: string; description: string; starts_at: string; ends_at: string; completion_bonus_coins: number; coin_avatar?: string; treasure_avatar?: string; checkpoint_count: number };
+  participant: { joined_at: string; total_coins: number; completion_bonus_coins: number; completed_at: string | null };
+  found_count: number;
+  total_count: number;
+  current_target: TreasureHuntTarget | null;
+};
 export type TreasureHuntCursor = { coins: number; joined_at: string; board_key: string };
 export type TreasureHuntLeaderboard = {
   visibility: 'self' | 'full';
@@ -573,6 +580,8 @@ export type TreasureHuntLeaderboard = {
   items: { rank: number; handle: string; coins: number; checkpoints: number; completed_at: string | null; cursor_key: string; cursor_coins: number; cursor_joined_at: string }[];
   has_more: boolean;
 };
+type TreasureHuntClaimResult = { ok: true; idempotent: boolean; error?: string; coins_awarded?: number; total_coins?: number; checkpoint_sequence?: number; progress: TreasureHuntProgress }
+  | { ok: false; idempotent?: boolean; error?: string; coins_awarded?: number; total_coins?: number; checkpoint_sequence?: number };
 
 let treasureHuntCache: { at: number; hunts: TreasureHuntSummary[] } | null = null;
 const treasureHuntRequestId = () => {
@@ -598,17 +607,58 @@ export const treasureHuntJoin = async (hunt: string, location: { latitude: numbe
   return data;
 };
 export const treasureHuntProgress = (hunt: string): Promise<TreasureHuntProgress> => rpc('treasure_hunt_progress_with_routes', { p_hunt: hunt });
+function mockTreasureHuntRoute(origin: TreasureHuntRoutePoint, destination: TreasureHuntRoutePoint): TreasureHuntRoute {
+  const rad = Math.PI / 180;
+  const latitudeDelta = destination.latitude - origin.latitude;
+  const longitudeDelta = destination.longitude - origin.longitude;
+  const bend = Math.sign(longitudeDelta || 1) * Math.min(Math.abs(longitudeDelta) * 0.22, 0.00016);
+  const points = [origin,
+    { latitude: origin.latitude + latitudeDelta * 0.24, longitude: origin.longitude + longitudeDelta * 0.24 - bend },
+    { latitude: origin.latitude + latitudeDelta * 0.47, longitude: origin.longitude + longitudeDelta * 0.47 - bend },
+    { latitude: origin.latitude + latitudeDelta * 0.53, longitude: origin.longitude + longitudeDelta * 0.53 + bend },
+    { latitude: origin.latitude + latitudeDelta * 0.77, longitude: origin.longitude + longitudeDelta * 0.77 + bend }, destination];
+  let distance = 0;
+  let offset = 0;
+  const labels = ['Continue along the road', 'Turn right at the next street', 'Keep left at the fork', 'Continue toward the checkpoint', 'Arrive at your destination'];
+  const steps = points.slice(1).map((point, index) => {
+    const previous = points[index];
+    const dLat = (point.latitude - previous.latitude) * rad;
+    const dLon = (point.longitude - previous.longitude) * rad;
+    const meanLat = (point.latitude + previous.latitude) * Math.PI / 360;
+    const metres = 6_371_000 * Math.hypot(dLat, dLon * Math.cos(meanLat));
+    distance += metres;
+    const step = { instruction: labels[index] || labels[labels.length - 1], distance_m: Math.round(metres), distance_from_start_m: Math.round(offset) };
+    offset += metres;
+    return step;
+  });
+  return { distance_m: Math.round(distance), duration_seconds: Math.round(distance / 1.15), points, steps };
+}
+export async function treasureHuntNavigationRoute(hunt: string, origin: TreasureHuntRoutePoint, destination: TreasureHuntRoutePoint, travelMode: 'WALK' | 'DRIVE'): Promise<TreasureHuntRoute> {
+  // Mock mode stays local so previews do not need a session or send a target to the route API.
+  if (process.env.NEXT_PUBLIC_TH_MOCK === '1') return mockTreasureHuntRoute(origin, destination);
+  const { data } = await sb.auth.getSession();
+  const token = data.session?.access_token || '';
+  const response = await fetch('/api/hunt-route', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ hunt, origin, travelMode }),
+    cache: 'no-store',
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.message || 'Road directions are unavailable right now. Follow the direction arrow or open Google Maps.');
+  return result as TreasureHuntRoute;
+}
 export const treasureHuntClaimStart = async (hunt: string, point: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = treasureHuntRequestId()) => {
   const result = await rpc('treasure_hunt_claim_start', { p_hunt: hunt, p_route_point: point, p_latitude: location.latitude,
     p_longitude: location.longitude, p_accuracy_m: location.accuracy, p_request_id: requestId });
   if (result && result.ok) treasureHuntCache = null;
-  return result as { ok: boolean; error?: string; idempotent?: boolean; coins_awarded?: number; total_coins?: number };
+  return result as TreasureHuntClaimResult;
 };
 export const treasureHuntClaimCheckpoint = async (hunt: string, checkpoint: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = treasureHuntRequestId()) => {
   const result = await rpc('treasure_hunt_claim_checkpoint', { p_hunt: hunt, p_checkpoint: checkpoint,
     p_latitude: location.latitude, p_longitude: location.longitude, p_accuracy_m: location.accuracy, p_request_id: requestId });
   if (result && result.ok) treasureHuntCache = null;
-  return result as { ok: boolean; error?: string; idempotent?: boolean; coins_awarded?: number; total_coins?: number; checkpoint_sequence?: number };
+  return result as TreasureHuntClaimResult;
 };
 export const treasureHuntFinish = async (hunt: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = treasureHuntRequestId()) => {
   const result = await rpc('treasure_hunt_finish', { p_hunt: hunt, p_latitude: location.latitude, p_longitude: location.longitude,
@@ -616,8 +666,8 @@ export const treasureHuntFinish = async (hunt: string, location: { latitude: num
   return result as { ok: boolean; error?: string; idempotent?: boolean; coins_awarded?: number; total_coins?: number };
 };
 export const treasureHuntsAdmin = async () => (await rpc('staff_treasure_hunts_personal')) || [];
-export const treasureHuntAdminSave = (hunt: unknown, checkpoints: unknown, starts: unknown, finishes: unknown) => rpc('staff_treasure_hunt_save_routes_personal', {
-  p_hunt: hunt, p_checkpoints: checkpoints, p_start_points: starts, p_finish_points: finishes,
+export const treasureHuntAdminSave = (hunt: unknown, checkpoints: unknown, finishes: unknown) => rpc('staff_treasure_hunt_save_routes_personal', {
+  p_hunt: hunt, p_checkpoints: checkpoints, p_start_points: [], p_finish_points: finishes,
 });
 export const treasureHuntLeaderboard = async (hunt: string, cursor?: TreasureHuntCursor): Promise<TreasureHuntLeaderboard> => {
   // Visibility depends on the current hunt state, so don't retain names in a

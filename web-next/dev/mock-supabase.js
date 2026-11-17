@@ -18,10 +18,8 @@
     return (Math.atan2(Math.sin(dLon) * Math.cos(target.latitude * rad), Math.cos(mockLatitude * rad) * Math.sin(target.latitude * rad) - Math.sin(mockLatitude * rad) * Math.cos(target.latitude * rad) * Math.cos(dLon)) * 180 / Math.PI + 360) % 360;
   };
   const mockOrientation = () => {
-    const last = Number(sessionStorage.getItem('mock-hunt-last') || 0);
-    const target = sessionStorage.getItem('mock-hunt-started') === '1'
-      ? mockHuntCheckpoints[Math.min(last, mockHuntCheckpoints.length - 1)]
-      : { latitude: 9.0765, longitude: 7.4793 };
+    const player = mockHuntPlayer(), state = mockHuntState(player), order = state.route || mockHuntOrder(player);
+    const target = mockHuntCheckpoints[order[Math.min(state.found || 0, mockHuntCheckpoints.length - 1)]];
     const alpha = -mockBearingTo(target);
     const event = new Event('deviceorientationabsolute');
     for (const [key, value] of Object.entries({ alpha, beta: 90, gamma: 0, absolute: true })) {
@@ -224,23 +222,40 @@ const mockRated = new Set();
 let mockUsername = null; // usernames (sample: 'ada' can be added as a friend, 'taken' is taken)
 const mockLater = new Set(); // chats where "Not now" was tapped on the rating card
 const mockHuntId = 'd0000000-0000-4000-8000-000000000001';
-const mockHuntCheckpoints = Array.from({ length: 5 }, (_, i) => ({
-  id: `d0000000-0000-4000-8000-00000000000${i + 2}`, sequence: i + 1, name: `Checkpoint ${i + 1}`,
-  hint: ['Follow the blue trail.', 'Look near the open courtyard.', 'The next clue is ahead.', 'Keep the river path in view.', 'The treasure is close.'][i],
-  latitude: 9.0765 + i * 0.0002, longitude: 7.4793 + i * 0.0002, radius_m: 45, reward_coins: 100,
+const mockHuntCheckpoints = [
+  ['Wuse Market Gate', 9.0765, 7.4793, 'Start here, then follow your personal route.'],
+  ['Garden Gate', 9.0767, 7.4795, 'Look near the open courtyard.'],
+  ['River Walk', 9.0769, 7.4797, 'Keep the river path in view.'],
+  ['Palm Court', 9.0771, 7.4799, 'The next clue is ahead.'],
+  ['City Park Fountain', 9.0773, 7.4801, 'The treasure is close.'],
+].map(([name, latitude, longitude, hint], i) => ({
+  id: `d0000000-0000-4000-8000-00000000000${i + 2}`, sequence: i + 1, name, hint,
+  latitude, longitude, radius_m: 45, reward_coins: 100,
 }));
+const mockHuntPlayer = () => sessionStorage.getItem('mock-hunt-player') === '2' ? 2 : 1;
+const mockHuntStateKey = (player) => `mock-hunt-state-${player}`;
+const mockHuntState = (player) => JSON.parse(sessionStorage.getItem(mockHuntStateKey(player)) || '{"found":0,"total_coins":0,"done":false,"claims":[],"route":null}');
+const mockHuntSave = (player, state) => sessionStorage.setItem(mockHuntStateKey(player), JSON.stringify(state));
+const mockHuntOrder = (player) => player === 2 ? [0, 2, 3, 1, 4] : [0, 1, 2, 3, 4];
 function mockHuntProgress() {
-  const last = Number(sessionStorage.getItem('mock-hunt-last') || 0);
-  const bonus = sessionStorage.getItem('mock-hunt-done') ? 100 : 0;
+  const player = mockHuntPlayer(); const state = mockHuntState(player); const order = state.route || mockHuntOrder(player);
+  const found = state.found || 0;
+  let target = null;
+  if (!state.done && found < mockHuntCheckpoints.length) {
+    const checkpoint = mockHuntCheckpoints[order[found]];
+    target = { kind: found === 0 ? 'start' : 'checkpoint', id: checkpoint.id, name: checkpoint.name, hint: checkpoint.hint,
+      latitude: checkpoint.latitude, longitude: checkpoint.longitude, radius_m: checkpoint.radius_m, reward_coins: checkpoint.reward_coins };
+  } else if (!state.done) {
+    target = { kind: 'finish', id: 'mock-route-finish', name: 'City Park treasure', hint: 'Every checkpoint is done. Reach your final treasure.',
+      latitude: 9.0775, longitude: 7.4803, radius_m: 60, reward_coins: 0 };
+  }
   return { hunt: { id: mockHuntId, title: 'Treasure Hunt', region: 'Wuse, Abuja · preview', description: 'Follow the clues and collect a Treehouse Coin at every stop.',
-      starts_at: new Date(Date.now() - 3600000).toISOString(), ends_at: new Date(Date.now() + 86400000).toISOString(), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰' },
-    participant: { joined_at: new Date().toISOString(), last_checkpoint_sequence: last, total_coins: last * 100 + bonus, completion_bonus_coins: bonus,
-      completed_at: sessionStorage.getItem('mock-hunt-done') ? new Date().toISOString() : null },
-    checkpoints: mockHuntCheckpoints.map((c) => ({ ...c, claimed: c.sequence <= last })),
-    route: { start_claimed_at: sessionStorage.getItem('mock-hunt-started') ? new Date().toISOString() : null,
-      start: { id: 'mock-route-start', name: 'Wuse Market start', latitude: 9.0765, longitude: 7.4793, radius_m: 60, reward_coins: 0 },
-      finish: { id: 'mock-route-finish', name: 'City Park treasure', latitude: 9.0775, longitude: 7.4803, radius_m: 60, reward_coins: 0 } } };
+      starts_at: new Date(Date.now() - 3600000).toISOString(), ends_at: new Date(Date.now() + 86400000).toISOString(), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', checkpoint_count: mockHuntCheckpoints.length },
+    participant: { joined_at: new Date().toISOString(), total_coins: state.total_coins || 0, completion_bonus_coins: state.done ? 100 : 0,
+      completed_at: state.done ? new Date().toISOString() : null },
+    found_count: found, total_count: mockHuntCheckpoints.length, current_target: target };
 }
+
 const RPC = {
     my_pending_likes: () => likes.length,
     // Preview only: sessionStorage mock-failchats=N makes the next N chat-list loads fail (tests the retry).
@@ -327,33 +342,38 @@ const RPC = {
     kickrs_friend_request: () => 'c9',
     treasure_hunts_active: () => empty ? [] : [{ id: mockHuntId, title: 'Treasure Hunt', region: 'Wuse, Abuja · preview',
       description: 'Follow the clues and collect a Treehouse Coin at every stop.', starts_at: new Date(Date.now() - 3600000).toISOString(),
-      ends_at: new Date(Date.now() + 86400000).toISOString(), checkpoint_count: 5, participants: 27,
-      route_assignment_required: true,
-      joined: sessionStorage.getItem('mock-hunt-joined') === '1' }],
-    treasure_hunt_join: () => { sessionStorage.setItem('mock-hunt-joined', '1'); return mockHuntProgress(); },
-    treasure_hunt_join_with_routes: () => { sessionStorage.setItem('mock-hunt-joined', '1'); return mockHuntProgress(); },
-    treasure_hunt_progress: () => { if (sessionStorage.getItem('mock-hunt-joined') !== '1') throw new Error('Join this hunt first.'); return mockHuntProgress(); },
-    treasure_hunt_progress_with_routes: () => { if (sessionStorage.getItem('mock-hunt-joined') !== '1') throw new Error('Join this hunt first.'); return mockHuntProgress(); },
-    treasure_hunt_claim_start: () => { sessionStorage.setItem('mock-hunt-started', '1'); return { ok: true, idempotent: false, coins_awarded: 0, total_coins: Number(sessionStorage.getItem('mock-hunt-last') || 0) * 100 }; },
+      ends_at: new Date(Date.now() + 86400000).toISOString(), checkpoint_count: mockHuntCheckpoints.length, participants: 27,
+      joined: sessionStorage.getItem(`mock-hunt-joined-${mockHuntPlayer()}`) === '1' }],
+    treasure_hunt_join: () => { sessionStorage.setItem(`mock-hunt-joined-${mockHuntPlayer()}`, '1'); return mockHuntProgress(); },
+    treasure_hunt_join_with_routes: () => { sessionStorage.setItem(`mock-hunt-joined-${mockHuntPlayer()}`, '1'); return mockHuntProgress(); },
+    treasure_hunt_progress: () => { if (sessionStorage.getItem(`mock-hunt-joined-${mockHuntPlayer()}`) !== '1') throw new Error('Join this hunt first.'); return mockHuntProgress(); },
+    treasure_hunt_progress_with_routes: () => { if (sessionStorage.getItem(`mock-hunt-joined-${mockHuntPlayer()}`) !== '1') throw new Error('Join this hunt first.'); return mockHuntProgress(); },
+    treasure_hunt_claim_start: ({ p_route_point, p_request_id }) => {
+      const player = mockHuntPlayer(); const state = mockHuntState(player); const start = mockHuntCheckpoints[0];
+      if (sessionStorage.getItem(`mock-hunt-joined-${player}`) !== '1') throw new Error('Join this hunt first.');
+      if (p_route_point !== start.id) return { ok: false, error: 'This is not your starting checkpoint.' };
+      if (state.claims.includes('start')) return { ok: true, idempotent: true, coins_awarded: start.reward_coins, total_coins: state.total_coins, checkpoint_sequence: state.found, progress: mockHuntProgress() };
+      state.route = mockHuntOrder(player); state.found = 1; state.total_coins += start.reward_coins; state.claims.push('start', p_request_id); mockHuntSave(player, state);
+      return { ok: true, idempotent: false, coins_awarded: start.reward_coins, total_coins: state.total_coins, checkpoint_sequence: state.found, progress: mockHuntProgress() };
+    },
     treasure_hunt_claim_checkpoint: ({ p_checkpoint, p_request_id }) => {
-      if (sessionStorage.getItem('mock-hunt-joined') !== '1') throw new Error('Join this hunt first.');
-      const cp = mockHuntCheckpoints.find((c) => c.id === p_checkpoint); const last = Number(sessionStorage.getItem('mock-hunt-last') || 0);
-      if (!cp || cp.sequence > last + 1) return { ok: false, error: 'Follow the checkpoints in order.' };
-      const claims = JSON.parse(sessionStorage.getItem('mock-hunt-claims') || '{}');
-      if (claims[p_request_id] || cp.sequence <= last) return { ok: true, idempotent: true, coins_awarded: cp.reward_coins, total_coins: last * 100, checkpoint_sequence: last };
-      claims[p_request_id] = cp.id; sessionStorage.setItem('mock-hunt-claims', JSON.stringify(claims));
-      sessionStorage.setItem('mock-hunt-last', String(cp.sequence));
-      return { ok: true, idempotent: false, coins_awarded: cp.reward_coins, total_coins: cp.sequence * 100, checkpoint_sequence: cp.sequence };
+      const player = mockHuntPlayer(); const state = mockHuntState(player); const order = state.route || mockHuntOrder(player);
+      if (sessionStorage.getItem(`mock-hunt-joined-${player}`) !== '1') throw new Error('Join this hunt first.');
+      const cp = mockHuntCheckpoints.find((item) => item.id === p_checkpoint);
+      if (state.claims.includes(p_request_id) || state.claims.includes(p_checkpoint)) return { ok: true, idempotent: true, coins_awarded: cp?.reward_coins || 100, total_coins: state.total_coins, checkpoint_sequence: state.found, progress: mockHuntProgress() };
+      if (!cp || p_checkpoint !== mockHuntCheckpoints[order[state.found]]?.id) return { ok: false, error: 'Follow your next checkpoint.' };
+      state.found += 1; state.total_coins += cp.reward_coins; state.claims.push(p_checkpoint, p_request_id); mockHuntSave(player, state);
+      return { ok: true, idempotent: false, coins_awarded: cp.reward_coins, total_coins: state.total_coins, checkpoint_sequence: state.found, progress: mockHuntProgress() };
     },
     treasure_hunt_finish: () => {
-      const last = Number(sessionStorage.getItem('mock-hunt-last') || 0);
-      if (last < mockHuntCheckpoints.length) return { ok: false, error: 'Find every checkpoint before claiming the treasure.' };
-      const first = !sessionStorage.getItem('mock-hunt-done'); sessionStorage.setItem('mock-hunt-done', '1');
-      return { ok: true, idempotent: !first, coins_awarded: first ? 100 : 100, total_coins: last * 100 + 100 };
+      const player = mockHuntPlayer(); const state = mockHuntState(player);
+      if (state.found < mockHuntCheckpoints.length) return { ok: false, error: 'Find every checkpoint before claiming the treasure.' };
+      const first = !state.done; state.done = true; if (first) state.total_coins += 100; mockHuntSave(player, state);
+      return { ok: true, idempotent: !first, coins_awarded: first ? 100 : 100, total_coins: state.total_coins };
     },
     treasure_hunt_leaderboard: () => {
       const finished = sessionStorage.getItem('mock-hunt-ended') === '1' || sessionStorage.getItem('mock-hunt-status') === 'completed';
-      const ownCoins = Number(sessionStorage.getItem('mock-hunt-last') || 0) * 100 + (sessionStorage.getItem('mock-hunt-done') ? 100 : 0);
+      const ownCoins = mockHuntState(mockHuntPlayer()).total_coins || 0;
       if (!finished) return { visibility: 'self', player_count: 27, own_rank: 14, own_coins: ownCoins, items: [], has_more: false };
       return { visibility: 'full', player_count: 3, own_rank: 2, own_coins: ownCoins, items: [
         { rank: 1, handle: 'Lucky Dolphin 214', coins: 500, checkpoints: 5, completed_at: new Date().toISOString(), cursor_key: 'd0000000-0000-4000-8000-000000000010', cursor_coins: 500, cursor_joined_at: new Date(Date.now() - 180000).toISOString() },
@@ -363,11 +383,10 @@ const RPC = {
     },
     staff_treasure_hunts_personal: () => JSON.parse(sessionStorage.getItem('mock-staff-hunts') || JSON.stringify([{ id: mockHuntId, title: 'Treasure Hunt Preview', region: 'Wuse, Abuja', description: 'Sample safe route.', status: 'draft',
       starts_at: new Date(Date.now() + 86400000).toISOString(), ends_at: new Date(Date.now() + 2 * 86400000).toISOString(), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', participant_count: 0,
-      start_points: [{ id: 'mock-start-1', sequence: 1, name: 'Wuse Market start', latitude: 9.0765, longitude: 7.4793, radius_m: 60, reward_coins: 0 }],
       finish_points: [{ id: 'mock-finish-1', sequence: 1, name: 'City Park prize', latitude: 9.0775, longitude: 7.4803, radius_m: 60, reward_coins: 0 }], checkpoints: mockHuntCheckpoints.slice(0, 1) }])),
     staff_treasure_hunt_save_routes_personal: (a) => { const h = a.p_hunt || {}; const current = JSON.parse(sessionStorage.getItem('mock-staff-hunts') || '[]'); const id = h.id || `mock-hunt-${Date.now()}`;
       const value = { ...h, id, participant_count: 0, checkpoints: (a.p_checkpoints || []).map((p, i) => ({ ...p, id: `mock-stop-${i + 1}` })),
-        start_points: (a.p_start_points || []).map((p, i) => ({ ...p, id: `mock-start-${i + 1}` })), finish_points: (a.p_finish_points || []).map((p, i) => ({ ...p, id: `mock-finish-${i + 1}` })) };
+        start_points: [], finish_points: (a.p_finish_points || []).map((p, i) => ({ ...p, id: `mock-finish-${i + 1}` })) };
       const at = current.findIndex((x) => x.id === id); if (at < 0) current.unshift(value); else current[at] = value; sessionStorage.setItem('mock-staff-hunts', JSON.stringify(current)); return id; },
     // Matches → friends: in Golden Kite's chat (c3) they've asked you; elsewhere nobody has yet.
     friend_ask_state: ({ p_conversation }) => { const c = convos.find((x) => x.conversation_id === p_conversation); return !c ? null : c.kind === 'friend' ? 'friends' : (friendAsks[p_conversation] || (p_conversation === 'c3' ? 'theirs' : 'none')); },
