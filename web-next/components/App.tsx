@@ -183,7 +183,7 @@ function startLive() {
   // Push notifications: find out if they're set up, and keep this device linked to this account.
   push.available().then((ok) => { if (ok) { emit('push'); push.sync(); } });
   // The server nudges this device when something new arrives; at most one full refresh every 20 s.
-  let nudgeTimer: ReturnType<typeof setTimeout> | null = null, lastNudgeLoad = 0;
+  let nudgeTimer: ReturnType<typeof setTimeout> | null = null, statusNudgePending = false;
   api.onInboxNudge(state.user.id, (n) => {
     // Calls: ringing / answered / ended (the call screens and the chat's call records listen for this).
     if (n.k === 'call') { window.dispatchEvent(new CustomEvent('th-call', { detail: n })); return; }
@@ -199,12 +199,14 @@ function startLive() {
     }
     // A friend changed their status: fetch just the statuses, not the whole chat list.
     if (n.k === 'status') {
+      if (document.hidden) { statusNudgePending = true; return; }
       api.friendStatuses().then((fs: any[]) => { state.friendStatus = Object.fromEntries(fs.map((f: any) => [f.conversation_id, f])); emit('status'); }).catch(() => {});
       return;
     }
     if (nudgeTimer) return;
-    const wait = Math.max(1500, 45000 - (Date.now() - lastNudgeLoad));
-    nudgeTimer = setTimeout(() => { nudgeTimer = null; lastNudgeLoad = Date.now(); if (!document.hidden) loadDating({ force: true }); }, wait);
+    // Coalesce a burst of request/like/accept signals into one summary refresh without the old
+    // 45-second delay. The RPC returns immediately when the per-member version is unchanged.
+    nudgeTimer = setTimeout(() => { nudgeTimer = null; if (!document.hidden) loadDating({ force: true }); }, 100);
   }, () => loadDating({ minGap: 30000 }));   // live connection came back: catch up on missed messages
   api.pauseLiveInBackground();
   setInterval(() => { if (!document.hidden) loadDating(); }, 600000);
@@ -229,7 +231,11 @@ function startLive() {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { awayAt = Date.now(); return; }
     roomBeat();
-    loadDating({ minGap: awayAt && Date.now() - awayAt > 60000 ? 20000 : 300000 });
+    if (statusNudgePending && !state.convosFailing) {
+      statusNudgePending = false;
+      api.friendStatuses().then((fs: any[]) => { state.friendStatus = Object.fromEntries(fs.map((f: any) => [f.conversation_id, f])); emit('status'); }).catch(() => {});
+    } else if (state.convosFailing) statusNudgePending = false;
+    loadDating(state.convosFailing ? { force: true } : { minGap: awayAt && Date.now() - awayAt > 60000 ? 20000 : 300000 });
   });
 }
 
