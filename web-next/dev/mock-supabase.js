@@ -6,8 +6,49 @@
   if (q.get('empty')) sessionStorage.setItem('mock-empty', '1');
   if (q.get('reset')) { sessionStorage.clear(); }
   const signedOut = sessionStorage.getItem('mock-out') === '1';
-  // Preview only: pretend the phone is in Wuse, Abuja (no real location is read).
-  try { Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition: (ok) => setTimeout(() => ok({ coords: { latitude: 9.0765, longitude: 7.4793 } }), 300) } }); } catch {}
+  // Preview only: a small walking route, changing true-north heading and
+  // illustrated rear-camera feed let the AR placement be checked without a phone.
+  let mockLatitude = 9.07624, mockLongitude = 7.47918, mockGeoSequence = 0;
+  const mockWatchers = new Map();
+  const mockGeoPosition = () => ({ coords: { latitude: mockLatitude, longitude: mockLongitude, accuracy: 8, speed: 1.1, heading: 35 }, timestamp: Date.now() });
+  const mockBearingTo = (target) => {
+    if (!target) return 25;
+    const rad = Math.PI / 180, dLat = (target.latitude - mockLatitude) * rad;
+    const dLon = (target.longitude - mockLongitude) * rad;
+    return (Math.atan2(Math.sin(dLon) * Math.cos(target.latitude * rad), Math.cos(mockLatitude * rad) * Math.sin(target.latitude * rad) - Math.sin(mockLatitude * rad) * Math.cos(target.latitude * rad) * Math.cos(dLon)) * 180 / Math.PI + 360) % 360;
+  };
+  const mockOrientation = () => {
+    const last = Number(sessionStorage.getItem('mock-hunt-last') || 0);
+    const target = sessionStorage.getItem('mock-hunt-started') === '1'
+      ? mockHuntCheckpoints[Math.min(last, mockHuntCheckpoints.length - 1)]
+      : { latitude: 9.0765, longitude: 7.4793 };
+    const alpha = -mockBearingTo(target);
+    const event = new Event('deviceorientationabsolute');
+    for (const [key, value] of Object.entries({ alpha, beta: 90, gamma: 0, absolute: true })) {
+      Object.defineProperty(event, key, { configurable: true, value });
+    }
+    window.dispatchEvent(event);
+  };
+  const mockWatchTick = () => {
+    mockLatitude += 0.000006;
+    mockLongitude += 0.000005;
+    mockOrientation();
+    const position = mockGeoPosition();
+    for (const watcher of mockWatchers.values()) watcher(position);
+  };
+  const fakeGeolocation = {
+    getCurrentPosition: (ok) => setTimeout(() => ok(mockGeoPosition()), 180),
+    watchPosition: (ok) => {
+      const id = ++mockGeoSequence;
+      mockWatchers.set(id, ok);
+      setTimeout(() => { if (mockWatchers.has(id)) ok(mockGeoPosition()); }, 120);
+      if (mockWatchers.size === 1) { mockOrientation(); fakeGeolocation.timer = setInterval(mockWatchTick, 900); }
+      return id;
+    },
+    clearWatch: (id) => { mockWatchers.delete(id); if (!mockWatchers.size && fakeGeolocation.timer) { clearInterval(fakeGeolocation.timer); fakeGeolocation.timer = null; } },
+    timer: null,
+  };
+  try { Object.defineProperty(navigator, 'geolocation', { configurable: true, value: fakeGeolocation }); } catch {}
   const empty = sessionStorage.getItem('mock-empty') === '1';
   const ME = '00000000-0000-0000-0000-000000000001';
   const ago = (min) => new Date(Date.now() - min * 60000).toISOString();
