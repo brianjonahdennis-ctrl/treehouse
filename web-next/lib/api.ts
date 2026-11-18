@@ -644,7 +644,7 @@ export const treasureHuntsActive = async (force = false): Promise<TreasureHuntSu
 export type TreasureHuntPrize = { place: number | null; title: string; media_type: 'image' | 'video'; media_url: string };
 export type TreasureHuntListing = { id: string; title: string; region: string; state: string | null; description: string; starts_at: string; ends_at: string;
   coin_avatar?: string; treasure_avatar?: string; checkpoint_count: number; live: boolean; needs_registration: boolean; registered: boolean; joined: boolean;
-  register_block: string | null; registered_count: number | null; prizes: TreasureHuntPrize[]; max_registrations?: number; full?: boolean };
+  register_block: string | null; registered_count: number | null; prizes: TreasureHuntPrize[]; max_registrations?: number; full?: boolean; winners_count?: number; winners_done?: boolean; chat?: boolean };
 export const treasureHuntsList = async (): Promise<TreasureHuntListing[]> => (await rpc('treasure_hunts_list')) || [];
 export const treasureHuntRegister = async (hunt: string): Promise<{ registered: boolean; registered_count: number }> => {
   const r = await rpc('treasure_hunt_register', { p_hunt: hunt }); treasureHuntCache = null; return r;
@@ -727,6 +727,17 @@ export async function mapLinkCoords(link: string): Promise<{ latitude: number; l
   if (!res.ok) throw new Error(out.message || 'Couldn’t read that link.');
   return out;
 }
+// Live ranking, quitting and the hunt chatroom (18 Nov 2026).
+export type TreasureHuntBoardRow = { place: number; handle: string; checkpoints: number; started: boolean; finished: boolean; quit: boolean; winner: boolean; me: boolean };
+export type TreasureHuntLiveBoard = { hunt: { id: string; title: string; checkpoint_count: number; winners_count: number; winners_done: boolean; ended: boolean };
+  me: { place: number; checkpoints: number; started: boolean; finished: boolean; quit: boolean; winner: boolean } | null; items: TreasureHuntBoardRow[] };
+export const treasureHuntLiveBoard = (hunt: string): Promise<TreasureHuntLiveBoard> => rpc('treasure_hunt_live_board', { p_hunt: hunt });
+export const treasureHuntQuit = (hunt: string) => rpc('treasure_hunt_quit', { p_hunt: hunt });
+export type TreasureHuntChatMessage = { id: number; mine: boolean; from_staff: boolean; sender: string; private: boolean; to?: string | null; body: string; at: string };
+export type TreasureHuntChat = { title: string; rules: string; staff: boolean; ends_at: string; messages: TreasureHuntChatMessage[] };
+export const treasureHuntChat = (hunt: string, after = 0): Promise<TreasureHuntChat> => rpc('treasure_hunt_chat', { p_hunt: hunt, p_after: after });
+export const treasureHuntChatSend = (hunt: string, body: string, toHandle: string | null = null) => rpc('treasure_hunt_chat_send', { p_hunt: hunt, p_body: body, p_to_handle: toHandle });
+export const treasureHuntChatDelete = (id: number) => rpc('treasure_hunt_chat_delete', { p_id: id });
 export const treasureHuntAdminSavePrizes = (hunt: string, prizes: TreasureHuntPrize[]) => rpc('staff_treasure_hunt_prizes_save_personal', { p_hunt: hunt, p_prizes: prizes });
 export const HUNT_PRIZE_VIDEO_MAX = 20 * 1024 * 1024;
 /** Upload one prize picture (shrunk) or video (under 20 MB) to the hunt-prizes bucket. */

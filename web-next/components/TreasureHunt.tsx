@@ -67,7 +67,8 @@ export default function TreasureHunt() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [noticeHunt, setNoticeHunt] = useState('');
-  const [showBoard, setShowBoard] = useState(false);
+  const [showBoard, setShowBoard] = useState(true);
+  const [chatHunt, setChatHunt] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [arrived, setArrived] = useState(false);
   const [mockRoutePlayer, setMockRoutePlayer] = useState('1');
@@ -136,7 +137,9 @@ export default function TreasureHunt() {
     finally { setBusy(false); }
   };
 
-  if (progress) return <HuntProgress data={progress} busy={busy} notice={notice} showBoard={showBoard}
+  if (chatHunt) return <HuntChat hunt={chatHunt} onBack={() => setChatHunt(null)} />;
+  if (progress) return <HuntProgress data={progress} busy={busy} notice={notice} showBoard={showBoard} onChat={() => setChatHunt(progress.hunt.id)}
+    onQuit={() => { run.current++; setShowCamera(false); setArrived(false); setProgress(null); toast('You left the hunt'); void loadHunts(); }}
     showCamera={showCamera} arrived={arrived} onCameraChange={setShowCamera} onArrivalChange={setArrived} onBack={() => { run.current++; setShowCamera(false); setArrived(false); setProgress(null); void loadHunts(); }}
     onCollect={collect} onFinish={finish} onToggleBoard={() => setShowBoard((x) => !x)} />;
 
@@ -150,7 +153,7 @@ export default function TreasureHunt() {
       {loadError ? <EmptyState emoji="🧭" title="Hunts are taking a break" text={loadError}><button className="btn btn-soft" onClick={() => { setLoadError(''); setHunts(null); void loadHunts(); }}>Try again</button></EmptyState>
         : !hunts ? <SkeletonList n={1} />
         : hunts.length ? <section className="th-hunt-list" aria-label="Treasure hunts">
-          {hunts.map((hunt) => <HuntCard key={hunt.id} hunt={hunt} busy={busy} notice={noticeHunt === hunt.id ? notice : ''} onStart={() => void joinOrResume(hunt)} onChanged={() => void loadHunts()} />)}
+          {hunts.map((hunt) => <HuntCard key={hunt.id} hunt={hunt} busy={busy} notice={noticeHunt === hunt.id ? notice : ''} onStart={() => void joinOrResume(hunt)} onChat={() => setChatHunt(hunt.id)} onChanged={() => void loadHunts()} />)}
         </section>
         : <EmptyState emoji="🧭" title="No hunts right now" text="Check back when the next Treehouse Treasure Hunt is announced."><button className="btn btn-soft" onClick={() => go('games')}>Back to Games</button></EmptyState>}
       <p className="tiny muted th-safety">Stay aware of traffic and your surroundings. Never enter a closed or private place to reach a checkpoint.</p>
@@ -191,7 +194,7 @@ function Prizes({ prizes }: { prizes: api.TreasureHuntPrize[] }) {
   </div>;
 }
 
-function HuntCard({ hunt, busy, notice, onStart, onChanged }: { hunt: Hunt; busy: boolean; notice: string; onStart: () => void; onChanged: () => void }) {
+function HuntCard({ hunt, busy, notice, onStart, onChat, onChanged }: { hunt: Hunt; busy: boolean; notice: string; onStart: () => void; onChat: () => void; onChanged: () => void }) {
   const [live, setLive] = useState(hunt.live || Date.parse(hunt.starts_at) <= Date.now());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -230,12 +233,14 @@ function HuntCard({ hunt, busy, notice, onStart, onChanged }: { hunt: Hunt; busy
       : <button className="btn btn-primary btn-block" disabled={saving} onClick={() => void register()}>{saving ? 'Registering…' : 'Register for this hunt'} <Icon name="chev" cls="sm" /></button>
     : live
       ? <button className="btn btn-primary btn-block th-start" disabled={busy} onClick={onStart}>{busy ? 'Opening hunt…' : hunt.joined ? 'Continue treasure hunt' : 'Start treasure hunt'} <Icon name="chev" cls="sm" /></button>
-      : hunt.registered ? <button className="link-btn th-unregister" disabled={saving} onClick={() => void unregister()}>Cancel my registration</button> : null}
+      : null}
+    {hunt.chat ? <button className="btn btn-soft btn-block th-chat-btn" onClick={onChat}>💬 Hunt chat · rules and questions</button> : null}
+    {mine && !live && hunt.registered ? <button className="link-btn th-unregister" disabled={saving} onClick={() => void unregister()}>Cancel my registration</button> : null}
   </article>;
 }
 
-function HuntProgress({ data, busy, notice, showBoard, showCamera, arrived, onCameraChange, onArrivalChange, onBack, onCollect, onFinish, onToggleBoard }: {
-  data: Progress; busy: boolean; notice: string; showBoard: boolean;
+function HuntProgress({ data, busy, notice, showBoard, showCamera, arrived, onCameraChange, onArrivalChange, onBack, onCollect, onFinish, onToggleBoard, onChat, onQuit }: {
+  data: Progress; busy: boolean; notice: string; showBoard: boolean; onChat: () => void; onQuit: () => void;
   showCamera: boolean; arrived: boolean; onCameraChange: (open: boolean) => void; onArrivalChange: (arrived: boolean) => void;
   onBack: () => void; onCollect: () => Promise<boolean>; onFinish: () => Promise<boolean>;
   onToggleBoard: () => void;
@@ -277,6 +282,8 @@ function HuntProgress({ data, busy, notice, showBoard, showCamera, arrived, onCa
         )}
       </section>
       <div className="th-score"><span>{data.hunt.coin_avatar || '🪙'} <b>{data.participant.total_coins.toLocaleString()}</b> coins</span><span>⚑ {data.found_count} of {data.total_count} found</span></div>
+      <LiveRanking hunt={data.hunt.id} done={done} open={showBoard} onToggle={onToggleBoard} onQuit={onQuit} />
+      <button className="btn btn-soft btn-block th-chat-btn" onClick={onChat}>💬 Hunt chat · rules and questions</button>
       {notice ? <p className="error th-error" role="alert">{notice}</p> : null}
       {coinBurst ? <div className="th-coin-burst th-progress-burst" aria-live="polite"><i>+{coinBurst.amount}</i><span>✦</span><b>{coinBurst.avatar}</b><span>✦</span></div> : null}
       {routeTarget && !done ? <LocalAR huntId={data.hunt.id} checkpoint={routeTarget.name} destination={routeTarget} active={showCamera}
@@ -287,15 +294,13 @@ function HuntProgress({ data, busy, notice, showBoard, showCamera, arrived, onCa
         {target?.kind !== 'finish' ? <button className="btn btn-primary btn-block th-collect" onClick={onCollect} disabled={busy}>{busy ? 'Checking location…' : startPending ? arrived ? `You’re here · Collect starting point · +${targetReward} coins` : `Collect starting point · +${targetReward} coins` : `Collect checkpoint · +${targetReward} coins`}</button> : null}
       </div> : null}
       {process.env.NEXT_PUBLIC_TH_MOCK === '1' ? <p className="tiny muted th-route-preview">Preview only · Two players at one starting point can get different next stops: Player A → Garden Gate; Player B → River Walk.</p> : null}
-      <section className="card th-board-card">
-        <button className="th-board-toggle" onClick={onToggleBoard} aria-expanded={showBoard}><span>🏆 Leaderboard <small>Your standing now; full names after the hunt ends</small></span><Icon name="chev" cls="sm" /></button>
-        {showBoard ? <Leaderboard hunt={data.hunt.id} /> : null}
-      </section>
       <p className="tiny muted th-safety">Keep your eyes on the road and surroundings. Camera images never leave your phone.</p>
     </div>
   );
 }
 
+// Kept for reference: the earlier coins leaderboard (replaced by LiveRanking, 18 Nov 2026).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function Leaderboard({ hunt }: { hunt: string }) {
   const [items, setItems] = useState<api.TreasureHuntLeaderboard['items']>([]);
   const [board, setBoard] = useState<api.TreasureHuntLeaderboard | null>(null);
@@ -326,6 +331,108 @@ function Leaderboard({ hunt }: { hunt: string }) {
     {loading && !items.length ? <span className="muted small">Loading leaderboard…</span> : null}
     {!loading && !items.length && !error ? <span className="muted small">No players yet. Be the first!</span> : null}
     {hasMore && cursor ? <button className="btn btn-soft btn-block" disabled={loading} onClick={() => void page(cursor)}>{loading ? 'Loading…' : 'Show more'}</button> : null}
+  </div>;
+}
+
+// ---- Live ranking (18 Nov 2026): everyone's nickname, place and checkpoints. No taps, no messaging.
+function useVisiblePoll(fn: () => void, ms: number, deps: unknown[]) {
+  useEffect(() => {
+    fn();
+    const t = window.setInterval(() => { if (document.visibilityState === 'visible') fn(); }, ms);
+    return () => window.clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+}
+function LiveRanking({ hunt, done, open, onToggle, onQuit }: { hunt: string; done: boolean; open: boolean; onToggle: () => void; onQuit: () => void }) {
+  const [board, setBoard] = useState<api.TreasureHuntLiveBoard | null>(null);
+  const [error, setError] = useState('');
+  const [askQuit, setAskQuit] = useState(false);
+  const [hideBanner, setHideBanner] = useState(false);
+  const [quitting, setQuitting] = useState(false);
+  useVisiblePoll(() => { api.treasureHuntLiveBoard(hunt).then((b) => { setBoard(b); setError(''); }).catch((e) => setError(api.friendly(e))); }, 20000, [hunt]);
+  const quit = async () => {
+    setQuitting(true);
+    try { await api.treasureHuntQuit(hunt); onQuit(); } catch (e) { setError(api.friendly(e)); setQuitting(false); }
+  };
+  const total = board?.hunt.checkpoint_count || 0;
+  const me = board?.me;
+  const playing = !!me && me.started && !me.finished && !me.quit && !done;
+  return <>
+    {board?.hunt.winners_done && playing && !hideBanner ? <section className="card th-winners-banner" role="status">
+      <b>🏆 The first {board.hunt.winners_count} winners have finished!</b>
+      <p>You can keep going and finish the hunt, or quit now.</p>
+      {askQuit ? <div className="th-quit-ask"><span>Quit this hunt? You can’t rejoin it.</span>
+          <button className="btn btn-soft btn-sm" disabled={quitting} onClick={() => setAskQuit(false)}>No</button>
+          <button className="btn btn-primary btn-sm" disabled={quitting} onClick={() => void quit()}>{quitting ? 'Leaving…' : 'Yes, quit'}</button></div>
+        : <div className="row" style={{ gap: 8 }}><button className="btn btn-primary btn-sm" onClick={() => setHideBanner(true)}>Keep going</button><button className="btn btn-soft btn-sm" onClick={() => setAskQuit(true)}>Quit hunt</button></div>}
+    </section> : null}
+    <section className="card th-board-card">
+      <button className="th-board-toggle" onClick={onToggle} aria-expanded={open}><span>🏆 Live ranking <small>{me ? `You’re #${me.place} · ${me.checkpoints}/${total} checkpoints` : 'Everyone’s checkpoints, live'}</small></span><Icon name="chev" cls="sm" /></button>
+      {open ? <div className="th-board-list" aria-live="polite">
+        {error ? <p className="error" role="alert">{error}</p> : null}
+        {!board && !error ? <span className="muted small">Loading ranking…</span> : null}
+        {board ? <span className="muted small">{board.hunt.winners_count} winner{board.hunt.winners_count === 1 ? '' : 's'} · updates every 20 seconds</span> : null}
+        {board?.items.map((r) => <div className={`th-board-row${r.me ? ' me' : ''}${r.quit ? ' quit' : ''}`} key={`${r.place}-${r.handle}`}>
+          <span className="th-board-rank">{r.winner && r.place <= 3 ? ['🥇', '🥈', '🥉'][r.place - 1] : r.place}</span>
+          <b className="ellipsis">{r.handle}{r.me ? ' (you)' : ''}</b>
+          <span className="th-board-status">{r.winner ? '🏆 Winner' : r.finished ? 'Finished' : r.quit ? 'Quit' : !r.started ? 'Not started' : `${r.checkpoints}/${total}`}</span>
+        </div>)}
+      </div> : null}
+      {playing && !board?.hunt.winners_done ? <button className="link-btn th-unregister" onClick={() => setAskQuit(true)}>Quit this hunt</button> : null}
+      {askQuit && !board?.hunt.winners_done ? <div className="th-quit-ask"><span>Quit this hunt? You can’t rejoin it.</span>
+        <button className="btn btn-soft btn-sm" disabled={quitting} onClick={() => setAskQuit(false)}>No</button>
+        <button className="btn btn-primary btn-sm" disabled={quitting} onClick={() => void quit()}>{quitting ? 'Leaving…' : 'Yes, quit'}</button></div> : null}
+    </section>
+  </>;
+}
+
+// ---- Hunt chatroom (18 Nov 2026): named after the hunt, rules pinned, no member list. Closes when the hunt ends.
+function HuntChat({ hunt, onBack }: { hunt: string; onBack: () => void }) {
+  const [chat, setChat] = useState<api.TreasureHuntChat | null>(null);
+  const [messages, setMessages] = useState<api.TreasureHuntChatMessage[]>([]);
+  const [error, setError] = useState('');
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const last = useRef(0);
+  const end = useRef<HTMLDivElement>(null);
+  const pull = useCallback(() => {
+    api.treasureHuntChat(hunt, last.current).then((c) => {
+      setChat(c); setError('');
+      if (c.messages.length) {
+        last.current = c.messages[c.messages.length - 1].id;
+        setMessages((m) => [...m, ...c.messages.filter((x) => !m.some((y) => y.id === x.id))]);
+        window.setTimeout(() => end.current?.scrollIntoView({ block: 'end' }), 50);
+      }
+    }).catch((e) => setError(api.friendly(e)));
+  }, [hunt]);
+  useVisiblePoll(pull, 8000, [pull]);
+  const send = async () => {
+    const body = text.trim(); if (!body) return;
+    setSending(true); setError('');
+    try { await api.treasureHuntChatSend(hunt, body); setText(''); pull(); } catch (e) { setError(api.friendly(e)); }
+    setSending(false);
+  };
+  const remove = async (id: number) => {
+    try { await api.treasureHuntChatDelete(id); setMessages((m) => m.filter((x) => x.id !== id)); } catch (e) { toast(api.friendly(e), 'x'); }
+  };
+  return <div className="stack-lg th-hunt th-chat">
+    <Hero title={chat?.title || 'Hunt chat'} sub="Rules, updates and questions for this hunt. The chat is deleted when the hunt ends." actions={<button className="hero-btn" aria-label="Back" onClick={onBack}><Icon name="back" /></button>} />
+    {chat?.rules ? <section className="card th-chat-rules"><b>📌 Hunt rules</b><p>{chat.rules}</p></section> : null}
+    <section className="card th-chat-list" aria-live="polite">
+      {!chat && !error ? <SkeletonList n={2} /> : null}
+      {chat && !messages.length ? <p className="muted small">No messages yet. Ask the treehouse team anything about this hunt.</p> : null}
+      {messages.map((m) => <div key={m.id} className={`th-chat-msg${m.mine ? ' mine' : ''}${m.from_staff ? ' staff' : ''}${m.private ? ' private' : ''}`}>
+        <small>{m.from_staff ? '🛡️ treehouse team' : m.sender}{m.private ? (m.to ? ` → ${m.to} (private)` : ' · only you can see this') : ''} · {new Date(m.at).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' })}</small>
+        <p>{m.body}</p>
+        {chat?.staff ? <button className="link-btn tiny" onClick={() => void remove(m.id)}>Remove</button> : null}
+      </div>)}
+      <div ref={end} />
+    </section>
+    {error ? <p className="error" role="alert">{error}</p> : null}
+    {chat ? <div className="th-chat-compose">
+      <textarea className="input" rows={2} maxLength={chat.staff ? 1000 : 500} value={text} onChange={(e) => setText(e.target.value)} placeholder={chat.staff ? 'Post an update or answer a question…' : 'Ask a question about this hunt…'} aria-label="Message" />
+      <button className="btn btn-primary" disabled={sending || !text.trim()} onClick={() => void send()}>{sending ? 'Sending…' : 'Send'}</button>
+    </div> : null}
   </div>;
 }
 
