@@ -104,12 +104,12 @@ begin
     from recent_top t
   ),
   selected as (
-    select 'liker'::text as source, r.position, r.user_id from liker_ranked r
+    select 'liker'::text as bucket, r.position, r.user_id from liker_ranked r
     union all
-    select 'recent'::text as source, r.position, r.user_id from recent_ranked r
+    select 'recent'::text as bucket, r.position, r.user_id from recent_ranked r
   )
   insert into dating_private.discover_queue (user_id, bucket, position, candidate_id, built_at)
-  select p_user, s.source, s.position, s.user_id, built from selected s;
+  select p_user, s.bucket, s.position, s.user_id, built from selected s;
   get diagnostics prepared = row_count;
 
   insert into dating_private.discover_queue_meta (user_id, preference_fingerprint, exclusion_fingerprint, candidate_count, built_at)
@@ -262,7 +262,7 @@ begin
   -- Refill immediately when the seen list changed, or retry a persistently thin pool at most every
   -- two minutes. This avoids rebuilding the same small result set on every request.
   if (queued_count = 0 and (saved_count > 0 or built < now() - interval '2 minutes'))
-     or (remaining < 40
+     or (remaining < greatest(40, lim)
          and (saved_exclusion_fp is distinct from exclusion_fp or built < now() - interval '2 minutes')) then
     perform dating_private.discover_refill(me, exclusions);
     select m.built_at, m.exclusion_fingerprint, m.candidate_count into built, saved_exclusion_fp, saved_count
