@@ -39,7 +39,9 @@ export default function Chat({ id }: { id: string }) {
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
     if (convo || looked) return;
-    loadDating({ force: true }).finally(() => setLooked(true));
+    // A missing route can occur during quick navigation; don't force another full summary within
+    // 20 seconds of the last refresh. Live signals and foreground catch-up still load it promptly.
+    loadDating({ minGap: 20000 }).finally(() => setLooked(true));
   }, [convo, looked]);
   if (!mounted) return null;
   const content = !convo
