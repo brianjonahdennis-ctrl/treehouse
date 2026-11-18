@@ -53,7 +53,7 @@ async function decide(p: any, like: boolean | null) {
     const r = await api.likeProfile(p.handle, like);
     state.requests = state.requests.filter((x) => x.handle !== p.handle);
     if (r.matched && r.conversation_id) { await loadDating({ force: true }); matchMoment(p, r.conversation_id); }
-    else if (like) state.pendingLikes += 1;
+    else if (like) { state.pendingLikes += 1; api.notePendingLike(); }
     emit('dating');
   } catch (e) { toast(api.friendly(e), 'x'); }
 }
@@ -314,7 +314,7 @@ function cardProfile(p: any) {
 async function likeOnly(p: any) {
   try {
     const r = await api.likeProfile(p.handle, true);
-    if (r.matched && r.conversation_id) { await loadDating({ force: true }); matchMoment(p, r.conversation_id); } else toast('Like sent 💘', 'heart');
+    if (r.matched && r.conversation_id) { await loadDating({ force: true }); matchMoment(p, r.conversation_id); } else { state.pendingLikes += 1; api.notePendingLike(); toast('Like sent 💘', 'heart'); }
   } catch (e) { toast(api.friendly(e), 'x'); }
 }
 

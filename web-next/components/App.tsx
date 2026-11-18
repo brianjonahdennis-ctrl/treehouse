@@ -183,7 +183,7 @@ function startLive() {
   // Push notifications: find out if they're set up, and keep this device linked to this account.
   push.available().then((ok) => { if (ok) { emit('push'); push.sync(); } });
   // The server nudges this device when something new arrives; at most one full refresh every 20 s.
-  let nudgeTimer: ReturnType<typeof setTimeout> | null = null, statusNudgePending = false;
+  let nudgeTimer: ReturnType<typeof setTimeout> | null = null, statusNudgePending = false, lastNudgeRefresh = 0;
   api.onInboxNudge(state.user.id, (n) => {
     // Calls: ringing / answered / ended (the call screens and the chat's call records listen for this).
     if (n.k === 'call') { window.dispatchEvent(new CustomEvent('th-call', { detail: n })); return; }
@@ -203,13 +203,45 @@ function startLive() {
       api.friendStatuses().then((fs: any[]) => { state.friendStatus = Object.fromEntries(fs.map((f: any) => [f.conversation_id, f])); emit('status'); }).catch(() => {});
       return;
     }
+    // A new chat (a match, an accepted request, or a message in a chat we don't have yet) shows at once.
+    const newChat = n.k === 'convo' || n.k === 'message';
+    if (newChat) {
+      if (nudgeTimer) clearTimeout(nudgeTimer);
+      nudgeTimer = setTimeout(nudgeRefresh, 100);
+      return;
+    }
     if (nudgeTimer) return;
-    // Coalesce a burst of request/like/accept signals into one summary refresh without the old
-    // 45-second delay. The RPC returns immediately when the per-member version is unchanged.
-    nudgeTimer = setTimeout(() => { nudgeTimer = null; if (!document.hidden) loadDating({ force: true }); }, 100);
+    // Likes and requests: group them into at most one chat-list refresh every 20 seconds, so a popular
+    // member getting many likes doesn't make the database rebuild their list for each one.
+    nudgeTimer = setTimeout(nudgeRefresh, Math.max(100, lastNudgeRefresh + 20000 - Date.now()));
   }, () => loadDating({ minGap: 30000 }));   // live connection came back: catch up on missed messages
+  function nudgeRefresh() {
+    nudgeTimer = null;
+    if (document.hidden) return;
+    lastNudgeRefresh = Date.now();
+    loadDating({ force: true });
+  }
   api.pauseLiveInBackground();
   setInterval(() => { if (!document.hidden) loadDating(); }, 600000);
+  // Online dots on Home and the Inbox: a tiny presence call every 2 minutes while one of those
+  // screens is showing, instead of rebuilding the whole chat list.
+  setInterval(() => {
+    if (document.hidden || state.convosFailing || !state.convos.length) return;
+    const p = location.pathname.replace(/\/+$/, '');
+    if (p !== '/home' && p !== '/home/matches' && !p.startsWith('/home/matches/friends')) return;
+    api.inboxPresence().then((by) => {
+      let changed = false;
+      for (const c of state.convos) {
+        const n = by.get(c.conversation_id);
+        if (!n || (n.other_online === c.other_online && n.other_active_hours === c.other_active_hours)) continue;
+        c.other_online = n.other_online; c.other_active_hours = n.other_active_hours;
+        // Seen since your last message: it has reached their phone.
+        if (n.other_online && c.last_from_me && (!c.other_delivered_at || +new Date(c.other_delivered_at) < +new Date(c.last_at))) c.other_delivered_at = c.last_at;
+        changed = true;
+      }
+      if (changed) emit('dating');
+    }).catch(() => {});
+  }, 120000);
   // "I'm here" every 4 minutes while treehouse is on screen: the database only sends live message
   // signals to people seen in the last 15 minutes, so this keeps anyone looking at treehouse included.
   setInterval(() => { if (!document.hidden) api.touchLastSeen().catch(() => {}); }, 240000);

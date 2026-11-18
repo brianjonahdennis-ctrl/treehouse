@@ -205,6 +205,16 @@ let listCache: ListCache | null = null;
 let changesMissing = false;
 let versionedChangesMissing = false;
 export function forgetChatList() { listCache = null; }
+// The liker's own pending count no longer bumps their chat-list version; keep the cache in step.
+export function notePendingLike() { if (listCache) listCache.pending += 1; }
+// Online / active-hours for the member's chats only (much cheaper than a chat-list rebuild). The
+// cached rows are updated too, so an "unchanged" refresh doesn't bring back old online dots.
+export async function inboxPresence(): Promise<Map<string, { other_online: boolean; other_active_hours: number | null }>> {
+  const rows: any[] = (await rpc('inbox_presence')) || [];
+  const by = new Map(rows.map((r) => [r.conversation_id, { other_online: !!r.other_online, other_active_hours: r.other_active_hours ?? null }]));
+  listCache?.rows.forEach((row, id) => { const p = by.get(id); if (p) Object.assign(row, p); });
+  return by;
+}
 async function datingSummaryChanges(uid: string): Promise<any> {
   if (!listCache || listCache.uid !== uid) listCache = {
     uid, rows: new Map(), reqFp: '', requests: [], version: null, lastFullAt: 0,
@@ -213,7 +223,9 @@ async function datingSummaryChanges(uid: string): Promise<any> {
   const c = listCache;
   const known: Record<string, string> = {};
   c.rows.forEach((r, id) => { known[id] = r._fp; });
-  const pVersion = c.version != null && Date.now() - c.lastFullAt < 180000 ? c.version : null;
+  // Online dots come from inboxPresence() between rebuilds, so a full rebuild is forced only every
+  // 10 minutes (it also corrects anything patched locally, such as the pending-likes count).
+  const pVersion = c.version != null && Date.now() - c.lastFullAt < 600000 ? c.version : null;
   let d: any;
   if (!versionedChangesMissing) {
     try {

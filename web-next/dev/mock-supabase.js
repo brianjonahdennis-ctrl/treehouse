@@ -316,6 +316,8 @@ const RPC = {
     discover_profiles: () => cards,
     incoming_requests: () => likes,
     my_conversations: () => convos,
+    // Preview: window.__mockPresenceCalls counts calls; flip someone with window.__mockOnline = { c1: false }.
+    inbox_presence: () => { window.__mockPresenceCalls = (window.__mockPresenceCalls || 0) + 1; const o = window.__mockOnline || {}; return convos.map((c) => ({ conversation_id: c.conversation_id, other_online: c.conversation_id in o ? o[c.conversation_id] : c.other_online, other_active_hours: c.conversation_id in o ? (o[c.conversation_id] ? 0 : 5) : c.other_active_hours })); },
     room_list: roomList,
     // Preview a kick for inactivity with ?kicked=1 (you were in Lagos and got kicked).
     my_room_kick: () => (roomKick ? [roomKick] : []),
@@ -591,6 +593,8 @@ const RPC = {
     mockInboxListeners.forEach((listener) => listener(event));
     return { delivered: mockInboxListeners.size > 0, version: mockInboxVersion, body };
   };
+  // Preview: a like/request signal (payload {}) or a new-chat signal ({ k: 'convo', c: 'c1' }).
+  window.__mockInboxNudge = (payload = {}) => { mockInboxVersion++; mockInboxListeners.forEach((listener) => listener({ payload })); return mockInboxVersion; };
   if (q.get('mock-inbox') === '1') setTimeout(() => window.__mockInboxMessage(), 3000);
 
   let mockAvatars = [];
