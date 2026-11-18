@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const webPush = require('./push.js');
+const fcm = require('./fcm.js');   // Android app notifications (Firebase)
 
 const PORT = Number(process.env.PORT) || 4000;
 // Anonymous dating (Supabase). The /date page needs the project URL and its publishable key
@@ -89,7 +90,7 @@ function pushConfig() {
   } catch (e) { console.error('Push notifications are off: invalid VAPID keys'); }
   return vapid;
 }
-const pushReady = () => Boolean(DATING_READY && pushConfig() && datingAdminToken());
+const pushReady = () => Boolean(DATING_READY && datingAdminToken() && (pushConfig() || fcm.ready(DATA_DIR)));
 
 let draining = false, drainAgain = false;
 async function drainPush() {
@@ -105,9 +106,15 @@ async function drainPush() {
       const worker = async () => {
         for (let r; (r = queue.shift());) {
           try {
-            const status = await webPush.sendPush(r, { kind: r.kind, url: r.url },
-              { authHeader: vapid.authHeader, topic: `treehouse-${r.kind}` });
-            if (status === 404 || status === 410) {
+            // Android app devices are saved as "fcm:<token>"; the rest are web push subscriptions.
+            let gone = false;
+            if (fcm.isFcm(r.endpoint)) gone = fcm.ready(DATA_DIR) && (await fcm.send(r.endpoint, { kind: r.kind, url: r.url })) === 'gone';
+            else if (vapid) {
+              const status = await webPush.sendPush(r, { kind: r.kind, url: r.url },
+                { authHeader: vapid.authHeader, topic: `treehouse-${r.kind}` });
+              gone = status === 404 || status === 410;
+            }
+            if (gone) {
               await datingRpc('admin_drop_push_subscription', { p_key: datingAdminToken(), p_endpoint: r.endpoint }).catch(() => {});
             }
           } catch {}

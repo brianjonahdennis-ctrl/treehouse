@@ -2633,3 +2633,23 @@ button.mt-nav:active { transform: scale(.99); }
 .th-chat-msg.private { outline: 1px dashed color-mix(in srgb, #f59e0b 70%, transparent); }
 .th-chat-compose { display: flex; gap: 8px; align-items: flex-end; }
 .th-chat-compose textarea { flex: 1; min-width: 0; resize: none; }
+
+/* Road guidance on the ground (18 Nov 2026): Google-Maps style floor arrow and turn arrows. */
+.th-floor-guide { position: absolute; z-index: 3; left: 50%; bottom: 31%; width: 0; height: 0; pointer-events: none; }
+.th-floor-guide.uncertain { opacity: .45; }
+.th-floor-arrow { position: absolute; left: 0; bottom: 0; width: 110px; height: 176px; transform-origin: 50% 100%; overflow: visible; transition: transform .25s ease-out; }
+.th-floor-arrow path { fill: rgba(94, 245, 255, .82); stroke: rgba(255, 255, 255, .9); stroke-width: 2; filter: drop-shadow(0 0 10px rgba(36, 220, 255, .95)); }
+.th-floor-turn { position: absolute; bottom: 120px; left: -6px; width: 150px; height: 100px; overflow: visible; animation: th-turn-pulse 1s ease-in-out infinite alternate; }
+.th-floor-turn.left { left: auto; right: -10px; transform: scaleX(-1); }
+.th-floor-turn.uturn { transform: rotate(-90deg); }
+.th-floor-turn path { fill: rgba(94, 245, 255, .9); stroke: #fff; stroke-width: 2; filter: drop-shadow(0 0 12px rgba(36, 220, 255, 1)); }
+@keyframes th-turn-pulse { from { opacity: .7; } to { opacity: 1; } }
+.th-no-route { position: absolute; z-index: 4; left: 16px; right: 16px; top: 42%; display: grid; gap: 6px; justify-items: start; padding: 14px 16px; border-radius: 16px; background: rgba(5, 13, 39, .86); border: 1px solid rgba(89, 225, 255, .42); color: #fff; backdrop-filter: blur(12px); }
+.th-no-route b { font-size: 15px; }
+.th-no-route small { color: rgba(234, 249, 255, .82); font-size: 12px; line-height: 1.4; }
+.th-off-road { position: absolute; z-index: 4; left: 16px; right: 16px; top: calc(env(safe-area-inset-top) + 172px); padding: 9px 12px; border-radius: 12px; background: rgba(245, 158, 11, .92); color: #1b1300; font-size: 13px; font-weight: 800; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .th-floor-turn { animation: none; } .th-floor-arrow { transition: none; } }
+
+/* "Know when they reply" sheet: the same bell as the notifications card, larger. */
+.push-icon.big { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; margin: 0 auto; color: #fff; background: linear-gradient(135deg, var(--pink), var(--indigo) 55%, var(--blue)); }
+.push-icon.big .icon { width: 30px; height: 30px; }

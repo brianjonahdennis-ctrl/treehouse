@@ -9,6 +9,7 @@ import { openRecorder, VoiceBubble } from './Voice';
 import { BirthdayCardBubble, ChatBirthdayBanner, openCardPicker, parseBirthdayCard } from './Birthday';
 import { ConvoBird, ChatRatePrompt } from './Reputation';
 import { ChatCallActions, CallRecord } from './Call';
+import { nudgeAfterSend } from './PushInstall';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as api from '@/lib/api';
@@ -295,6 +296,7 @@ function ChatView({ convo }: { convo: Convo }) {
       setMsgs((list) => list.filter((x) => x.id !== temp.id));
       add(m); scroll();
       if (statusOf(convo) !== 'chat') refreshChatState();
+      nudgeAfterSend();
     } catch (e: any) {
       setMsgs((list) => list.filter((x) => x.id !== temp.id));
       setText((cur) => cur || t);

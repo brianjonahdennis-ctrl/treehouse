@@ -123,6 +123,7 @@ async function boot() {
   booting = true;
   applyTheme();
   push.registerWorker();
+  push.watchApp(openFromNotification);
   inst.watchInstall();
   inst.onChange(() => emit('push'));   // the browser's install offer can arrive any time
   watchServiceWorker();
@@ -243,12 +244,17 @@ function startLive() {
 function watchServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.addEventListener('message', (e) => {
-    if (!e.data || e.data.type !== 'treehouse-open' || !state.user) return;
-    const path = new URL(e.data.url, location.origin).pathname.replace(/^\/home\/?/, '');
-    const chat = path.match(/^matches\/([0-9a-f-]{36})$/);
-    if (chat) openChat(chat[1]); else go(path || 'home');
-    if (path.startsWith('matches/announcements')) loadAnnUnread({ force: true });
+    if (!e.data || e.data.type !== 'treehouse-open') return;
+    openFromNotification(e.data.url);
   });
+}
+// Also used by the Android app when a notification is tapped (it may arrive before sign-in finishes).
+function openFromNotification(url: string, tries = 0) {
+  if (!state.user) { if (tries < 40) setTimeout(() => openFromNotification(url, tries + 1), 500); return; }
+  const path = new URL(url, location.origin).pathname.replace(/^\/home\/?/, '');
+  const chat = path.match(/^matches\/([0-9a-f-]{36})$/);
+  if (chat) openChat(chat[1]); else go(path || 'home');
+  if (path.startsWith('matches/announcements')) loadAnnUnread({ force: true });
 }
 
 // New version? Reload by itself. Phones keep the page open for days; when treehouse comes back to the

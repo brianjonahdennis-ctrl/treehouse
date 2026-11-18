@@ -11,16 +11,77 @@ export const isIOS = () => /iPhone|iPad|iPod/.test(UA()) || (typeof navigator !=
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const standalone = () => matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
 
+// The Android app (1.8+) has Firebase notifications through the Capacitor PushNotifications plugin.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const cap = (): any => (typeof window !== 'undefined' ? (window as any).Capacitor : null);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const capPush = (): any => {
+  const c = cap();
+  if (!c || !c.isNativePlatform || !c.isNativePlatform() || c.getPlatform() !== 'android') return null;
+  if (c.isPluginAvailable && !c.isPluginAvailable('PushNotifications')) return null;
+  return (c.Plugins && c.Plugins.PushNotifications) || null;
+};
+/** In the Android app with notifications built in. */
+export const appPush = () => nativeApp() && !!capPush();
+/** In an older Android app (1.6/1.7) that can't get notifications until it's updated. */
+export const appNeedsUpdate = () => nativeApp() && /Android/i.test(UA()) && !capPush();
 export const isNative = nativeApp;
-export const supported = () => !nativeApp() && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+export const supported = () => appPush() || (!nativeApp() && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window);
 // iPhone/iPad in a Safari tab: notifications only work after "Add to Home Screen".
 export const needsInstall = () => !nativeApp() && isIOS() && !standalone();
-export const permission = () => ('Notification' in window ? Notification.permission : 'unsupported');
+let appPerm: NotificationPermission = 'default';   // the Android app's answer (checked at start-up)
+export const permission = () => (appPush() ? appPerm : 'Notification' in window ? Notification.permission : 'unsupported');
 export const isOn = () => supported() && permission() === 'granted' && store.get<boolean>('hy-push-on', false) === true;
+
+// ---- Android app: Firebase device token -----------------------------------------------------------
+const toPerm = (r: string): NotificationPermission => (r === 'granted' ? 'granted' : r === 'denied' ? 'denied' : 'default');
+async function appChannels() {
+  const P = capPush();
+  // Android groups notifications into channels people can tune in Settings; the server picks one.
+  await P.createChannel({ id: 'treehouse', name: 'Messages and matches', description: 'New messages, requests, likes, matches and friends', importance: 4, visibility: 0, vibration: true }).catch(() => {});
+  await P.createChannel({ id: 'calls', name: 'Calls', description: 'Incoming and missed calls', importance: 5, visibility: 0, vibration: true }).catch(() => {});
+}
+function appToken(): Promise<string> {
+  const P = capPush();
+  return new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hs: any[] = [];
+    const done = (fn: () => void) => { clearTimeout(t); hs.forEach((h) => h && h.remove && h.remove()); fn(); };
+    const t = setTimeout(() => done(() => reject(new Error('The phone didn’t answer. Try again in a moment.'))), 20000);
+    Promise.all([
+      P.addListener('registration', (tok: { value: string }) => done(() => resolve(tok.value))),
+      P.addListener('registrationError', () => done(() => reject(new Error('Couldn’t turn on notifications on this phone.')))),
+    ]).then((h) => { hs.push(...h); return P.register(); }).catch((e: Error) => done(() => reject(e)));
+  });
+}
+async function appEnable(ask: boolean): Promise<NotificationPermission> {
+  const P = capPush();
+  let r = (await P.checkPermissions()).receive;
+  if (ask && r !== 'granted' && r !== 'denied') r = (await P.requestPermissions()).receive;
+  appPerm = toPerm(r);
+  if (appPerm !== 'granted') return appPerm;
+  await appChannels();
+  const tok = await appToken();
+  await api.saveNativePush(tok);
+  store.set('hy-app-push-token', tok);
+  return 'granted';
+}
+/** Android app: learn the permission, and open the right screen when a notification is tapped. */
+export async function watchApp(open: (url: string) => void) {
+  const P = capPush();
+  if (!P) return;
+  try { appPerm = toPerm((await P.checkPermissions()).receive); } catch { /* ask later */ }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  P.addListener('pushNotificationActionPerformed', (a: any) => {
+    const url = a && a.notification && a.notification.data && a.notification.data.url;
+    open(typeof url === 'string' && url.startsWith('/home') ? url : '/home');
+  });
+}
 
 let serverKey: string | null | undefined;   // undefined = not checked, null = not set up on the server
 export const ready = () => Boolean(serverKey);
 export async function available() {
+  if (appPush()) { serverKey = serverKey || 'app'; return true; }
   if (serverKey !== undefined) return Boolean(serverKey);
   try {
     const r = await fetch('/api/push/key');
@@ -60,6 +121,11 @@ async function subscription(create: boolean) {
 // Must be called from a tap (iPhone requires it). Resolves to 'granted', 'denied' or 'default'.
 export async function enable() {
   if (!supported() || !(await available())) throw new Error('Notifications aren’t available on this device.');
+  if (appPush()) {
+    const r = await appEnable(true);
+    if (r === 'granted') store.set('hy-push-on', true);
+    return r;
+  }
   const perm = await Notification.requestPermission();
   if (perm !== 'granted') return perm;
   const sub = await subscription(true);
@@ -70,6 +136,12 @@ export async function enable() {
 
 export async function disable() {
   store.set('hy-push-on', false);
+  if (appPush()) {
+    const tok = store.get<string>('hy-app-push-token', '');
+    if (tok) await api.deletePushSubscription(`fcm:${tok}`).catch(() => {});
+    await capPush().unregister().catch(() => {});
+    return;
+  }
   const sub = await subscription(false).catch(() => null);
   if (!sub) return;
   await api.deletePushSubscription(sub.endpoint).catch(() => {});
@@ -79,6 +151,7 @@ export async function disable() {
 // On start-up: if notifications are on, make sure this device is saved for the account signed in now.
 export async function sync() {
   if (!isOn() || !(await available())) return;
+  if (appPush()) { try { await appEnable(false); } catch { /* try again next start */ } return; }
   try {
     const sub = await subscription(true);
     if (sub) await api.savePushSubscription(sub);
@@ -87,6 +160,11 @@ export async function sync() {
 
 // Before signing out: stop sending this account's notifications to this device.
 export async function forget() {
+  if (appPush()) {
+    const tok = store.get<string>('hy-app-push-token', '');
+    if (tok) await api.deletePushSubscription(`fcm:${tok}`).catch(() => {});
+    return;
+  }
   try {
     const r = await registerWorker();
     const sub = r && await r.pushManager.getSubscription();

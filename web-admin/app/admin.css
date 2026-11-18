@@ -620,3 +620,4 @@ input.num { width: 110px; margin-right: 8px; }
 .hunt-chat-msg.private { border-style: dashed; border-color: var(--amber, #f59e0b); }
 .hunt-chat-compose { display: flex; gap: 8px; align-items: flex-end; }
 .hunt-chat-compose textarea { flex: 1; min-width: 0; resize: vertical; }
+select.select { max-width: 100%; text-overflow: ellipsis; }
