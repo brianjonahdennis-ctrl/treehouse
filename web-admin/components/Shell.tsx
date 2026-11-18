@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { rpc } from '@/lib/sb';
 import { allows, ROLE_LABEL, SECTIONS } from '@/lib/roles';
@@ -11,6 +11,8 @@ export function useGo() {
   const router = useRouter();
   return (path: string) => router.push(path.startsWith('/') ? path : `/${path}`);
 }
+
+const SHORT: Record<string, string> = { '': 'Home', rooms: 'Rooms', announcements: 'Posts' };
 
 export function Shell({ children }: { children: ReactNode }) {
   const { me, signOut } = useMe();
@@ -45,8 +47,37 @@ export function Shell({ children }: { children: ReactNode }) {
   }, [path]);
   useEffect(() => { setOpen(false); setMenu(false); }, [path]);
 
+  // On phones, tables turn into stacked cards; each value needs its column name next to it.
+  const contentRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    let raf = 0;
+    const label = () => {
+      raf = 0;
+      el.querySelectorAll<HTMLTableElement>('table.tbl').forEach((t) => {
+        const heads = Array.from(t.querySelectorAll('thead th')).map((th) => th.textContent?.trim() || '');
+        t.querySelectorAll('tbody tr').forEach((tr) => {
+          Array.from(tr.children).forEach((td, i) => {
+            const l = heads[i] || '';
+            if (td.getAttribute('data-label') !== l) td.setAttribute('data-label', l);
+          });
+        });
+      });
+    };
+    const mo = new MutationObserver(() => { if (!raf) raf = requestAnimationFrame(label); });
+    mo.observe(el, { childList: true, subtree: true });
+    label();
+    return () => { mo.disconnect(); if (raf) cancelAnimationFrame(raf); };
+  }, []);
+
   const open_reports = counts ? counts.chat + counts.room + counts.link : 0;
   const groups: [string, string][] = [['main', 'Main menu'], ['grow', 'Grow'], ['admin', 'Admin']];
+  // Phone bottom bar: the four most-used pages this role can open, then "More" for the full menu.
+  const quick = ['', 'reports', 'members', 'rooms', 'announcements', 'calls']
+    .map((id) => SECTIONS.find((x) => x.id === id)!)
+    .filter((x) => allows(me.role, x.need))
+    .slice(0, 4);
 
   return (
     <div className={`shell ${open ? 'nav-open' : ''}`}>
@@ -111,8 +142,20 @@ export function Shell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        <main className="content">{children}</main>
+        <main className="content" ref={contentRef}>{children}</main>
       </div>
+      <nav className="bnav" aria-label="Main">
+        {quick.map((x) => (
+          <a key={x.id} href={`/${x.id}`} className={section === x.id && !open ? 'on' : ''} onClick={(e) => { e.preventDefault(); go(`/${x.id}`); }}>
+            <span className="bnav-i"><Icon name={x.icon} size={21} />
+              {x.id === 'reports' && open_reports > 0 && <em className="badge">{open_reports > 99 ? '99+' : open_reports}</em>}</span>
+            {SHORT[x.id] || x.label}
+          </a>
+        ))}
+        <button type="button" className={open ? 'on' : ''} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+          <span className="bnav-i"><Icon name="menu" size={21} /></span>More
+        </button>
+      </nav>
     </div>
   );
 }

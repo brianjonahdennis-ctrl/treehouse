@@ -11,9 +11,10 @@ import { Icon, Hero, Avatar, EmptyState, SkeletonList } from './ui';
 import { toast } from './overlay';
 import { BellButton } from './Home';
 import { chooseUsername } from './Username';
+import { TreehouseTabs } from './MyTreehouse';
 
 type Row = { rank: number; handle: string; invites: number; me: boolean };
-type Board = { enabled: boolean; week_start: string; week_end: string; ends_at: string; min: number; top: Row[];
+export type Board = { enabled: boolean; week_start: string; week_end: string; ends_at: string; min: number; top: Row[];
   me: { rank: number | null; invites: number }; last_winner: { handle: string; title: string; invites: number } | null };
 
 let boardCache: { at: number; b: Board } | null = null;
@@ -55,7 +56,9 @@ export default function InviteBoard() {
   };
   return (
     <div className="stack-lg invite">
-      <Hero title="Top inviters" sub="Invite friends to treehouse. The #1 inviter each week is celebrated as Man or Woman of the Week." actions={<BellButton />} />
+      <Hero title="Of the Week" sub="Invite friends to treehouse. The #1 inviter each week is celebrated as Man or Woman of the Week." actions={<BellButton />}>
+        <TreehouseTabs tab="week" />
+      </Hero>
       <div className="below-hero stack">
         {b === undefined ? <SkeletonList n={4} /> : b === null || !b.enabled ? (
           <EmptyState emoji="🎟️" title="Invites are resting" text="The leaderboard is taking a short break. Check back soon." />
@@ -97,21 +100,5 @@ export default function InviteBoard() {
         )}
       </div>
     </div>
-  );
-}
-
-export function InviteCard() {
-  const [b, setB] = useState<Board | null>(null);
-  useEffect(() => { loadBoard().then(setB); }, []);
-  if (!b || !b.enabled) return null;
-  return (
-    <button className="hm-games hm-invite" onClick={() => go('invite')}>
-      <span className="hg-text">
-        <span className="hg-kicker"><Icon name="sparkles" cls="sm" />Man & Woman of the Week</span>
-        <b>{b.last_winner ? `${b.last_winner.handle} won last week. Your turn?` : 'Invite friends and top the leaderboard.'}</b>
-        <span className="hg-go">{b.me.rank ? `You’re #${b.me.rank} · See the board` : 'See the leaderboard'}<Icon name="chev" cls="sm" /></span>
-      </span>
-      <span className="hg-art" aria-hidden="true"><span>🏆</span><span>🎉</span></span>
-    </button>
   );
 }

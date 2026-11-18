@@ -16,8 +16,8 @@ import { openSheet, toast } from './overlay';
 import { HomeAppCard } from './PushInstall';
 import { GamesCard } from './Games';
 import AdSlot from './AdSlot';
-import { InviteCard } from './InviteBoard';
 import { TreehouseCard } from './MyTreehouse';
+import { FeatureCard } from './FeatureCard';
 
 const firstName = (n: string) => String(n || '').trim().split(/\s+/)[0].slice(0, 24);
 function greeting() {
@@ -65,20 +65,18 @@ export default function Home() {
       <FriendsStrip />
 
       <div className="hm-features">
-        <FeatureCard kind="date" iconName="flame" title="Discover" text="Meet new people and find meaningful connections." badge={likes ? `${likes} like${likes === 1 ? '' : 's'}` : null} onClick={() => go('discover')} />
-        <div className="hm-room-slot">
-          <FeatureCard kind="talk" iconName="rooms" title="Chatrooms"
-            text={myRoom ? `You’re in ${roomTitle(myRoom.state)} · ${myRoom.online ?? myRoom.people} online` : 'Join your state community, meet people and start conversations.'}
-            badge={myRoom && myRoom.unread ? `${myRoom.unread > 99 ? '99+' : myRoom.unread} new` : null}
-            onClick={() => go(myRoom ? `rooms/${encodeURIComponent(myRoom.state)}` : 'rooms')} />
-        </div>
+        <FeatureCard kind="discover" iconName="flame" title="Discover" text="Meet new people and find meaningful connections." badge={likes ? `${likes} like${likes === 1 ? '' : 's'}` : null} actionText="Start discovering" onClick={() => go('discover')} />
+        <FeatureCard kind="chatrooms" iconName="rooms" title="Chatrooms"
+          text={myRoom ? `You’re in ${roomTitle(myRoom.state)} · ${myRoom.online ?? myRoom.people} online` : 'Join your state community, meet people and start conversations.'}
+          badge={myRoom && myRoom.unread ? `${myRoom.unread > 99 ? '99+' : myRoom.unread} new` : null}
+          actionText="Open chatrooms" onClick={() => go(myRoom ? `rooms/${encodeURIComponent(myRoom.state)}` : 'rooms')} />
+        <GamesCard />
+        <TreehouseCard />
+        <FeatureCard kind="events" iconName="calendar" title="Events" text="treehouse meetups and parties near you." badge="Coming soon" actionText="Coming soon"
+          ariaLabel="Events, coming soon" onClick={() => toast('Events are coming soon. Watch this space!')} />
+        <FeatureCard kind="business" iconName="briefcase" title="treehouse Business" text="Grow your business with the treehouse community." badge="Coming soon" actionText="Coming soon"
+          ariaLabel="treehouse Business, coming soon" onClick={() => toast('treehouse Business is coming soon. Watch this space!')} />
       </div>
-
-      <GamesCard />
-
-      <TreehouseCard />
-
-      <InviteCard />
 
       <AdSlot placement="home" />
 
@@ -192,16 +190,6 @@ function FriendsStrip() {
   );
 }
 
-function FeatureCard({ kind, iconName, title, text, badge, onClick }: { kind: 'date' | 'talk'; iconName: string; title: string; text: string; badge: string | null; onClick: () => void }) {
-  return (
-    <button className={`hm-feature ${kind}`} onClick={onClick}>
-      <span className="hf-top"><span className="hf-icon"><Icon name={iconName} cls={kind === 'date' ? 'fill' : ''} /></span>{badge ? <span className="hf-badge">{badge}</span> : null}</span>
-      <b>{title}</b>
-      <span className="hf-text">{text}</span>
-      <span className="hf-go">{kind === 'date' ? 'Start discovering' : 'Open chatrooms'}<Icon name="chev" cls="sm" /></span>
-    </button>
-  );
-}
 function Stat({ iconName, kind, n, label, onClick }: { iconName: string; kind: string; n: number; label: string; onClick: () => void }) {
   return (
     <button className={`hm-stat ${kind} ${n ? 'has' : ''}`} onClick={onClick}>

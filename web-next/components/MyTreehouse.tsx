@@ -13,9 +13,11 @@ import { copyText } from '@/lib/util';
 import { useAppState, state, statusOf } from '@/lib/state';
 import { composeTo } from './Discover';
 import { Icon, Hero, Avatar, SkeletonList } from './ui';
+import { FeatureCard } from './FeatureCard';
 import { openSheet, toast } from './overlay';
 import { BellButton } from './Home';
 import { chooseUsername } from './Username';
+import { loadBoard, type Board } from './InviteBoard';
 
 type TH = { code: string | null; needs_username: boolean; enabled: boolean; active: boolean; direct: number; network: number; total: number;
   levels: { level: number; people: number }[]; deepest: number; window_days: number; rewards: { enabled: boolean } };
@@ -74,6 +76,7 @@ function Dashboard() {
         <h1 className="mt-title">My Treehouse</h1>
         <p className="ih-subline mt-sub">Invite people to Treehouse and grow your network. See everyone who joined through you.</p>
         <span className="mt-hero-art" aria-hidden="true">🌳</span>
+        <TreehouseTabs tab="network" />
       </Hero>
 
       <div className="below-hero stack-lg">
@@ -475,17 +478,26 @@ function ListRow({ n, depth, sort, flat = false, onChange }: { n: Node; depth: n
 }
 
 // ---- Entry card (Home) -----------------------------------------------------------------------------
+// Home: one box for My Treehouse and Of the Week (Hydra, 18 Nov 2026). It opens My Treehouse, which
+// has a tab for each (TreehouseTabs).
 export function TreehouseCard() {
   const [th, setTh] = useState<TH | null>(thCache ? thCache.d : null);
-  useEffect(() => { loadTH().then(setTh); }, []);
+  const [b, setB] = useState<Board | null>(null);
+  useEffect(() => { loadTH().then(setTh); loadBoard().then(setB); }, []);
+  const total = th?.total ?? 0;
+  const week = b && b.enabled ? b : null;
+  return <FeatureCard kind="treehouse" iconName="network" title="My Treehouse"
+    text={`${n0(total)} in your network`}
+    extra={week ? (week.last_winner ? `🏆 ${week.last_winner.handle} won last week` : '🏆 Top this week’s inviters') : null}
+    badge={week && week.me.rank ? `You’re #${week.me.rank}` : null} actionText="View" onClick={() => go('treehouse')} />;
+}
+
+/** The two tabs of the merged My Treehouse screen: My network (/home/treehouse) and Of the Week (/home/invite). */
+export function TreehouseTabs({ tab }: { tab: 'network' | 'week' }) {
   return (
-    <button className="hm-games mt-card" onClick={() => go('treehouse')}>
-      <span className="hg-text">
-        <span className="hg-kicker"><Icon name="network" cls="sm" />My Treehouse</span>
-        <b>{th && th.total ? `${n0(th.total)} ${th.total === 1 ? 'person' : 'people'} in your network` : 'Your network. Your growth.'}</b>
-        <span className="hg-go">View My Treehouse<Icon name="chev" cls="sm" /></span>
-      </span>
-      <span className="hg-art" aria-hidden="true"><span>🌳</span><span>🌱</span></span>
-    </button>
+    <div className="mt-seg mt-hub-tabs" role="tablist" aria-label="My Treehouse sections">
+      <button role="tab" aria-selected={tab === 'network'} className={tab === 'network' ? 'on' : ''} onClick={() => tab !== 'network' && go('treehouse', { replace: true })}><Icon name="network" cls="sm" />My network</button>
+      <button role="tab" aria-selected={tab === 'week'} className={tab === 'week' ? 'on' : ''} onClick={() => tab !== 'week' && go('invite', { replace: true })}><Icon name="sparkles" cls="sm" />Of the Week</button>
+    </div>
   );
 }

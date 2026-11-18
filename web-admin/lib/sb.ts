@@ -37,3 +37,14 @@ export async function rpc<T = unknown>(fn: string, args: Record<string, unknown>
 
 export const errText = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong.');
 export const needsMfa = (e: unknown) => e instanceof Error && /authenticator/i.test(e.message);
+
+/** Latitude/longitude from any Google Maps link, including short maps.app.goo.gl links (read on our server). */
+export async function mapLinkCoords(link: string): Promise<{ latitude: number; longitude: number }> {
+  if (MOCK) { await new Promise((r) => setTimeout(r, 400)); return { latitude: 6.4281, longitude: 3.4219 }; }
+  const c = await sb();
+  const { data } = await c.auth.getSession();
+  const res = await fetch('/api/maps-link', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session?.access_token || ''}` }, body: JSON.stringify({ url: link }) });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.message || 'Couldn’t read that link.');
+  return out;
+}

@@ -1,6 +1,30 @@
 'use client';
 import { useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
+
+/** True while the screen is at most `px` wide (phones and small tablets). */
+export function useNarrow(px = 1000) {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${px}px)`);
+    const on = () => setNarrow(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, [px]);
+  return narrow;
+}
+
+/** Stops the page behind a full-screen panel or window from scrolling while it is open. */
+let locks = 0;
+export function useScrollLock(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    if (locks++ === 0) document.documentElement.classList.add('locked');
+    return () => { if (--locks === 0) document.documentElement.classList.remove('locked'); };
+  }, [active]);
+}
 
 type Toast = { id: number; text: string; bad?: boolean };
 let pushToast: (t: Toast) => void = () => {};
@@ -72,14 +96,20 @@ export function Modal({ title, onClose, children, wide, foot }: { title: ReactNo
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [onClose]);
-  return (
+  useScrollLock(true);
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  useEffect(() => setHost(document.body), []);
+  if (!host) return null;
+  // Rendered straight into <body>, so no card, sticky panel or phone sheet around it can clip or hide it.
+  return createPortal(
     <div className="modal-bg" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className={`modal ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true">
         <header><h3>{title}</h3><button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="x" /></button></header>
         <div className="modal-b">{children}</div>
         {foot && <footer>{foot}</footer>}
       </div>
-    </div>
+    </div>,
+    host,
   );
 }
 

@@ -6,8 +6,47 @@
   if (q.get('empty')) sessionStorage.setItem('mock-empty', '1');
   if (q.get('reset')) { sessionStorage.clear(); }
   const signedOut = sessionStorage.getItem('mock-out') === '1';
-  // Preview only: pretend the phone is in Wuse, Abuja (no real location is read).
-  try { Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition: (ok) => setTimeout(() => ok({ coords: { latitude: 9.0765, longitude: 7.4793 } }), 300) } }); } catch {}
+  // Preview only: a small walking route, changing true-north heading and
+  // illustrated rear-camera feed let the AR placement be checked without a phone.
+  let mockLatitude = 9.07624, mockLongitude = 7.47918, mockGeoSequence = 0;
+  const mockWatchers = new Map();
+  const mockGeoPosition = () => ({ coords: { latitude: mockLatitude, longitude: mockLongitude, accuracy: 8, speed: 1.1, heading: 35 }, timestamp: Date.now() });
+  const mockBearingTo = (target) => {
+    if (!target) return 25;
+    const rad = Math.PI / 180, dLat = (target.latitude - mockLatitude) * rad;
+    const dLon = (target.longitude - mockLongitude) * rad;
+    return (Math.atan2(Math.sin(dLon) * Math.cos(target.latitude * rad), Math.cos(mockLatitude * rad) * Math.sin(target.latitude * rad) - Math.sin(mockLatitude * rad) * Math.cos(target.latitude * rad) * Math.cos(dLon)) * 180 / Math.PI + 360) % 360;
+  };
+  const mockOrientation = () => {
+    const player = mockHuntPlayer(), state = mockHuntState(player), order = state.route || mockHuntOrder(player);
+    const target = mockHuntCheckpoints[order[Math.min(state.found || 0, mockHuntCheckpoints.length - 1)]];
+    const alpha = -mockBearingTo(target);
+    const event = new Event('deviceorientationabsolute');
+    for (const [key, value] of Object.entries({ alpha, beta: 90, gamma: 0, absolute: true })) {
+      Object.defineProperty(event, key, { configurable: true, value });
+    }
+    window.dispatchEvent(event);
+  };
+  const mockWatchTick = () => {
+    mockLatitude += 0.000006;
+    mockLongitude += 0.000005;
+    mockOrientation();
+    const position = mockGeoPosition();
+    for (const watcher of mockWatchers.values()) watcher(position);
+  };
+  const fakeGeolocation = {
+    getCurrentPosition: (ok) => setTimeout(() => ok(mockGeoPosition()), 180),
+    watchPosition: (ok) => {
+      const id = ++mockGeoSequence;
+      mockWatchers.set(id, ok);
+      setTimeout(() => { if (mockWatchers.has(id)) ok(mockGeoPosition()); }, 120);
+      if (mockWatchers.size === 1) { mockOrientation(); fakeGeolocation.timer = setInterval(mockWatchTick, 900); }
+      return id;
+    },
+    clearWatch: (id) => { mockWatchers.delete(id); if (!mockWatchers.size && fakeGeolocation.timer) { clearInterval(fakeGeolocation.timer); fakeGeolocation.timer = null; } },
+    timer: null,
+  };
+  try { Object.defineProperty(navigator, 'geolocation', { configurable: true, value: fakeGeolocation }); } catch {}
   const empty = sessionStorage.getItem('mock-empty') === '1';
   const ME = '00000000-0000-0000-0000-000000000001';
   const ago = (min) => new Date(Date.now() - min * 60000).toISOString();
@@ -20,6 +59,8 @@
     state: 'Lagos', pref_state: 'Lagos' };
 
   const mockOrigins = {};
+  let mockInboxVersion = 0;
+  const mockInboxListeners = new Set();
   let mockRole = 'caller'; const mockCalls = [];
   const convo = (id, handle, extra) => Object.assign({ conversation_id: id, other_handle: handle, other_gender: 'female', other_age: 24, other_location: 'Lagos',
     other_intent: 'love', last_message: null, last_from_me: false, last_at: ago(30), unread: 0, i_revealed: false, they_revealed: false,
@@ -126,6 +167,8 @@
     ['Bold Falcon 77', 'Count me in. What time does it start?', 9],
     ['Pearl Meadow 128', '9pm. Bring your dancing shoes 💃', 3],
   ].map(([handle, body, min], i) => ({ id: msgId + i, handle, body, created_at: ago(min), mine: handle === profile.handle, reactions: i === 4 ? { '🔥': 3, '❤️': 1 } : i === 0 ? { '😂': 2 } : {}, my_reactions: [] }));
+  const roomReports = new Map();
+  const roomBlockedHandles = new Set();
   roomMsgs[4].reply_to = roomMsgs[3].id; roomMsgs[4].reply_handle = roomMsgs[3].handle; roomMsgs[4].reply_body = roomMsgs[3].body;
   const roomPeople = [profile.handle, 'Velvet Mango 532', 'Bold Falcon 77', 'Pearl Meadow 128', 'Jade Willow 390', 'Cobalt Fox 412', 'Maple Sky 66', 'Tidal Owl 903']
     .map((handle, i) => ({ handle, me: i === 0, dating: i % 3 !== 2, place: ['Lagos', 'Ikeja', 'Lekki', 'Yaba', 'Surulere', 'Ajah', 'Ikorodu', 'Lagos'][i], online: i < 5 }));
@@ -182,6 +225,62 @@
 const mockRated = new Set();
 let mockUsername = null; // usernames (sample: 'ada' can be added as a friend, 'taken' is taken)
 const mockLater = new Set(); // chats where "Not now" was tapped on the rating card
+const mockHuntId = 'd0000000-0000-4000-8000-000000000001';
+const mockHuntCheckpoints = [
+  ['Wuse Market Gate', 9.0765, 7.4793, 'Start here, then follow your personal route.'],
+  ['Garden Gate', 9.0767, 7.4795, 'Look near the open courtyard.'],
+  ['River Walk', 9.0769, 7.4797, 'Keep the river path in view.'],
+  ['Palm Court', 9.0771, 7.4799, 'The next clue is ahead.'],
+  ['City Park Fountain', 9.0773, 7.4801, 'The treasure is close.'],
+].map(([name, latitude, longitude, hint], i) => ({
+  id: `d0000000-0000-4000-8000-00000000000${i + 2}`, sequence: i + 1, name, hint,
+  latitude, longitude, radius_m: 45, reward_coins: 100,
+}));
+const mockHuntPlayer = () => sessionStorage.getItem('mock-hunt-player') === '2' ? 2 : 1;
+const mockHuntStateKey = (player) => `mock-hunt-state-${player}`;
+const mockHuntState = (player) => JSON.parse(sessionStorage.getItem(mockHuntStateKey(player)) || '{"found":0,"total_coins":0,"done":false,"claims":[],"route":null}');
+const mockHuntSave = (player, state) => sessionStorage.setItem(mockHuntStateKey(player), JSON.stringify(state));
+const mockHuntOrder = (player) => player === 2 ? [0, 2, 3, 1, 4] : [0, 1, 2, 3, 4];
+// Sign-up preview: the mock member is in Lagos. One Lagos hunt is live, one starts tomorrow
+// (register → countdown), and a Port Harcourt hunt shows why a Lagos member can't register.
+function mockHuntListings() {
+  const reg = (id) => sessionStorage.getItem(`mock-hunt-reg-${id}`) === '1';
+  const base = { description: 'Follow the clues and collect a Treehouse Coin at every stop.', coin_avatar: '🪙', treasure_avatar: '🧰', needs_registration: true, max_registrations: 200, full: false, winners_count: 2, winners_done: false, chat: true };
+  const prizes = [{ place: 1, title: 'Grand prize: a new phone', media_type: 'image', media_url: '/icon-512.png' }, { place: null, title: 'treehouse goodies for every finisher', media_type: 'image', media_url: '/icon-192.png' }];
+  const rows = [
+    { ...base, id: mockHuntId, title: 'Treasure Hunt', region: 'Lagos · preview', state: 'Lagos', starts_at: new Date(Date.now() - 3600000).toISOString(),
+      ends_at: new Date(Date.now() + 86400000).toISOString(), checkpoint_count: mockHuntCheckpoints.length, live: true, prizes,
+      joined: sessionStorage.getItem(`mock-hunt-joined-${mockHuntPlayer()}`) === '1', count: 27 },
+    { ...base, id: 'd0000000-0000-4000-8000-000000000002', title: 'Lagos Island Night Hunt', region: 'Lagos Island, Lagos', state: 'Lagos',
+      starts_at: new Date(Date.now() + 26 * 3600e3 + 125e3).toISOString(), ends_at: new Date(Date.now() + 30 * 3600e3).toISOString(), checkpoint_count: 6, live: false, prizes: prizes.slice(0, 1), joined: false, count: 142 },
+    { ...base, id: 'd0000000-0000-4000-8000-000000000003', title: 'Garden City Hunt', region: 'Port Harcourt, Rivers', state: 'Rivers',
+      starts_at: new Date(Date.now() + 3 * 86400e3).toISOString(), ends_at: new Date(Date.now() + 3 * 86400e3 + 6 * 3600e3).toISOString(), checkpoint_count: 5, live: false, prizes: [], joined: false, count: 60 },
+  ];
+  return rows.map(({ count, ...h }) => {
+    const mine = reg(h.id) || (h.id === mockHuntId && h.joined);
+    const block = mine ? null : h.state !== profile.state ? `This hunt is only for members in ${h.state}. Your profile says ${profile.state}.` : null;
+    return { ...h, registered: mine, chat: mine, register_block: block, registered_count: mine ? count + 1 : null };
+  });
+}
+function mockHuntProgress() {
+  const player = mockHuntPlayer(); const state = mockHuntState(player); const order = state.route || mockHuntOrder(player);
+  const found = state.found || 0;
+  let target = null;
+  if (!state.done && found < mockHuntCheckpoints.length) {
+    const checkpoint = mockHuntCheckpoints[order[found]];
+    target = { kind: found === 0 ? 'start' : 'checkpoint', id: checkpoint.id, name: checkpoint.name, hint: checkpoint.hint,
+      latitude: checkpoint.latitude, longitude: checkpoint.longitude, radius_m: checkpoint.radius_m, reward_coins: checkpoint.reward_coins };
+  } else if (!state.done) {
+    target = { kind: 'finish', id: 'mock-route-finish', name: 'City Park treasure', hint: 'Every checkpoint is done. Reach your final treasure.',
+      latitude: 9.0775, longitude: 7.4803, radius_m: 60, reward_coins: 0 };
+  }
+  return { hunt: { id: mockHuntId, title: 'Treasure Hunt', region: 'Wuse, Abuja · preview', description: 'Follow the clues and collect a Treehouse Coin at every stop.',
+      starts_at: new Date(Date.now() - 3600000).toISOString(), ends_at: new Date(Date.now() + 86400000).toISOString(), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', checkpoint_count: mockHuntCheckpoints.length },
+    participant: { joined_at: new Date().toISOString(), total_coins: state.total_coins || 0, completion_bonus_coins: state.done ? 100 : 0,
+      completed_at: state.done ? new Date().toISOString() : null },
+    found_count: found, total_count: mockHuntCheckpoints.length, current_target: target };
+}
+
 const RPC = {
     my_pending_likes: () => likes.length,
     // Preview only: sessionStorage mock-failchats=N makes the next N chat-list loads fail (tests the retry).
@@ -194,6 +293,20 @@ const RPC = {
       const out = { changed: rows.filter((r) => p_known[r.conversation_id] !== r._fp), removed: Object.keys(p_known).filter((k) => !ids.has(k)), requests: rf === p_req ? null : full.requests, req_fp: rf,
         pending: full.pending, my_status: full.my_status, friend_statuses: full.friend_statuses, origins: full.origins };
       window.__mockListBytes += JSON.stringify(out).length; window.__mockListCalls = (window.__mockListCalls || 0) + 1; return out; },
+    dating_summary_changes_v2: ({ p_known = {}, p_req = '', p_version = null }) => {
+      window.__mockListCalls = (window.__mockListCalls || 0) + 1;
+      if (p_version != null && Number(p_version) === mockInboxVersion) {
+        window.__mockListBytes = (window.__mockListBytes || 0) + 40;
+        return { unchanged: true, version: mockInboxVersion };
+      }
+      const full = RPC.dating_summary(); const fp = (o) => { let h = 0; const t = JSON.stringify(o); for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return String(h >>> 0); };
+      const rows = full.convos.map((c) => ({ ...c, _fp: fp(c) })); const ids = new Set(rows.map((r) => r.conversation_id)); const rf = fp(full.requests);
+      const out = { unchanged: false, version: mockInboxVersion, changed: rows.filter((r) => p_known[r.conversation_id] !== r._fp), removed: Object.keys(p_known).filter((k) => !ids.has(k)),
+        requests: rf === p_req ? null : full.requests, req_fp: rf, pending: full.pending, my_status: full.my_status, friend_statuses: full.friend_statuses,
+        origins: full.origins, friend_asks: RPC.my_friend_asks() };
+      window.__mockListBytes = (window.__mockListBytes || 0) + JSON.stringify(out).length;
+      return out;
+    },
     __unused_dating_summary: () => ({ convos, requests: likes, pending: likes.length, my_status: myStatus, origins: empty ? {} : { c12: 'nearby', c13: 'nearby', c14: 'nearby', ...mockOrigins },
       friend_statuses: [{ conversation_id: 'c8', body: 'Weekend vibes already! 🎉', updated_at: ago(17) }, { conversation_id: 'c9', body: 'At work, hit me up later 💼', updated_at: ago(180) }] }),
     set_my_status: ({ p_body }) => { myStatus = { body: p_body, updated_at: new Date().toISOString() }; return [myStatus]; },
@@ -214,8 +327,8 @@ const RPC = {
     room_heartbeat: () => (roomKick ? null : myRoom),
     leave_room: () => { myRoom = null; roomKick = null; },
     room_mark_read: () => null,
-    room_history: () => (myRoom === 'Lagos' ? roomMsgs : []),
-    room_people: () => roomPeople,
+    room_history: () => (myRoom === 'Lagos' ? roomMsgs.filter((m) => !roomBlockedHandles.has(m.handle)) : []),
+    room_people: () => roomPeople.filter((p) => !roomBlockedHandles.has(p.handle)),
     send_room_message: ({ p_body, p_reply_to }) => { const q = roomMsgs.find((x) => x.id === p_reply_to); return [{ id: ++msgId + 50, handle: profile.handle, body: p_body, created_at: new Date().toISOString(), reply_to: q ? q.id : null, reply_handle: q ? q.handle : null, reply_body: q ? q.body.slice(0, 140) : null }]; },
     // Bird Kingdom + ratings (sample data)
     my_bird: () => mockBird,
@@ -240,7 +353,28 @@ const RPC = {
     room_birthdays: () => [{ handle: roomPeople[1].handle }],
     badges_for_handles: ({ p_handles }) => p_handles.map((h, i) => ({ handle: h, badge: { level: (h.length % 8) + 1, rating: i % 2 ? null : 4.4, ratings: i % 2 ? 1 : 23 } })),
     room_profile: ({ p_handle }) => { const p = roomPeople.find((x) => x.handle === p_handle) || roomPeople[1]; return [{ handle: p.handle, room: 'Lagos', online: p.online, age: 25, gender: 'female', bio: 'Lagos babe, Afrobeats on repeat.', interests: ['Music', 'Fashion'], dating: p.dating, me: p.me, place: p.place }]; },
-    toggle_room_reaction: () => [{ reactions: { '❤️': 1 }, added: true }],
+    toggle_room_reaction: ({ p_message, p_emoji }) => {
+      const m = roomMsgs.find((x) => String(x.id) === String(p_message)); if (!m) return [];
+      const mine = new Set(m.my_reactions || []), counts = { ...(m.reactions || {}) };
+      if (mine.has(p_emoji)) { mine.delete(p_emoji); counts[p_emoji] = Math.max(0, Number(counts[p_emoji] || 0) - 1); if (!counts[p_emoji]) delete counts[p_emoji]; }
+      else { mine.add(p_emoji); counts[p_emoji] = Number(counts[p_emoji] || 0) + 1; }
+      m.my_reactions = [...mine]; m.reactions = counts;
+      return [{ reactions: counts, mine: mine.has(p_emoji) }];
+    },
+    report_room_message: ({ p_message, p_reason }) => {
+      const m = roomMsgs.find((x) => String(x.id) === String(p_message));
+      if (!m) throw Object.assign(new Error('Message not found.'), { code: 'P0002' });
+      if (!['harassment', 'inappropriate', 'spam', 'underage', 'other'].includes(p_reason)) throw Object.assign(new Error('Choose a report reason.'), { code: '22023' });
+      if (!roomReports.has(String(p_message))) roomReports.set(String(p_message), p_reason);
+      return null;
+    },
+    block_room_sender: ({ p_message }) => {
+      const m = roomMsgs.find((x) => String(x.id) === String(p_message));
+      if (!m || m.mine) throw Object.assign(new Error('That person is not available.'), { code: 'P0002' });
+      roomBlockedHandles.add(m.handle);
+      return null;
+    },
+    delete_room_message: ({ p_message }) => { const i = roomMsgs.findIndex((x) => String(x.id) === String(p_message) && x.mine); if (i >= 0) roomMsgs.splice(i, 1); return null; },
     chat_partner_profile: ({ p_conversation }) => { const c = convos.find((x) => x.conversation_id === p_conversation); return c ? [{ handle: c.other_handle, age: c.other_age, gender: c.other_gender, location: c.other_location, intent: c.other_intent, bio: 'Love good food, music and deep conversations.', interests: ['Music', 'Food', 'Travel'], online: c.other_online, active_hours: c.other_active_hours, available: !c.blocked }] : []; },
     revealed_details: () => [{ name: 'Tolu', username: 'tolu2025' }],
     // ---- Speed Dating (shared between tabs through localStorage; each tab is one dater) ----
@@ -266,6 +400,75 @@ const RPC = {
     kickrs_connect: () => { sessionStorage.setItem('mock-kickrs', '1'); return [{ kickrs_id: '00000000-0000-4000-8000-000000000214', handle: profile.handle, avatar: null }]; },
     kickrs_disconnect: () => { sessionStorage.removeItem('mock-kickrs'); return null; },
     kickrs_friend_request: () => 'c9',
+    treasure_hunts_active: () => empty ? [] : [{ id: mockHuntId, title: 'Treasure Hunt', region: 'Wuse, Abuja · preview',
+      description: 'Follow the clues and collect a Treehouse Coin at every stop.', starts_at: new Date(Date.now() - 3600000).toISOString(),
+      ends_at: new Date(Date.now() + 86400000).toISOString(), checkpoint_count: mockHuntCheckpoints.length, participants: 27,
+      joined: sessionStorage.getItem(`mock-hunt-joined-${mockHuntPlayer()}`) === '1' }],
+    treasure_hunt_live_board: () => { const me = mockHuntState(mockHuntPlayer()); const names = ['Noble Owl 221', 'Mellow Sparrow 799', 'Hidden Tiger 155', 'Calm Kite 412', 'Bright Finch 301', 'Quiet Ibis 522'];
+      const rows = names.map((handle, i) => ({ handle, checkpoints: i < 2 ? 5 : Math.max(0, 4 - i), finished: i < 2, winner: i < 2, quit: i === 5, started: true, me: false }));
+      rows.push({ handle: profile.handle, checkpoints: me.found || 0, finished: !!me.done, winner: false, quit: sessionStorage.getItem('mock-hunt-quit') === '1', started: true, me: true });
+      rows.sort((a, b) => (b.finished - a.finished) || (a.quit - b.quit) || (b.checkpoints - a.checkpoints)); rows.forEach((r, i) => { r.place = i + 1; });
+      const mine = rows.find((r) => r.me);
+      return { hunt: { id: mockHuntId, title: 'Treasure Hunt', checkpoint_count: 5, winners_count: 2, winners_done: true, ended: false }, me: { ...mine }, items: rows }; },
+    treasure_hunt_quit: () => { sessionStorage.setItem('mock-hunt-quit', '1'); return null; },
+    treasure_hunt_chat: ({ p_after }) => { const all = JSON.parse(sessionStorage.getItem('mock-hunt-chat') || JSON.stringify([
+        { id: 1, mine: false, from_staff: true, sender: 'treehouse team', private: false, body: 'Welcome! The hunt starts at the Lekki gate. Read the rules above.', at: new Date(Date.now() - 3600e3).toISOString() },
+        { id: 2, mine: false, from_staff: false, sender: 'Noble Owl 221', private: false, body: 'Can we use a bike?', at: new Date(Date.now() - 1800e3).toISOString() },
+        { id: 3, mine: false, from_staff: true, sender: 'treehouse team', private: false, body: 'Walking or buses only, please.', at: new Date(Date.now() - 1700e3).toISOString() }]));
+      return { title: 'Treasure Hunt', rules: 'Stay on public roads.\nNo running across traffic.\nBe kind to other players.', staff: false, ends_at: new Date(Date.now() + 86400e3).toISOString(), messages: all.filter((m) => m.id > (p_after || 0)) }; },
+    treasure_hunt_chat_send: ({ p_body }) => { const all = JSON.parse(sessionStorage.getItem('mock-hunt-chat') || '[]'); const base = all.length ? all : RPC.treasure_hunt_chat({ p_after: 0 }).messages;
+      const id = Math.max(...base.map((m) => m.id)) + 1; base.push({ id, mine: true, from_staff: false, sender: profile.handle, private: false, body: p_body, at: new Date().toISOString() });
+      sessionStorage.setItem('mock-hunt-chat', JSON.stringify(base)); return id; },
+    treasure_hunt_chat_delete: () => null,
+    treasure_hunts_list: () => empty ? [] : mockHuntListings(),
+    treasure_hunt_register: ({ p_hunt }) => { const h = mockHuntListings().find((x) => x.id === p_hunt); if (!h) throw new Error('This hunt could not be found.');
+      if (h.register_block) throw new Error(h.register_block); sessionStorage.setItem(`mock-hunt-reg-${p_hunt}`, '1'); return { registered: true, registered_count: mockHuntListings().find((x) => x.id === p_hunt).registered_count }; },
+    treasure_hunt_unregister: ({ p_hunt }) => { if (p_hunt === mockHuntId && sessionStorage.getItem(`mock-hunt-joined-${mockHuntPlayer()}`) === '1') throw new Error('You have already started this hunt.'); sessionStorage.removeItem(`mock-hunt-reg-${p_hunt}`); return null; },
+    treasure_hunt_join: () => { sessionStorage.setItem(`mock-hunt-joined-${mockHuntPlayer()}`, '1'); return mockHuntProgress(); },
+    treasure_hunt_join_with_routes: () => { sessionStorage.setItem(`mock-hunt-joined-${mockHuntPlayer()}`, '1'); return mockHuntProgress(); },
+    treasure_hunt_progress: () => { if (sessionStorage.getItem(`mock-hunt-joined-${mockHuntPlayer()}`) !== '1') throw new Error('Join this hunt first.'); return mockHuntProgress(); },
+    treasure_hunt_progress_with_routes: () => { if (sessionStorage.getItem(`mock-hunt-joined-${mockHuntPlayer()}`) !== '1') throw new Error('Join this hunt first.'); return mockHuntProgress(); },
+    treasure_hunt_claim_start: ({ p_route_point, p_request_id }) => {
+      const player = mockHuntPlayer(); const state = mockHuntState(player); const start = mockHuntCheckpoints[0];
+      if (sessionStorage.getItem(`mock-hunt-joined-${player}`) !== '1') throw new Error('Join this hunt first.');
+      if (p_route_point !== start.id) return { ok: false, error: 'This is not your starting checkpoint.' };
+      if (state.claims.includes('start')) return { ok: true, idempotent: true, coins_awarded: start.reward_coins, total_coins: state.total_coins, checkpoint_sequence: state.found, progress: mockHuntProgress() };
+      state.route = mockHuntOrder(player); state.found = 1; state.total_coins += start.reward_coins; state.claims.push('start', p_request_id); mockHuntSave(player, state);
+      return { ok: true, idempotent: false, coins_awarded: start.reward_coins, total_coins: state.total_coins, checkpoint_sequence: state.found, progress: mockHuntProgress() };
+    },
+    treasure_hunt_claim_checkpoint: ({ p_checkpoint, p_request_id }) => {
+      const player = mockHuntPlayer(); const state = mockHuntState(player); const order = state.route || mockHuntOrder(player);
+      if (sessionStorage.getItem(`mock-hunt-joined-${player}`) !== '1') throw new Error('Join this hunt first.');
+      const cp = mockHuntCheckpoints.find((item) => item.id === p_checkpoint);
+      if (state.claims.includes(p_request_id) || state.claims.includes(p_checkpoint)) return { ok: true, idempotent: true, coins_awarded: cp?.reward_coins || 100, total_coins: state.total_coins, checkpoint_sequence: state.found, progress: mockHuntProgress() };
+      if (!cp || p_checkpoint !== mockHuntCheckpoints[order[state.found]]?.id) return { ok: false, error: 'Follow your next checkpoint.' };
+      state.found += 1; state.total_coins += cp.reward_coins; state.claims.push(p_checkpoint, p_request_id); mockHuntSave(player, state);
+      return { ok: true, idempotent: false, coins_awarded: cp.reward_coins, total_coins: state.total_coins, checkpoint_sequence: state.found, progress: mockHuntProgress() };
+    },
+    treasure_hunt_finish: () => {
+      const player = mockHuntPlayer(); const state = mockHuntState(player);
+      if (state.found < mockHuntCheckpoints.length) return { ok: false, error: 'Find every checkpoint before claiming the treasure.' };
+      const first = !state.done; state.done = true; if (first) state.total_coins += 100; mockHuntSave(player, state);
+      return { ok: true, idempotent: !first, coins_awarded: first ? 100 : 100, total_coins: state.total_coins };
+    },
+    treasure_hunt_leaderboard: () => {
+      const finished = sessionStorage.getItem('mock-hunt-ended') === '1' || sessionStorage.getItem('mock-hunt-status') === 'completed';
+      const ownCoins = mockHuntState(mockHuntPlayer()).total_coins || 0;
+      if (!finished) return { visibility: 'self', player_count: 27, own_rank: 14, own_coins: ownCoins, items: [], has_more: false };
+      return { visibility: 'full', player_count: 3, own_rank: 2, own_coins: ownCoins, items: [
+        { rank: 1, handle: 'Lucky Dolphin 214', coins: 500, checkpoints: 5, completed_at: new Date().toISOString(), cursor_key: 'd0000000-0000-4000-8000-000000000010', cursor_coins: 500, cursor_joined_at: new Date(Date.now() - 180000).toISOString() },
+        { rank: 2, handle: 'Golden Kite 731', coins: 400, checkpoints: 4, completed_at: null, cursor_key: 'd0000000-0000-4000-8000-000000000011', cursor_coins: 400, cursor_joined_at: new Date(Date.now() - 120000).toISOString() },
+        { rank: 3, handle: 'Quiet Falcon 086', coins: 300, checkpoints: 3, completed_at: null, cursor_key: 'd0000000-0000-4000-8000-000000000012', cursor_coins: 300, cursor_joined_at: new Date(Date.now() - 60000).toISOString() },
+      ], has_more: false };
+    },
+    staff_treasure_hunts_personal: () => JSON.parse(sessionStorage.getItem('mock-staff-hunts') || JSON.stringify([{ id: mockHuntId, title: 'Treasure Hunt Preview', region: 'Wuse, Abuja', description: 'Sample safe route.', status: 'draft',
+      starts_at: new Date(Date.now() + 86400000).toISOString(), ends_at: new Date(Date.now() + 2 * 86400000).toISOString(), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', participant_count: 0,
+      finish_points: [{ id: 'mock-finish-1', sequence: 1, name: 'City Park prize', latitude: 9.0775, longitude: 7.4803, radius_m: 60, reward_coins: 0 }], checkpoints: mockHuntCheckpoints.slice(0, 1) }])),
+    staff_treasure_hunt_prizes_save_personal: ({ p_hunt, p_prizes }) => { const current = JSON.parse(sessionStorage.getItem('mock-staff-hunts') || '[]'); const at = current.findIndex((x) => x.id === p_hunt); if (at >= 0) { current[at].prizes = p_prizes; sessionStorage.setItem('mock-staff-hunts', JSON.stringify(current)); } return null; },
+    staff_treasure_hunt_save_routes_personal: (a) => { const h = a.p_hunt || {}; const current = JSON.parse(sessionStorage.getItem('mock-staff-hunts') || '[]'); const id = h.id || `mock-hunt-${Date.now()}`;
+      const value = { ...(current.find((x) => x.id === id) || {}), ...h, id, participant_count: 0, checkpoints: (a.p_checkpoints || []).map((p, i) => ({ ...p, id: `mock-stop-${i + 1}` })),
+        start_points: [], finish_points: (a.p_finish_points || []).map((p, i) => ({ ...p, id: `mock-finish-${i + 1}` })) };
+      const at = current.findIndex((x) => x.id === id); if (at < 0) current.unshift(value); else current[at] = value; sessionStorage.setItem('mock-staff-hunts', JSON.stringify(current)); return id; },
     // Matches → friends: in Golden Kite's chat (c3) they've asked you; elsewhere nobody has yet.
     friend_ask_state: ({ p_conversation }) => { const c = convos.find((x) => x.conversation_id === p_conversation); return !c ? null : c.kind === 'friend' ? 'friends' : (friendAsks[p_conversation] || (p_conversation === 'c3' ? 'theirs' : 'none')); },
     my_friend_asks: () => { const out = Object.entries(friendAsks).filter(([, v]) => v === 'mine' || v === 'theirs').map(([k, v]) => ({ conversation_id: k, who: v }));
@@ -379,6 +582,16 @@ const RPC = {
     ann_staff: () => [{ handle: 'Lucky Dolphin 214', role: 'super_admin', can_publish: true, added_at: ago(9000) }, { handle: 'Quiet Comet 118', role: 'editor', can_publish: false, added_at: ago(3000) }],
     ann_set_staff: () => null,
   };
+  window.__mockInboxMessage = () => {
+    const at = new Date().toISOString(), body = 'Mock realtime message — inbox updated';
+    const c = convos.find((row) => row.conversation_id === 'c1');
+    if (c) { c.last_message = body; c.last_at = at; c.last_from_me = false; c.unread = (c.unread || 0) + 1; }
+    const event = { payload: { k: 'message', c: 'c1', at, b: body, m: { id: ++msgId, sender_id: 'mock-other', body, created_at: at, reply_to: null, edited_at: null, deleted_at: null } } };
+    mockInboxVersion++;
+    mockInboxListeners.forEach((listener) => listener(event));
+    return { delivered: mockInboxListeners.size > 0, version: mockInboxVersion, body };
+  };
+  if (q.get('mock-inbox') === '1') setTimeout(() => window.__mockInboxMessage(), 3000);
 
   let mockAvatars = [];
   const mockFiles = new Map();
@@ -434,6 +647,15 @@ const RPC = {
       speedBus.addEventListener('message', (e) => { const m = e.data; if (m && m.topic === name) handlers.forEach(([ev, cb]) => { if (ev === m.event) cb({ payload: m.payload }); }); });
       return ch;
     }
+    if (typeof name === 'string' && name.startsWith('user:')) {
+      let inboxHandler = null;
+      const ch = { on(type, filter, cb) { if (type === 'broadcast' && filter && filter.event === 'inbox') inboxHandler = cb; return ch; },
+        subscribe(cb) { setTimeout(() => cb && cb('SUBSCRIBED'), 50); return ch; }, track() {}, send() {}, presenceState() { return {}; },
+        __leave() { if (inboxHandler) mockInboxListeners.delete(inboxHandler); } };
+      const register = () => { if (inboxHandler) mockInboxListeners.add(inboxHandler); };
+      setTimeout(register, 0);
+      return ch;
+    }
     const ch = { on() { return ch; }, subscribe(cb) { setTimeout(() => cb && cb('SUBSCRIBED'), 50); return ch; }, track() {}, send() {}, presenceState() { return {}; } };
     return ch;
   }
@@ -442,7 +664,7 @@ const RPC = {
     createClient() {
       return {
         rpc(fn, args) { const f = RPC[fn]; try { return result(f ? f(args || {}) : null); } catch (e) { return Promise.resolve({ data: null, error: { message: e.message, code: e.code || 'P0001' } }); } },
-        from, channel, removeChannel() {},
+        from, channel, removeChannel(ch) { if (ch && ch.__leave) ch.__leave(); },
         storage: { from: () => ({
           upload: (path, blob) => { mockFiles.set(path, URL.createObjectURL(blob)); return result({ path }); },
           createSignedUrl: (path) => result({ signedUrl: mockFiles.get(path) || '/icon-512.png?mock-photo' }),

@@ -1,7 +1,7 @@
 # treehouse admin (admin.treehouse.ng)
 
 The staff console for the whole app: reports, members, private chats (with rules), chatrooms,
-announcements, ads, referrals, settings, staff and the audit log.
+announcements, ads, referrals, Treasure Hunts, settings, staff and the audit log.
 
 It is a small Next.js app in its own folder, deployed as its own Railway service, on its own address.
 It uses the same Supabase project and the same public key as the member app. It holds no secret keys:
@@ -12,8 +12,10 @@ every permission is checked inside the database.
 1. Sign in with their treehouse account (Google, or email and password).
 2. The first time, scan a QR code with Google Authenticator (or any authenticator app) and type the 6-digit code.
    After that, every sign-in asks for a fresh code.
-3. Only people on the staff list get past this point. The database also refuses every staff action
+3. Only people on the staff list get past this point. The database also refuses staff actions
    from a session that hasn't passed the authenticator step, even if someone calls it directly.
+   Exception: Hydra can manage Treasure Hunts from the signed-in Treehouse app without a code; the
+   admin website and all other staff actions still require the authenticator step.
 
 ## Roles
 
@@ -26,6 +28,14 @@ every permission is checked inside the database.
 | Analyst | Dashboard and results only. |
 
 Roles live in the existing `announcement_staff` table (the announcements roles, plus the new Moderator).
+
+## Treasure Hunts
+
+Admins and Super Admins can create and manage Treasure Hunts from **Grow → Treasure Hunts**. The same setup is available in the Treehouse app under **Profile → Product Announcements → Treasure Hunt setup**. Every new hunt starts with one required public checkpoint and one grand-prize location. Add as many extra checkpoints as the route needs; any checkpoint can be removed as long as one remains. Set each pin, clue, check radius and in-game coin reward. Staff can open an area in Google Maps and paste a shared link or coordinate pair to fill a pin; no Maps API key is needed. Choose the coin and treasure designs, then set hunt dates and status. Double-check every location for safety before opening a route. When a player starts, their nearest checkpoint becomes their first stop and they then go through every checkpoint. The hunt has exactly **one grand prize location**, the same for every player, and it only unlocks after all checkpoints are found; the member follows the route in Google Maps and checks in at each stop. After a player joins, locations, dates and rewards are locked; staff can still cancel the hunt. The staff page shows player counts, not member location history. Coins are game points and are not cash.
+
+**Sign-up and location (18 Nov 2026).** Every new hunt must have a **state** (36 states + FCT). Members anywhere see it, but only members whose profile is in that state can register; others see why. Registering is required before playing. When the hunt starts, a player must also be within the **start area** (km from a checkpoint, default 60) to begin. Registered members only see how many people registered, never who. A scheduled hunt goes live by itself at its start time. Once anyone registers, the state is locked. Older hunts with no state keep working as before.
+
+**Hunt live** shows everyone registered for an upcoming or running hunt with their profile and progress (checkpoints, coins, last check-in). **Hunt results** shows a finished hunt's top 20 by finish time and every competitor. Both have **Message competitors**: it sends an announcement only to that hunt's registrants (or only those who started), to their Inbox and as a notification. Opening these pages and sending messages are saved in the audit log. **Prizes**: in hunt setup, add pictures (under 1.5 MB) or videos (under 20 MB) with a name and place (1st–20th, or everyone who finishes). They are stored in the `hunt-prizes` bucket, which only Admins can upload to.
 
 ## What's private and what's logged
 

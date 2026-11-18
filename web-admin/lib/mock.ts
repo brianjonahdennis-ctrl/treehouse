@@ -4,6 +4,7 @@
 import { STATES } from './options';
 
 const K = 'th-admin-mock';
+const HUNTS_KEY = 'th-admin-mock-hunts-signup';
 type S = { signedIn: boolean; enrolled: boolean; aal2: boolean; role: string };
 function st(): S {
   const p = new URLSearchParams(location.search);
@@ -26,6 +27,26 @@ const NAMES = ['NobleOwl', 'MellowSparrow', 'HiddenTiger', 'QuietRiver', 'BoldFa
 const now = Date.now();
 const iso = (msAgo: number) => new Date(now - msAgo).toISOString();
 const H = 3600e3, D = 86400e3;
+function mockHunts(): any[] {
+  const saved = localStorage.getItem(HUNTS_KEY);
+  if (saved) return JSON.parse(saved);
+  const prize = (place: number | null, title: string) => ({ place, title, media_type: 'image', media_url: '/icon-180.png' });
+  const running = { id: 'mock-hunt-live', title: 'Lekki Sunset Hunt', region: 'Lekki, Lagos', state: 'Lagos', join_radius_km: 40, description: 'A running hunt for the preview.',
+    status: 'active', starts_at: iso(2 * H), ends_at: new Date(now + 4 * H).toISOString(), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰',
+    participant_count: 9, registration_count: 14, finished_count: 2, winners_count: 2, prizes: [prize(1, 'Grand prize: a new phone')], start_points: [], finish_points: [],
+    checkpoints: [1, 2, 3, 4, 5].map((n) => ({ id: `mock-live-${n}`, sequence: n, name: `Lekki stop ${n}`, hint: 'Sample clue', latitude: 6.44 + n * .001, longitude: 3.47, radius_m: 45, reward_coins: 100 })) };
+  const done = { id: 'mock-hunt-done', title: 'Garden City Hunt', region: 'Port Harcourt, Rivers', state: 'Rivers', join_radius_km: 60, description: 'A finished hunt for the preview.',
+    status: 'completed', starts_at: iso(2 * D), ends_at: iso(2 * D - 6 * H), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰',
+    participant_count: 30, registration_count: 34, finished_count: 24, prizes: [], start_points: [], finish_points: [],
+    checkpoints: [1, 2, 3, 4].map((n) => ({ id: `mock-done-${n}`, sequence: n, name: `PH stop ${n}`, hint: 'Sample clue', latitude: 4.81 + n * .001, longitude: 7.04, radius_m: 45, reward_coins: 100 })) };
+  const sample = [running, done, { id: 'mock-hunt-1', title: 'Treasure Hunt Preview', region: 'Wuse, Abuja · preview', state: 'FCT', join_radius_km: 60, registration_count: 0, prizes: [], description: 'A sample route for the staff preview.',
+    status: 'draft', starts_at: new Date(now + D).toISOString(), ends_at: new Date(now + 2 * D).toISOString(), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', participant_count: 0,
+    start_points: [{ id: 'mock-start-1', sequence: 1, name: 'Wuse Market start', latitude: 9.0765, longitude: 7.4793, radius_m: 60, reward_coins: 0 }],
+    finish_points: [{ id: 'mock-finish-1', sequence: 1, name: 'City Park prize', latitude: 9.0775, longitude: 7.4803, radius_m: 60, reward_coins: 0 }],
+    checkpoints: [1].map((n) => ({ id: `mock-stop-${n}`, sequence: n, name: `Checkpoint ${n}`, hint: 'Sample clue', latitude: 9.0765 + n * .0002,
+      longitude: 7.4793 + n * .0002, radius_m: 45, reward_coins: 100 })) }];
+  localStorage.setItem(HUNTS_KEY, JSON.stringify(sample)); return sample;
+}
 
 const members = Array.from({ length: 64 }, (_, i) => {
   const h = `${NAMES[i % NAMES.length]}${100 + Math.floor(rnd() * 899)}`;
@@ -175,6 +196,64 @@ function rpc(fn: string, a: any): any {
     case 'staff_referral_joined': return members.slice(40, 48).map((m) => ({ handle: m.handle, joined_at: m.created_at, last_seen_at: m.last_seen_at, suspended: m.suspended, state: m.state }));
     case 'staff_settings': return { settings: { signups_paused: false, signups_paused_reason: '', ads_enabled: true, referrals_enabled: true, invite_winner_enabled: true, invite_winner_min: 3 }, filter_words: ['scam', 'whatsappme', 'paypal'],
       rating: [{ key: 'min_raters', value: 5, note: 'different raters needed before a score is "established"' }, { key: 'cooldown_days', value: 7, note: 'one rating per person per rolling N days' }] };
+    case 'staff_treasure_hunts': return mockHunts();
+    case 'staff_treasure_hunt_save': {
+      const h = a.p_hunt || {}; const hunts = mockHunts(); const id = h.id || `mock-hunt-${Date.now()}`;
+      const value = { ...h, id, participant_count: 0, checkpoints: (a.p_checkpoints || []).map((c: any, i: number) => ({ ...c, id: `mock-stop-${i + 1}` })) };
+      const i = hunts.findIndex((x) => x.id === id); if (i < 0) hunts.unshift(value); else hunts[i] = value;
+      localStorage.setItem(HUNTS_KEY, JSON.stringify(hunts)); return id;
+    }
+    case 'staff_treasure_hunt_prizes_save': {
+      const hunts = mockHunts(); const i = hunts.findIndex((x) => x.id === a.p_hunt); if (i >= 0) hunts[i].prizes = a.p_prizes || [];
+      localStorage.setItem(HUNTS_KEY, JSON.stringify(hunts)); return null;
+    }
+    case 'staff_treasure_hunt_board': {
+      const h = mockHunts().find((x) => x.id === a.p_hunt) || mockHunts()[0]; const total = h.checkpoints.length;
+      const reg = h.registration_count || 0, started = h.participant_count || 0, fin = h.finished_count || 0;
+      const t0 = Date.parse(h.starts_at);
+      const people = members.slice(0, reg).map((m: any, i: number) => {
+        const finished = i < fin, playing = i < started;
+        const took = finished ? 50 * 60 + i * 7 * 60 + (i * 37) % 60 : null;
+        return { place: i + 1, handle: m.handle, username: m.handle.toLowerCase().replace(/\s+/g, '').slice(0, 12), gender: m.gender, age: m.age, state: h.state, suspended: false,
+          registered_at: new Date(t0 - (3 + i) * H).toISOString(), started_at: playing ? new Date(t0 + i * 60e3).toISOString() : null,
+          checkpoints: finished ? total : playing ? Math.max(0, total - 1 - (i % total)) : 0, coins: finished ? total * 100 + 100 : playing ? (total - 1 - (i % total)) * 100 : 0,
+          last_claim_at: playing ? new Date(Math.min(Date.now(), t0 + (i + 1) * 9 * 60e3)).toISOString() : null,
+          finished_at: finished && took ? new Date(t0 + i * 60e3 + took * 1000).toISOString() : null, took_seconds: took,
+          winner: finished && i < (h.winners_count || 10), quit_at: !finished && playing && i === started - 1 ? new Date(t0 + 30 * 60e3).toISOString() : null };
+      });
+      const ended = h.status === 'completed' || Date.parse(h.ends_at) <= Date.now();
+      return { hunt: { id: h.id, title: h.title, region: h.region, state: h.state, status: h.status, starts_at: h.starts_at, ends_at: h.ends_at, checkpoint_count: total,
+        running: !ended && Date.parse(h.starts_at) <= Date.now(), ended }, registered: reg, started, finished: fin, people };
+    }
+    case 'treasure_hunt_chat': {
+      const saved = JSON.parse(localStorage.getItem('th-admin-mock-hunt-chat') || 'null') || [
+        { id: 1, mine: true, from_staff: true, sender: 'treehouse team', private: false, body: 'Welcome! We start at the Lekki gate at 4pm.', at: iso(2 * H) },
+        { id: 2, mine: false, from_staff: false, sender: members[3].handle, private: false, body: 'Can we use a bike?', at: iso(1 * H) }];
+      const h = mockHunts().find((x) => x.id === a.p_hunt) || {};
+      return { title: h.title || 'Hunt', rules: h.rules || 'Stay on public roads. Be kind to other players.', staff: true, messages: saved };
+    }
+    case 'treasure_hunt_chat_send': {
+      const saved = rpc('treasure_hunt_chat', { p_hunt: a.p_hunt }).messages; const id = Date.now();
+      saved.push({ id, mine: true, from_staff: true, sender: 'treehouse team', private: !!a.p_to_handle, to: a.p_to_handle || null, body: a.p_body, at: new Date().toISOString() });
+      localStorage.setItem('th-admin-mock-hunt-chat', JSON.stringify(saved)); return id;
+    }
+    case 'treasure_hunt_chat_delete': {
+      const saved = JSON.parse(localStorage.getItem('th-admin-mock-hunt-chat') || '[]').filter((m: any) => m.id !== a.p_id);
+      localStorage.setItem('th-admin-mock-hunt-chat', JSON.stringify(saved)); return null;
+    }
+    case 'staff_treasure_hunt_message': {
+      const h = mockHunts().find((x) => x.id === a.p_hunt); return { announcement: 'mock-ann', recipients: a.p_group === 'started' ? h?.participant_count || 0 : h?.registration_count || 0 };
+    }
+    case 'staff_treasure_hunt_save_routes': {
+      const h = a.p_hunt || {}; const hunts = mockHunts(); const id = h.id || `mock-hunt-${Date.now()}`;
+      const prev = hunts.find((x) => x.id === id) || {};
+      const value = { ...prev, ...h, id, participant_count: prev.participant_count || 0, registration_count: prev.registration_count || 0, prizes: prev.prizes || [],
+        checkpoints: (a.p_checkpoints || []).map((c: any, i: number) => ({ ...c, id: `mock-stop-${i + 1}` })),
+        start_points: (a.p_start_points || []).map((p: any, i: number) => ({ ...p, id: `mock-start-${i + 1}` })),
+        finish_points: (a.p_finish_points || []).map((p: any, i: number) => ({ ...p, id: `mock-finish-${i + 1}` })) };
+      const i = hunts.findIndex((x) => x.id === id); if (i < 0) hunts.unshift(value); else hunts[i] = value;
+      localStorage.setItem(HUNTS_KEY, JSON.stringify(hunts)); return id;
+    }
     case 'staff_team': return members.filter((m) => m.staff_role).map((m, i) => ({ handle: m.handle, role: m.staff_role, can_publish: i !== 1, added_at: iso((30 - i) * D), added_by: i ? H0 : null, authenticator: i !== 2, last_action_at: iso(i * H), email: st().role === 'super_admin' ? `staff${i}@treehouse.ng` : null }));
     case 'staff_audit_log': return a.p_before ? [] : audit.filter((x) => (!a.p_action || x.action === a.p_action) && (!a.p_actor || (x.actor || '').toLowerCase() === a.p_actor.toLowerCase()));
     case 'ann_overview': return { total: 2, published: 1, scheduled: 1, drafts: 0, recipients: 9740, reads: 4120, read_rate: 42.3, clicks: 610 };

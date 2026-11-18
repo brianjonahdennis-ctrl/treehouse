@@ -11,6 +11,7 @@ export function proxy(request: NextRequest) {
     "style-src-attr 'unsafe-inline'",
     `font-src https://fonts.gstatic.com${dev ? " 'self'" : ''}`,
     `img-src 'self' data: blob: https://img.treehouse.ng ${sb}`.trim(),
+    `media-src 'self' blob: ${sb}`.trim(),
     `connect-src 'self' ${sb} ${sb.replace('https://', 'wss://')}${dev ? ' ws:' : ''}`.trim(),
     "frame-src 'none'",
     "object-src 'none'",

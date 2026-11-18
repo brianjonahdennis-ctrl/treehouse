@@ -345,15 +345,36 @@ function RoomView({ target, restart }: { target: string; restart: () => void }) 
     toast(`${handle} is blocked`, 'ban');
   }
   async function react(m: any, emoji: string) {
+    const source = R.current.messages.get(m.id) || m;
+    const previous = { ...source, reactions: { ...(source.reactions || {}) }, my_reactions: [...(source.my_reactions || [])] };
+    const selected = new Set<string>(previous.my_reactions);
+    const counts = { ...previous.reactions };
+    if (selected.has(emoji)) {
+      selected.delete(emoji);
+      counts[emoji] = Math.max(0, Number(counts[emoji] || 0) - 1);
+      if (!counts[emoji]) delete counts[emoji];
+    } else {
+      selected.add(emoji);
+      counts[emoji] = Number(counts[emoji] || 0) + 1;
+    }
+    const optimistic = { ...previous, reactions: counts, my_reactions: [...selected] };
+    R.current.messages.set(m.id, optimistic);
+    setItems((list) => list.map((x) => (x.k === 'msg' && x.m.id === m.id ? { k: 'msg', m: optimistic } : x)));
     try {
       const res = await api.toggleRoomReaction(m.id, emoji);
-      if (!res) return;
+      if (!res) throw new Error('Reaction could not be saved. Try again.');
       const cur = R.current.messages.get(m.id) || m;
       cur.reactions = res.reactions || {};
       const set = new Set<string>(cur.my_reactions); if (res.mine) set.add(emoji); else set.delete(emoji);
       cur.my_reactions = [...set];
       setItems((list) => list.map((x) => (x.k === 'msg' && x.m.id === m.id ? { k: 'msg', m: { ...cur } } : x)));
-    } catch (e) { toast(api.friendly(e), 'x'); }
+    } catch (e) {
+      if (R.current.messages.get(m.id)?.reactions === counts) {
+        R.current.messages.set(m.id, previous);
+        setItems((list) => list.map((x) => (x.k === 'msg' && x.m.id === m.id ? { k: 'msg', m: previous } : x)));
+      }
+      toast(api.friendly(e), 'x');
+    }
   }
   function setReply(m: any) { setReplyTo(m); input.current?.focus(); }
   function jumpTo(id: string) {
@@ -410,43 +431,91 @@ function RoomView({ target, restart }: { target: string; restart: () => void }) 
       </>
     ), { label: 'Chatroom options' });
   }
-  function messageMenu(m: any, reportOnly = false) {
+  function reportMenu(m: any) {
     openSheet((close) => (
-      <>
-        <h2>{reportOnly ? `Report ${m.handle}` : m.handle}</h2>
-        <p className="muted">{`“${m.body.length > 140 ? `${m.body.slice(0, 140)}…` : m.body}”`}</p>
-        {reportOnly ? null : <div className="rx-quick">{EMOJI.map((e) => <button key={e} onClick={() => { close(); react(m, e); }}>{e}</button>)}</div>}
-        {reportOnly ? null : <button className="btn btn-primary btn-block" style={{ marginBottom: '10px' }} onClick={() => { close(); setReply(m); }}><Icon name="reply" cls="sm" />Reply</button>}
-        {m.mine && !reportOnly ? (
-          <button className="btn btn-soft btn-block danger-text" style={{ marginBottom: '10px' }} onClick={async () => {
+      <div className="msg-action-menu">
+        <div className="msg-action-head">
+          <div className="msg-action-heading">
+            <h2>Report message</h2>
+            <p className="msg-action-sender">From {m.handle}</p>
+            <p className="msg-action-preview">{`“${String(m.body || '').length > 140 ? `${String(m.body || '').slice(0, 140)}…` : String(m.body || '')}”`}</p>
+          </div>
+          <button className="msg-action-close" aria-label="Close report options" onClick={close}><Icon name="x" cls="sm" /></button>
+        </div>
+        <p className="msg-action-help">Choose the reason that fits best.</p>
+        <div className="msg-action-report-list">
+          {REPORT_REASONS.map(([value, label]) => (
+            <button key={value} className="msg-action-row" onClick={async () => {
+              close();
+              try { await api.reportRoomMessage(m.id, value); hideMsg(m.id); toast('Thanks. It’s hidden and we’ll review it.', 'flag'); }
+              catch (e) { toast(api.friendly(e), 'x'); }
+            }}>
+              <span className="msg-action-icon"><Icon name="flag" cls="sm" /></span>
+              <span className="msg-action-copy"><b>{label}</b></span>
+              <Icon name="chev" cls="sm" />
+            </button>
+          ))}
+        </div>
+        <p className="msg-action-support">Need urgent help? Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
+      </div>
+    ), { label: 'Report message' });
+  }
+
+  function messageMenu(m: any) {
+    const preview = String(m.body || '');
+    openSheet((close) => (
+      <div className="msg-action-menu">
+        <div className="msg-action-head">
+          <div className="msg-action-heading">
+            <h2>{m.handle}</h2>
+            <p className="msg-action-preview">{`“${preview.length > 140 ? `${preview.slice(0, 140)}…` : preview}”`}</p>
+          </div>
+          <button className="msg-action-close" aria-label="Close message actions" onClick={close}><Icon name="x" cls="sm" /></button>
+        </div>
+        <div className="msg-action-reactions" role="group" aria-label="React to this message">
+          {EMOJI.map((e) => <button key={e} className={`msg-action-reaction ${(m.my_reactions || []).includes(e) ? 'selected' : ''}`}
+            aria-label={`React with ${e}`} aria-pressed={(m.my_reactions || []).includes(e)} onClick={() => { close(); void react(m, e); }}>{e}</button>)}
+        </div>
+        <button className="msg-action-row msg-action-reply" onClick={() => { close(); setReply(m); }}>
+          <span className="msg-action-icon"><Icon name="reply" cls="sm" /></span>
+          <span className="msg-action-copy"><b>Reply</b></span>
+          <Icon name="chev" cls="sm" />
+        </button>
+        {m.mine ? (
+          <button className="msg-action-row danger" onClick={async () => {
             close();
             if (!(await confirmSheet({ title: 'Delete this message?', text: 'It’s removed from the chatroom for everyone.', yes: 'Delete', danger: true }))) return;
             try { await api.deleteRoomMessage(m.id); dropRow(m.id); toast('Message deleted', 'trash'); }
             catch (e) { toast(api.friendly(e), 'x'); }
-          }}><Icon name="trash" cls="sm" />Delete message</button>
-        ) : null}
-        {m.mine || reportOnly ? null : (
-          <div className="stack" style={{ gap: '8px', marginBottom: '12px' }}>
-            <button className="btn btn-soft btn-block" onClick={() => { close(); hideMsg(m.id); toast('Message hidden', 'eye'); }}>Hide this message</button>
-            <button className="btn btn-soft btn-block" onClick={async () => {
+          }}>
+            <span className="msg-action-icon"><Icon name="trash" cls="sm" /></span>
+            <span className="msg-action-copy"><b>Delete message</b><small>Remove it for everyone</small></span>
+            <Icon name="chev" cls="sm" />
+          </button>
+        ) : (
+          <div className="msg-action-secondary">
+            <button className="msg-action-row" onClick={() => { close(); hideMsg(m.id); toast('Message hidden', 'eye'); }}>
+              <span className="msg-action-icon"><Icon name="eyeoff" cls="sm" /></span>
+              <span className="msg-action-copy"><b>Hide message</b><small>Remove it from your view</small></span>
+              <Icon name="chev" cls="sm" />
+            </button>
+            <button className="msg-action-row" onClick={() => { close(); reportMenu(m); }}>
+              <span className="msg-action-icon"><Icon name="flag" cls="sm" /></span>
+              <span className="msg-action-copy"><b>Report message</b><small>Report inappropriate content</small></span>
+              <Icon name="chev" cls="sm" />
+            </button>
+            <button className="msg-action-row danger" onClick={async () => {
               close();
               if (!(await confirmSheet({ title: `Block ${m.handle}?`, text: 'You won’t see their messages in chatrooms, and they can’t message you. They won’t be told.', yes: 'Block', danger: true }))) return;
               await blockHandle(m.handle, m.id);
-            }}>{`Block ${m.handle}`}</button>
+            }}>
+              <span className="msg-action-icon"><Icon name="userx" cls="sm" /></span>
+              <span className="msg-action-copy"><b>{`Block ${m.handle}`}</b><small>They won’t be told</small></span>
+              <Icon name="chev" cls="sm" />
+            </button>
           </div>
         )}
-        {m.mine ? null : <p className="small muted">Report this if it’s abusive, sexual, spam, or from someone who seems under 18. It’s hidden for you straight away, and we review reports within 24 hours.</p>}
-        {m.mine ? null : (
-          <div className="stack" style={{ gap: '8px' }}>{REPORT_REASONS.map(([value, label]) => (
-            <button key={value} className="btn btn-soft btn-block" onClick={async () => {
-              close();
-              try { await api.reportRoomMessage(m.id, value); hideMsg(m.id); toast('Thanks. It’s hidden and we’ll review it.', 'flag'); }
-              catch (e) { toast(api.friendly(e), 'x'); }
-            }}>{label}</button>))}</div>
-        )}
-        {m.mine ? null : <p className="tiny muted center" style={{ marginTop: '10px' }}>Something urgent? Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></p>}
-        <div className="sheet-actions"><button className="btn btn-soft btn-block" onClick={close}>{m.mine ? 'Close' : 'Cancel'}</button></div>
-      </>
+      </div>
     ), { label: 'Message' });
   }
   async function profileCard(handle: string) {
@@ -491,7 +560,7 @@ function RoomView({ target, restart }: { target: string; restart: () => void }) 
               if (!(await confirmSheet({ title: `Block ${p.handle}?`, text: 'You won’t see their messages in chatrooms, and they can’t message you. They won’t be told.', yes: 'Block', danger: true }))) return;
               await blockHandle(p.handle, lastMsg && lastMsg.id);
             }}><Icon name="ban" /><span className="grow">Block user</span><span className="chev"><Icon name="chev" cls="sm" /></span></button>
-            <button className="settings-row danger" onClick={() => { close(); if (lastMsg) messageMenu(lastMsg, true); else toast('Nothing to report yet: they haven’t sent a message here.', 'flag'); }}>
+            <button className="settings-row danger" onClick={() => { close(); if (lastMsg) reportMenu(lastMsg); else toast('Nothing to report yet: they haven’t sent a message here.', 'flag'); }}>
               <Icon name="flag" /><span className="grow">Report user</span><span className="chev"><Icon name="chev" cls="sm" /></span></button>
           </div>
         )}
@@ -665,7 +734,7 @@ function RoomMessage({ m, quoteName, picker, onCard, onMenu, onReply, onJump, on
             <b>{gone ? 'Message' : quoteName(m.reply_handle)}</b><span>{gone ? 'This message is no longer available' : m.reply_body}</span>
           </button>
         ) : null}
-        <p className="rmsg-text" onClick={onMenu}>{m.body}</p>
+        <button type="button" className="rmsg-text" aria-haspopup="dialog" aria-label={`Open actions for ${m.mine ? 'your message' : `${m.handle}’s message`}: ${m.body}`} onClick={onMenu}>{m.body}</button>
         <div className="rx-row" hidden={!chips.length}>
           {chips.map((e) => <button key={e} className={`rx ${mine.has(e) ? 'on' : ''}`} onClick={() => onReact(e)}>{e}<span>{String(counts[e])}</span></button>)}
           <button className="rx add" aria-label="Add reaction" onClick={() => onPicker(!picker)}><Icon name="plus" cls="sm" /></button>

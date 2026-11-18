@@ -193,28 +193,66 @@ export function onInboxNudge(uid: string, cb: (n: any) => void, onReconnect?: ()
   return { leave() { sb.removeChannel(ch); } };
 }
 export const friendStatuses = async () => (await rpc('friend_statuses')) || [];
-// The chat list, sending only what changed (dating_summary_changes, migration 119): this phone keeps the
-// last list it got, with a short fingerprint per chat, and the database sends back only chats whose
-// fingerprint differs (plus ids to drop, and the likes list only when it changed). Same data as before.
-// Callers get fresh copies, so local edits (unread counts, previews) never touch this cache.
-type ListCache = { uid: string; rows: Map<string, any>; reqFp: string; requests: any[] };
+// The chat list uses a private server version so unchanged refreshes return before the database
+// rebuilds the list. Changed refreshes still use migration 119's per-chat fingerprints. The cache is
+// memory-only; callers get copies so local unread counts and previews never alter it.
+type ListCache = {
+  uid: string; rows: Map<string, any>; reqFp: string; requests: any[]; version: number | null;
+  lastFullAt: number; pending: number; myStatus: any; friendStatuses: any[]; origins: Record<string, string>;
+  friendAsks: any[] | undefined;
+};
 let listCache: ListCache | null = null;
 let changesMissing = false;
+let versionedChangesMissing = false;
 export function forgetChatList() { listCache = null; }
 async function datingSummaryChanges(uid: string): Promise<any> {
-  if (!listCache || listCache.uid !== uid) listCache = { uid, rows: new Map(), reqFp: '', requests: [] };
+  if (!listCache || listCache.uid !== uid) listCache = {
+    uid, rows: new Map(), reqFp: '', requests: [], version: null, lastFullAt: 0,
+    pending: 0, myStatus: null, friendStatuses: [], origins: {}, friendAsks: undefined,
+  };
   const c = listCache;
   const known: Record<string, string> = {};
   c.rows.forEach((r, id) => { known[id] = r._fp; });
-  const d = await rpc('dating_summary_changes', { p_known: known, p_req: c.reqFp });
+  const pVersion = c.version != null && Date.now() - c.lastFullAt < 180000 ? c.version : null;
+  let d: any;
+  if (!versionedChangesMissing) {
+    try {
+      d = await rpc('dating_summary_changes_v2', { p_known: known, p_req: c.reqFp, p_version: pVersion });
+    } catch (e) {
+      if (!missingFn(e)) throw e;
+      versionedChangesMissing = true;
+    }
+  }
+  // An older app deployment may reach the site before the migration is applied. Keep the existing
+  // RPC as a compatibility path until Hydra applies the migration.
+  if (versionedChangesMissing) d = await rpc('dating_summary_changes', { p_known: known, p_req: c.reqFp });
   if (listCache !== c) return datingSummaryChanges(uid);
+  if (d.unchanged) {
+    return {
+      convos: [...c.rows.values()].map(({ _fp, ...row }) => row).sort((x, y) => +new Date(y.last_at) - +new Date(x.last_at)),
+      requests: c.requests.map((r) => ({ ...r })), pending: c.pending, myStatus: c.myStatus,
+      friendStatuses: c.friendStatuses.map((r) => ({ ...r })), origins: { ...c.origins },
+      friendAsks: c.friendAsks?.map((r) => ({ ...r })),
+    };
+  }
   for (const id of d.removed || []) c.rows.delete(id);
   for (const r of d.changed || []) c.rows.set(r.conversation_id, r);
-  if (d.requests) { c.requests = d.requests; }
+  if (d.requests != null) c.requests = d.requests;
   c.reqFp = d.req_fp || '';
+  if (d.version != null) c.version = Number(d.version);
+  c.lastFullAt = Date.now();
+  c.pending = d.pending ?? c.pending;
+  c.myStatus = d.my_status ?? null;
+  c.friendStatuses = d.friend_statuses || [];
+  c.origins = d.origins || {};
+  if (d.friend_asks !== undefined) c.friendAsks = d.friend_asks || [];
   const convos = [...c.rows.values()].map((r) => { const { _fp, ...row } = r; void _fp; return row; })
     .sort((x, y) => +new Date(y.last_at) - +new Date(x.last_at));
-  return { convos, requests: c.requests.map((r) => ({ ...r })), pending: d.pending || 0, myStatus: d.my_status || null, friendStatuses: d.friend_statuses || [], origins: d.origins || {} };
+  return {
+    convos, requests: c.requests.map((r) => ({ ...r })), pending: c.pending, myStatus: c.myStatus,
+    friendStatuses: c.friendStatuses.map((r) => ({ ...r })), origins: { ...c.origins },
+    friendAsks: c.friendAsks?.map((r) => ({ ...r })),
+  };
 }
 export async function datingSummary(): Promise<any> {
   const uid = (await sb.auth.getSession()).data.session?.user?.id;
@@ -555,6 +593,181 @@ export const kickrsStatus = async (): Promise<{ ready: boolean; blocker: string 
 export const kickrsConnect = async () => ((await rpc('kickrs_connect')) || [])[0] || null;
 export const kickrsDisconnect = () => rpc('kickrs_disconnect');
 export const kickrsFriendRequest = (kickrsId: string) => rpc('kickrs_friend_request', { p_kickrs_id: kickrsId });
+
+// ---- Treehouse Treasure Hunt ----------------------------------------------------------------------
+export type TreasureHuntSummary = { id: string; title: string; region: string; description: string; starts_at: string; ends_at: string; checkpoint_count: number; participants: number; joined: boolean };
+export type TreasureHuntTarget = { kind: 'start' | 'checkpoint' | 'finish'; id: string; name: string; hint: string; latitude: number; longitude: number; radius_m: number; reward_coins: number };
+export type TreasureHuntRoutePoint = { latitude: number; longitude: number };
+export type TreasureHuntRoute = {
+  distance_m: number;
+  duration_seconds: number;
+  points: TreasureHuntRoutePoint[];
+  steps: { instruction: string; distance_m: number; distance_from_start_m: number }[];
+};
+export type TreasureHuntProgress = {
+  hunt: { id: string; title: string; region: string; description: string; starts_at: string; ends_at: string; completion_bonus_coins: number; coin_avatar?: string; treasure_avatar?: string; checkpoint_count: number };
+  participant: { joined_at: string; total_coins: number; completion_bonus_coins: number; completed_at: string | null };
+  found_count: number;
+  total_count: number;
+  current_target: TreasureHuntTarget | null;
+};
+export type TreasureHuntCursor = { coins: number; joined_at: string; board_key: string };
+export type TreasureHuntLeaderboard = {
+  visibility: 'self' | 'full';
+  player_count: number;
+  own_rank: number;
+  own_coins: number;
+  items: { rank: number; handle: string; coins: number; checkpoints: number; completed_at: string | null; cursor_key: string; cursor_coins: number; cursor_joined_at: string }[];
+  has_more: boolean;
+};
+type TreasureHuntClaimResult = { ok: true; idempotent: boolean; error?: string; coins_awarded?: number; total_coins?: number; checkpoint_sequence?: number; progress: TreasureHuntProgress }
+  | { ok: false; idempotent?: boolean; error?: string; coins_awarded?: number; total_coins?: number; checkpoint_sequence?: number };
+
+let treasureHuntCache: { at: number; hunts: TreasureHuntSummary[] } | null = null;
+const treasureHuntRequestId = () => {
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID();
+  // randomUUID is missing on older browsers and non-secure local phone previews.
+  const bytes = new Uint8Array(16);
+  if (typeof globalThis.crypto?.getRandomValues === 'function') globalThis.crypto.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+export const treasureHuntsActive = async (force = false): Promise<TreasureHuntSummary[]> => {
+  if (!force && treasureHuntCache && Date.now() - treasureHuntCache.at < 60000) return treasureHuntCache.hunts;
+  const hunts = (await rpc('treasure_hunts_active')) || [];
+  treasureHuntCache = { at: Date.now(), hunts };
+  return hunts;
+};
+// Sign-up (18 Nov 2026): every upcoming or running hunt, what this member may do, and (once registered)
+// how many people registered. Never names.
+export type TreasureHuntPrize = { place: number | null; title: string; media_type: 'image' | 'video'; media_url: string };
+export type TreasureHuntListing = { id: string; title: string; region: string; state: string | null; description: string; starts_at: string; ends_at: string;
+  coin_avatar?: string; treasure_avatar?: string; checkpoint_count: number; live: boolean; needs_registration: boolean; registered: boolean; joined: boolean;
+  register_block: string | null; registered_count: number | null; prizes: TreasureHuntPrize[]; max_registrations?: number; full?: boolean; winners_count?: number; winners_done?: boolean; chat?: boolean };
+export const treasureHuntsList = async (): Promise<TreasureHuntListing[]> => (await rpc('treasure_hunts_list')) || [];
+export const treasureHuntRegister = async (hunt: string): Promise<{ registered: boolean; registered_count: number }> => {
+  const r = await rpc('treasure_hunt_register', { p_hunt: hunt }); treasureHuntCache = null; return r;
+};
+export const treasureHuntUnregister = async (hunt: string): Promise<void> => { await rpc('treasure_hunt_unregister', { p_hunt: hunt }); treasureHuntCache = null; };
+export const treasureHuntJoin = async (hunt: string, location: { latitude: number; longitude: number; accuracy: number }): Promise<TreasureHuntProgress> => {
+  const data = await rpc('treasure_hunt_join_with_routes', { p_hunt: hunt, p_latitude: location.latitude, p_longitude: location.longitude, p_accuracy_m: location.accuracy });
+  treasureHuntCache = null;
+  return data;
+};
+export const treasureHuntProgress = (hunt: string): Promise<TreasureHuntProgress> => rpc('treasure_hunt_progress_with_routes', { p_hunt: hunt });
+function mockTreasureHuntRoute(origin: TreasureHuntRoutePoint, destination: TreasureHuntRoutePoint): TreasureHuntRoute {
+  const rad = Math.PI / 180;
+  const latitudeDelta = destination.latitude - origin.latitude;
+  const longitudeDelta = destination.longitude - origin.longitude;
+  const bend = Math.sign(longitudeDelta || 1) * Math.min(Math.abs(longitudeDelta) * 0.22, 0.00016);
+  const points = [origin,
+    { latitude: origin.latitude + latitudeDelta * 0.24, longitude: origin.longitude + longitudeDelta * 0.24 - bend },
+    { latitude: origin.latitude + latitudeDelta * 0.47, longitude: origin.longitude + longitudeDelta * 0.47 - bend },
+    { latitude: origin.latitude + latitudeDelta * 0.53, longitude: origin.longitude + longitudeDelta * 0.53 + bend },
+    { latitude: origin.latitude + latitudeDelta * 0.77, longitude: origin.longitude + longitudeDelta * 0.77 + bend }, destination];
+  let distance = 0;
+  let offset = 0;
+  const labels = ['Continue along the road', 'Turn right at the next street', 'Keep left at the fork', 'Continue toward the checkpoint', 'Arrive at your destination'];
+  const steps = points.slice(1).map((point, index) => {
+    const previous = points[index];
+    const dLat = (point.latitude - previous.latitude) * rad;
+    const dLon = (point.longitude - previous.longitude) * rad;
+    const meanLat = (point.latitude + previous.latitude) * Math.PI / 360;
+    const metres = 6_371_000 * Math.hypot(dLat, dLon * Math.cos(meanLat));
+    distance += metres;
+    const step = { instruction: labels[index] || labels[labels.length - 1], distance_m: Math.round(metres), distance_from_start_m: Math.round(offset) };
+    offset += metres;
+    return step;
+  });
+  return { distance_m: Math.round(distance), duration_seconds: Math.round(distance / 1.15), points, steps };
+}
+export async function treasureHuntNavigationRoute(hunt: string, origin: TreasureHuntRoutePoint, destination: TreasureHuntRoutePoint, travelMode: 'WALK' | 'DRIVE'): Promise<TreasureHuntRoute> {
+  // Mock mode stays local so previews do not need a session or send a target to the route API.
+  if (process.env.NEXT_PUBLIC_TH_MOCK === '1') return mockTreasureHuntRoute(origin, destination);
+  const { data } = await sb.auth.getSession();
+  const token = data.session?.access_token || '';
+  let response: Response;
+  try {
+    response = await fetch('/api/hunt-route', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      // The server accepts exactly { latitude, longitude }. The phone's position also carries GPS accuracy,
+      // which made every request fail with 400 until 19 Nov 2026, so send only the two numbers.
+      body: JSON.stringify({ hunt, origin: { latitude: origin.latitude, longitude: origin.longitude }, travelMode }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(15000),   // never wait forever on "getting road route…"
+    });
+  } catch { throw new Error('Road directions took too long. Tap Recenter to try again, or open Google Maps.'); }
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.message || 'Road directions are unavailable right now. Follow the direction arrow or open Google Maps.');
+  return result as TreasureHuntRoute;
+}
+export const treasureHuntClaimStart = async (hunt: string, point: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = treasureHuntRequestId()) => {
+  const result = await rpc('treasure_hunt_claim_start', { p_hunt: hunt, p_route_point: point, p_latitude: location.latitude,
+    p_longitude: location.longitude, p_accuracy_m: location.accuracy, p_request_id: requestId });
+  if (result && result.ok) treasureHuntCache = null;
+  return result as TreasureHuntClaimResult;
+};
+export const treasureHuntClaimCheckpoint = async (hunt: string, checkpoint: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = treasureHuntRequestId()) => {
+  const result = await rpc('treasure_hunt_claim_checkpoint', { p_hunt: hunt, p_checkpoint: checkpoint,
+    p_latitude: location.latitude, p_longitude: location.longitude, p_accuracy_m: location.accuracy, p_request_id: requestId });
+  if (result && result.ok) treasureHuntCache = null;
+  return result as TreasureHuntClaimResult;
+};
+export const treasureHuntFinish = async (hunt: string, location: { latitude: number; longitude: number; accuracy: number }, requestId = treasureHuntRequestId()) => {
+  const result = await rpc('treasure_hunt_finish', { p_hunt: hunt, p_latitude: location.latitude, p_longitude: location.longitude,
+    p_accuracy_m: location.accuracy, p_request_id: requestId });
+  return result as { ok: boolean; error?: string; idempotent?: boolean; coins_awarded?: number; total_coins?: number };
+};
+export const treasureHuntsAdmin = async () => (await rpc('staff_treasure_hunts_personal')) || [];
+export const treasureHuntAdminSave = (hunt: unknown, checkpoints: unknown, finishes: unknown) => rpc('staff_treasure_hunt_save_routes_personal', {
+  p_hunt: hunt, p_checkpoints: checkpoints, p_start_points: [], p_finish_points: finishes,
+});
+/** Latitude/longitude from any Google Maps link, including short maps.app.goo.gl links (read on our server). */
+export async function mapLinkCoords(link: string): Promise<{ latitude: number; longitude: number }> {
+  if (process.env.NEXT_PUBLIC_TH_MOCK === '1') { await new Promise((r) => setTimeout(r, 400)); return { latitude: 6.4281, longitude: 3.4219 }; }
+  const { data } = await sb.auth.getSession();
+  const res = await fetch('/api/maps-link', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session?.access_token || ''}` }, body: JSON.stringify({ url: link }) });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.message || 'Couldn’t read that link.');
+  return out;
+}
+// Live ranking, quitting and the hunt chatroom (18 Nov 2026).
+export type TreasureHuntBoardRow = { place: number; handle: string; checkpoints: number; started: boolean; finished: boolean; quit: boolean; winner: boolean; me: boolean };
+export type TreasureHuntLiveBoard = { hunt: { id: string; title: string; checkpoint_count: number; winners_count: number; winners_done: boolean; ended: boolean };
+  me: { place: number; checkpoints: number; started: boolean; finished: boolean; quit: boolean; winner: boolean } | null; items: TreasureHuntBoardRow[] };
+export const treasureHuntLiveBoard = (hunt: string): Promise<TreasureHuntLiveBoard> => rpc('treasure_hunt_live_board', { p_hunt: hunt });
+export const treasureHuntQuit = (hunt: string) => rpc('treasure_hunt_quit', { p_hunt: hunt });
+export type TreasureHuntChatMessage = { id: number; mine: boolean; from_staff: boolean; sender: string; private: boolean; to?: string | null; body: string; at: string };
+export type TreasureHuntChat = { title: string; rules: string; staff: boolean; ends_at: string; messages: TreasureHuntChatMessage[] };
+export const treasureHuntChat = (hunt: string, after = 0): Promise<TreasureHuntChat> => rpc('treasure_hunt_chat', { p_hunt: hunt, p_after: after });
+export const treasureHuntChatSend = (hunt: string, body: string, toHandle: string | null = null) => rpc('treasure_hunt_chat_send', { p_hunt: hunt, p_body: body, p_to_handle: toHandle });
+export const treasureHuntChatDelete = (id: number) => rpc('treasure_hunt_chat_delete', { p_id: id });
+export const treasureHuntAdminSavePrizes = (hunt: string, prizes: TreasureHuntPrize[]) => rpc('staff_treasure_hunt_prizes_save_personal', { p_hunt: hunt, p_prizes: prizes });
+export const HUNT_PRIZE_VIDEO_MAX = 20 * 1024 * 1024;
+/** Upload one prize picture (shrunk) or video (under 20 MB) to the hunt-prizes bucket. */
+export async function uploadHuntPrize(picked: File): Promise<{ url: string; type: 'image' | 'video' }> {
+  const video = /^video\/(mp4|webm|quicktime)$/.test(picked.type);
+  if (!video && !/^image\/(jpeg|png|webp)$/.test(picked.type)) throw new Error('Use a JPG, PNG or WebP picture, or an MP4, WebM or MOV video.');
+  if (video && picked.size > HUNT_PRIZE_VIDEO_MAX) throw new Error(`Videos must be under 20 MB (this one is ${(picked.size / 1048576).toFixed(1)} MB). Trim it or lower the quality.`);
+  const f = video ? picked : await shrinkImage(picked);
+  if (!video && f.size > 1_500_000) throw new Error('Pictures must be under 1.5 MB.');
+  if (process.env.NEXT_PUBLIC_TH_MOCK === '1') return { url: URL.createObjectURL(f), type: video ? 'video' : 'image' };
+  const ext = video ? ({ 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' } as Record<string, string>)[f.type] : f.type.split('/')[1].replace('jpeg', 'jpg');
+  const name = `prizes/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const up = await sb.storage.from('hunt-prizes').upload(name, f, { contentType: f.type, upsert: false, cacheControl: '31536000' });
+  if (up.error) throw up.error;
+  return { url: `${process.env.NEXT_PUBLIC_SUPABASE_URL || ''}/storage/v1/object/public/hunt-prizes/${name}`, type: video ? 'video' : 'image' };
+}
+export const treasureHuntLeaderboard = async (hunt: string, cursor?: TreasureHuntCursor): Promise<TreasureHuntLeaderboard> => {
+  // Visibility depends on the current hunt state, so don't retain names in a
+  // client cache after staff changes the schedule or marks the hunt complete.
+  return rpc('treasure_hunt_leaderboard', { p_hunt: hunt, p_limit: 25,
+    p_after_coins: cursor?.coins ?? null, p_after_joined_at: cursor?.joined_at ?? null, p_after_board_key: cursor?.board_key ?? null });
+};
 
 // ---- Speed Dating (three-minute video dates; rules live in the database) ----------------------------
 // Config and relay passwords come from the existing server (/api/*, passed through by next.config.ts).

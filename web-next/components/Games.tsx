@@ -8,6 +8,7 @@ import { state, useAppState, loadDating, statusOf, type Convo } from '@/lib/stat
 import { go, openChat } from '@/lib/nav';
 import { challengeText, clearConnect, connectKickrs, gameUrl, isInviteCode, joinUrl, kickrsGames, kickrsTicket, pendingConnect, type KickrsGame } from '@/lib/kickrs';
 import { Avatar, EmptyState, Hero, Icon, SkeletonList } from './ui';
+import { FeatureCard } from './FeatureCard';
 import { BellButton } from './Home';
 import { confirmSheet, openSheet, toast } from './overlay';
 
@@ -70,16 +71,7 @@ function useGames() {
 
 // ---- Home card ------------------------------------------------------------------------------------
 export function GamesCard() {
-  return (
-    <button className="hm-games" onClick={() => go('games')}>
-      <span className="hg-text">
-        <span className="hg-kicker"><Icon name="gamepad" cls="sm" />Games on treehouse</span>
-        <b>Play, compete, and meet new people.</b>
-        <span className="hg-go">Play Games<Icon name="chev" cls="sm" /></span>
-      </span>
-      <span className="hg-art" aria-hidden="true"><span>⚽</span><span>🎲</span></span>
-    </button>
-  );
+  return <FeatureCard kind="games" iconName="gamepad" title="Games" text="Play, compete and meet new people." actionText="Play games" onClick={() => go('games')} />;
 }
 
 // ---- Games tab ------------------------------------------------------------------------------------
@@ -97,6 +89,11 @@ export function GamesHub() {
           <span>Fun games, friendly competition and new connections on treehouse.</span>
         </span>
         <span className="gm-banner-art" aria-hidden="true"><Icon name="gamepad" /></span>
+      </button>
+      <button className="th-games-card" onClick={() => go('games/treasure-hunt')}>
+        <span className="th-games-art" aria-hidden="true">🧰</span>
+        <span className="th-games-copy"><b>Treasure Hunt</b><small>Explore real places. Follow clues. Collect coins.</small></span>
+        <span className="th-games-cta">Explore <Icon name="chev" cls="sm" /></span>
       </button>
       <div className="chips gm-filters" role="group" aria-label="Show">
         {FILTERS.map(([k, label]) => <button key={k} type="button" className="chip" aria-pressed={filter === k} onClick={() => setFilter(k)}>{label}</button>)}

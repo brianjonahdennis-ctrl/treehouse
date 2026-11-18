@@ -12,8 +12,22 @@ let sheets: Sheet[] = [];
 let toastNow: { id: number; text: string; icon: string } | null = null;
 let nextId = 1;
 let version = 0;
+let bodyScrollLocks = 0;
+let bodyOverflowBeforeSheets = '';
 const subs = new Set<() => void>();
 const bump = () => { version++; subs.forEach((f) => f()); };
+
+function lockBodyScroll() {
+  if (bodyScrollLocks === 0) {
+    bodyOverflowBeforeSheets = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+  }
+  bodyScrollLocks++;
+}
+function unlockBodyScroll() {
+  bodyScrollLocks = Math.max(0, bodyScrollLocks - 1);
+  if (bodyScrollLocks === 0) document.body.style.overflow = bodyOverflowBeforeSheets;
+}
 
 export function toast(text: string, icon = 'check') {
   const id = nextId++;
@@ -57,11 +71,23 @@ function SheetView({ s }: { s: Sheet }) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && sheets[sheets.length - 1]?.id === s.id) closeSheet(s.id); };
+    lockBodyScroll();
+    const onKey = (e: KeyboardEvent) => {
+      if (sheets[sheets.length - 1]?.id !== s.id) return;
+      if (e.key === 'Escape') { closeSheet(s.id); return; }
+      if (e.key !== 'Tab') return;
+      const focusable = [...(box.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])') || [])]
+        .filter((el) => el.getAttribute('aria-hidden') !== 'true' && el.offsetParent !== null);
+      if (!focusable.length) { e.preventDefault(); box.current?.focus(); return; }
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || !box.current?.contains(active))) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (active === last || !box.current?.contains(active))) { e.preventDefault(); first.focus(); }
+    };
     document.addEventListener('keydown', onKey);
     const first = box.current?.querySelector<HTMLElement>('input, textarea, button, select');
     const t = setTimeout(() => first?.focus({ preventScroll: true }), 50);
-    return () => { clearTimeout(t); document.removeEventListener('keydown', onKey); prev?.focus?.(); };
+    return () => { clearTimeout(t); document.removeEventListener('keydown', onKey); unlockBodyScroll(); prev?.focus?.(); };
   }, [s.id]);
   return (
     <div className="scrim" onClick={(e) => { if (e.target === e.currentTarget) closeSheet(s.id); }}>
