@@ -14,12 +14,12 @@ revoke all on dating_private.discover_queue_meta from public, anon, authenticate
 
 create table if not exists dating_private.discover_queue (
   user_id uuid not null references auth.users (id) on delete cascade,
-  source text not null check (source in ('liker', 'recent')),
+  bucket text not null check (bucket in ('liker', 'recent')),
   position integer not null,
   candidate_id uuid not null references public.dating_profiles (user_id) on delete cascade,
   built_at timestamptz not null default now(),
-  primary key (user_id, source, candidate_id),
-  unique (user_id, source, position)
+  primary key (user_id, bucket, candidate_id),
+  unique (user_id, bucket, position)
 );
 alter table dating_private.discover_queue enable row level security;
 revoke all on dating_private.discover_queue from public, anon, authenticated;
@@ -55,7 +55,7 @@ begin
   if pref is null then raise exception 'Create your dating profile first.' using errcode = '28000'; end if;
 
   delete from dating_private.discover_queue where user_id = p_user;
-  insert into dating_private.discover_queue (user_id, source, position, candidate_id, built_at)
+  insert into dating_private.discover_queue (user_id, bucket, position, candidate_id, built_at)
   with me as (
     select p.user_id, p.gender, p.interested_in, p.min_age, p.max_age, p.pref_state
     from public.dating_profiles p where p.user_id = p_user
@@ -139,7 +139,7 @@ language sql stable security definer set search_path = public, dating_private as
     from public.dating_profiles p where p.user_id = p_user and p_user = auth.uid()
   ),
   eligible_queue as (
-    select q.source, q.position, p.user_id, p.handle, p.gender, p.age,
+    select q.bucket, q.position, p.user_id, p.handle, p.gender, p.age,
            coalesce(nullif(p.location, ''), p.state, '') as location, p.intent, p.bio, p.interests,
            p.last_seen_at, p.created_at
     from dating_private.discover_queue q
@@ -151,9 +151,9 @@ language sql stable security definer set search_path = public, dating_private as
       and p.gender = any (me.interested_in) and me.gender = any (p.interested_in)
       and p.age between me.min_age and me.max_age
       and (me.pref_state is null or p.state = me.pref_state)
-      and ((q.source = 'liker' and p.last_seen_at > now() - interval '60 days'
+      and ((q.bucket = 'liker' and p.last_seen_at > now() - interval '60 days'
             and exists (select 1 from public.dating_likes l where l.from_user = p.user_id and l.to_user = me.user_id and l.liked))
-        or (q.source = 'recent' and p.last_seen_at > now() - interval '30 days'))
+        or (q.bucket = 'recent' and p.last_seen_at > now() - interval '30 days'))
       and not exists (select 1 from public.dating_likes l where l.from_user = me.user_id and l.to_user = p.user_id)
       and not exists (select 1 from public.dating_conversations c where c.user_a = least(me.user_id, p.user_id) and c.user_b = greatest(me.user_id, p.user_id))
       and not exists (select 1 from public.dating_blocks b where b.blocker_id = me.user_id and b.blocked_id = p.user_id)
@@ -176,14 +176,14 @@ language sql stable security definer set search_path = public, dating_private as
       and not exists (select 1 from public.dating_conversations c where c.user_a = least(me.user_id, p.user_id) and c.user_b = greatest(me.user_id, p.user_id))
       and not exists (select 1 from public.dating_blocks b where b.blocker_id = me.user_id and b.blocked_id = p.user_id)
       and not exists (select 1 from public.dating_blocks b where b.blocker_id = p.user_id and b.blocked_id = me.user_id)
-      and not exists (select 1 from dating_private.discover_queue q where q.user_id = p_user and q.source = 'liker' and q.candidate_id = p.user_id)
+      and not exists (select 1 from dating_private.discover_queue q where q.user_id = p_user and q.bucket = 'liker' and q.candidate_id = p.user_id)
     order by p.last_seen_at desc nulls last
     limit 100
   ),
   liker_pool as (
     select q.position, q.user_id, q.handle, q.gender, q.age, q.location, q.intent, q.bio, q.interests,
            q.last_seen_at, q.created_at
-    from eligible_queue q where q.source = 'liker'
+    from eligible_queue q where q.bucket = 'liker'
     union all
     select null::integer, n.user_id, n.handle, n.gender, n.age, n.location, n.intent, n.bio, n.interests,
            n.last_seen_at, n.created_at
@@ -198,7 +198,7 @@ language sql stable security definer set search_path = public, dating_private as
   ),
   ranked_recent as (
     select r.*, row_number() over (order by r.last_seen_at desc nulls last)::integer as live_position
-    from eligible_queue r where r.source = 'recent'
+    from eligible_queue r where r.bucket = 'recent'
   ),
   top_recent as (
     select * from ranked_recent r
