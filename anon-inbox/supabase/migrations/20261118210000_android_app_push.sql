@@ -9,7 +9,7 @@ set lock_timeout = '5s';
 
 alter table public.push_subscriptions drop constraint if exists push_subscriptions_endpoint_check;
 alter table public.push_subscriptions add constraint push_subscriptions_endpoint_check
-  check ((endpoint ~ '^https://' or endpoint ~ '^fcm:[A-Za-z0-9_:-]{20,600}$') and char_length(endpoint) <= 1000);
+  check ((endpoint ~ '^https://' or (endpoint ~ '^fcm:[A-Za-z0-9_:-]+$' and char_length(endpoint) >= 24)) and char_length(endpoint) <= 1000);
 alter table public.push_subscriptions alter column p256dh drop not null, alter column auth drop not null;
 -- Web push devices still need both keys; app devices have none.
 alter table public.push_subscriptions add constraint push_subscriptions_keys_check
@@ -22,7 +22,7 @@ declare
   ep text := 'fcm:' || coalesce(p_token, '');
 begin
   if auth.uid() is null then raise exception 'Sign in first.' using errcode = '28000'; end if;
-  if ep !~ '^fcm:[A-Za-z0-9_:-]{20,600}$' then raise exception 'That device code isn’t valid.' using errcode = '22023'; end if;
+  if ep !~ '^fcm:[A-Za-z0-9_:-]+$' or char_length(p_token) not between 20 and 600 then raise exception 'That device code isn’t valid.' using errcode = '22023'; end if;
   insert into push_subscriptions (endpoint, user_id, p256dh, auth) values (ep, auth.uid(), null, null)
   on conflict (endpoint) do update set user_id = excluded.user_id, p256dh = null, auth = null, created_at = now();
   -- Same limit as web push: the 10 newest devices per account.

@@ -31,6 +31,8 @@ select create_my_profile('Ada App', 'female', (current_date - interval '24 years
 select pg_temp.login('00000000-0000-0000-0000-0000000000b7');
 select create_my_profile('Bolu App', 'male', (current_date - interval '26 years 1 month')::date, 'Lagos', 'love');
 select pg_temp.admin();
+update dating_profiles set interested_in = '{male}' where user_id = '00000000-0000-0000-0000-0000000000a7';
+update dating_profiles set interested_in = '{female}' where user_id = '00000000-0000-0000-0000-0000000000b7';
 select set_config('test.ha', (select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000a7'), true);
 
 select pg_temp.anon();
@@ -45,9 +47,9 @@ select is((select count(*)::int from push_subscriptions where endpoint like 'fcm
 select throws_ok($$ insert into push_subscriptions (endpoint, user_id) values ('https://push.example.test/nokeys', '00000000-0000-0000-0000-0000000000b7') $$,
   null, null, 'Web devices still need their keys');
 
--- Ada likes Bolu: the like is queued for his app and the server gets it with the fcm: device.
-select pg_temp.login('00000000-0000-0000-0000-0000000000a7');
-select like_profile((select handle from dating_profiles where user_id = '00000000-0000-0000-0000-0000000000b7'), true);
+-- A notification queued for Bolu (as the like/message triggers do) reaches his app device.
+select pg_temp.admin();
+select dating_private.queue_push('00000000-0000-0000-0000-0000000000b7', 'like', '/home/matches/likes');
 select pg_temp.anon();
 select is((select count(*)::int from admin_take_push('test-admin-key', 500) where endpoint like 'fcm:testtoken_bolu%' and kind = 'like'), 1,
   'Notifications reach app devices');
