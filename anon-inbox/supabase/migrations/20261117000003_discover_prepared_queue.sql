@@ -55,7 +55,6 @@ begin
   if pref is null then raise exception 'Create your dating profile first.' using errcode = '28000'; end if;
 
   delete from dating_private.discover_queue where user_id = p_user;
-  insert into dating_private.discover_queue (user_id, bucket, position, candidate_id, built_at)
   with me as (
     select p.user_id, p.gender, p.interested_in, p.min_age, p.max_age, p.pref_state
     from public.dating_profiles p where p.user_id = p_user
@@ -109,6 +108,7 @@ begin
     union all
     select 'recent'::text as source, r.position, r.user_id from recent_ranked r
   )
+  insert into dating_private.discover_queue (user_id, bucket, position, candidate_id, built_at)
   select p_user, s.source, s.position, s.user_id, built from selected s;
   get diagnostics prepared = row_count;
 
