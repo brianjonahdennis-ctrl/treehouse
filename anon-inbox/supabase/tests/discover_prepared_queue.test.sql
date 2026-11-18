@@ -8,16 +8,16 @@ select plan(16);
 create function pg_temp.seed_discover_profile(
   p_id uuid, p_handle text, p_gender public.dating_gender, p_age integer,
   p_last_seen timestamptz, p_interested_in public.dating_gender[], p_state text default 'Lagos',
-  p_birth_date date default null
+  p_birth_date date default null, p_pref_state text default null
 ) returns void language plpgsql as $$
 begin
   insert into auth.users (id, email, aud, role, email_confirmed_at, created_at, updated_at)
   values (p_id, p_handle || '@discover-queue.test.invalid', 'authenticated', 'authenticated', now(), now(), now());
   insert into public.dating_profiles
-    (user_id, name, gender, age, birth_date, location, intent, handle, state, interested_in,
+    (user_id, name, gender, age, birth_date, location, intent, handle, state, pref_state, interested_in,
      min_age, max_age, last_seen_at)
   values
-    (p_id, p_handle, p_gender, p_age, p_birth_date, p_state, 'love', p_handle, p_state,
+    (p_id, p_handle, p_gender, p_age, p_birth_date, p_state, 'love', p_handle, p_state, p_pref_state,
      p_interested_in, 18, 60, p_last_seen);
 end $$;
 
@@ -34,7 +34,7 @@ begin
 end $$;
 
 select pg_temp.seed_discover_profile('00000000-0000-0000-0000-00000000d101', 'dq_member', 'female', 30,
-  now(), array['male']::public.dating_gender[], 'Lagos', (current_date - interval '30 years 1 month')::date);
+  now(), array['male']::public.dating_gender[], 'Lagos', (current_date - interval '30 years 1 month')::date, 'Lagos');
 select pg_temp.seed_discover_profile('00000000-0000-0000-0000-00000000d102', 'dq_recent_1', 'male', 28,
   now() - interval '1 minute', array['female']::public.dating_gender[], 'Lagos', (current_date - interval '28 years 1 month')::date);
 select pg_temp.seed_discover_profile('00000000-0000-0000-0000-00000000d103', 'dq_recent_2', 'male', 32,
@@ -52,7 +52,7 @@ select pg_temp.seed_discover_profile('00000000-0000-0000-0000-00000000d108', 'dq
 select pg_temp.seed_discover_profile('00000000-0000-0000-0000-00000000d109', 'dq_underage', 'male', 24,
   now() - interval '7 minutes', array['female']::public.dating_gender[], 'Lagos', (current_date - interval '24 years 1 month')::date);
 select pg_temp.seed_discover_profile('00000000-0000-0000-0000-00000000d110', 'dq_wrong_state', 'male', 27,
-  now() - interval '8 minutes', array['female']::public.dating_gender[], 'Abuja', (current_date - interval '27 years 1 month')::date);
+  now() - interval '8 minutes', array['female']::public.dating_gender[], 'FCT', (current_date - interval '27 years 1 month')::date);
 select pg_temp.seed_discover_profile('00000000-0000-0000-0000-00000000d111', 'dq_new_liker', 'male', 33,
   now() - interval '50 days', array['female']::public.dating_gender[], 'Lagos', (current_date - interval '33 years 1 month')::date);
 select pg_temp.seed_discover_profile('00000000-0000-0000-0000-00000000d112', 'dq_no_dob', 'male', 30,
@@ -131,11 +131,11 @@ select ok((select count(*) > 0 from dating_private.discover_queue where user_id 
   'An empty queue refills when Discover is opened');
 
 select set_config('test.old_pref', (select preference_fingerprint from dating_private.discover_queue_meta where user_id = auth.uid()), true);
-update public.dating_profiles set pref_state = 'Abuja' where user_id = auth.uid();
+update public.dating_profiles set pref_state = 'FCT' where user_id = auth.uid();
 select * from public.discover_cards(10, '{}'::text[]);
 select ok((select preference_fingerprint <> current_setting('test.old_pref')
   from dating_private.discover_queue_meta where user_id = auth.uid()), 'Changing preferences rebuilds the queue');
-select is((select count(*)::integer from public.discover_cards(10, '{}'::text[])), 0,
+select is(array(select handle from public.discover_cards(10, '{}'::text[])), array['dq_wrong_state']::text[],
   'The rebuilt queue uses the new state preference');
 
 select pg_temp.login('00000000-0000-0000-0000-00000000d112');
