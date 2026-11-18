@@ -237,7 +237,6 @@ declare
   saved_count integer;
   queued_count integer;
   remaining integer;
-  available integer;
 begin
   if me is null then raise exception 'Sign in first.' using errcode = '28000'; end if;
   perform dating_private.require_dob();
@@ -256,16 +255,14 @@ begin
 
   select count(*)::integer into queued_count
   from dating_private.discover_queue q where q.user_id = me;
-  select count(*)::integer into remaining
+  select count(distinct q.candidate_id)::integer into remaining
   from dating_private.discover_queue q
   join public.dating_profiles p on p.user_id = q.candidate_id
   where q.user_id = me and p.handle <> all (exclusions);
-  select count(*)::integer into available
-  from dating_private.discover_queue_page(me, exclusions, built, lim);
   -- Refill immediately when the seen list changed, or retry a persistently thin pool at most every
   -- two minutes. This avoids rebuilding the same small result set on every request.
   if (queued_count = 0 and (saved_count > 0 or built < now() - interval '2 minutes'))
-     or ((remaining < 40 or available < lim)
+     or (remaining < 40
          and (saved_exclusion_fp is distinct from exclusion_fp or built < now() - interval '2 minutes')) then
     perform dating_private.discover_refill(me, exclusions);
     select m.built_at, m.exclusion_fingerprint, m.candidate_count into built, saved_exclusion_fp, saved_count
