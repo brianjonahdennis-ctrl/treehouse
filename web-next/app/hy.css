@@ -401,20 +401,26 @@ img { max-width: 100%; display: block; }
 .hm-feature.games { --feature-accent: #7c3aed; --feature-icon: #7c3aed; }
 .hm-feature.treehouse { --feature-accent: #047857; --feature-icon: #059669; }
 .hm-feature.weekly { --feature-accent: #b45309; --feature-icon: #d97706; }
+.hm-feature.business { --feature-accent: #0f766e; --feature-icon: #0d9488; box-shadow: none; background: linear-gradient(145deg, color-mix(in srgb, var(--feature-accent) 5%, var(--surface)), var(--surface) 78%); }
 .hm-feature.events { --feature-accent: #4f46e5; --feature-icon: #6366f1; box-shadow: none; background: linear-gradient(145deg, color-mix(in srgb, var(--feature-accent) 5%, var(--surface)), var(--surface) 78%); }
 :root[data-theme="dark"] .hm-feature.games { --feature-accent: #c4b5fd; }
 :root[data-theme="dark"] .hm-feature.treehouse { --feature-accent: #6ee7b7; }
 :root[data-theme="dark"] .hm-feature.weekly { --feature-accent: #fcd34d; }
 :root[data-theme="dark"] .hm-feature.events { --feature-accent: #a5b4fc; }
+:root[data-theme="dark"] .hm-feature.business { --feature-accent: #5eead4; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .hm-feature.games { --feature-accent: #c4b5fd; }
   :root:not([data-theme="light"]) .hm-feature.treehouse { --feature-accent: #6ee7b7; }
   :root:not([data-theme="light"]) .hm-feature.weekly { --feature-accent: #fcd34d; }
   :root:not([data-theme="light"]) .hm-feature.events { --feature-accent: #a5b4fc; }
+  :root:not([data-theme="light"]) .hm-feature.business { --feature-accent: #5eead4; }
 }
 .hm-feature:hover { transform: translateY(-2px); }
 .hm-feature:active { transform: scale(.98); }
-.hm-feature.events:hover, .hm-feature.events:active { transform: none; }
+.hm-feature.events:hover, .hm-feature.events:active, .hm-feature.business:hover, .hm-feature.business:active { transform: none; }
+.hf-extra { display: block; margin-top: 3px; color: var(--feature-accent); font-weight: 700; }
+.mt-hub-tabs { position: relative; z-index: 1; margin-top: 14px; }
+.mt-hero:has(.mt-hub-tabs) .mt-hero-art { bottom: 74px; font-size: 64px; }
 .hm-feature:focus-visible { outline: 3px solid color-mix(in srgb, var(--feature-accent) 60%, transparent); outline-offset: 2px; }
 .hm-feature::after { content: ""; position: absolute; right: -40px; bottom: -40px; width: 130px; height: 130px; border-radius: 50%; opacity: .14; pointer-events: none; }
 .hm-feature::after { background: var(--feature-accent); }
@@ -1785,6 +1791,24 @@ html, body { max-width: 100%; overflow-x: clip; }
 .th-hunt-card p { margin: 0; font-size: 14px; line-height: 1.45; }
 .th-facts { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted); }
 .th-hunt-card .th-end { font-size: 12px; color: var(--muted); }
+/* Treasure Hunt sign-up (18 Nov 2026) */
+.th-soon-pill { display: inline-flex; align-items: center; padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 11px; font-weight: 800; }
+.th-state-pill { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--blue-2, #2563eb) 14%, transparent); color: var(--text); font-size: 11px; font-weight: 800; vertical-align: 1px; }
+.th-prizes { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x mandatory; }
+.th-prize { flex: 0 0 min(220px, 72%); margin: 0; scroll-snap-align: start; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.th-prize img, .th-prize video { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; background: color-mix(in srgb, var(--muted) 12%, transparent); }
+.th-prize figcaption { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 10px; font-size: 12px; line-height: 1.3; }
+.th-registered { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, #22c55e 12%, transparent); color: var(--text); font-size: 13px; line-height: 1.4; }
+.th-registered .icon { flex: none; color: #16a34a; margin-top: 1px; }
+.th-hunt-card .th-countdown-label { margin: 2px 0 -4px; font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; text-align: center; }
+.th-countdown { display: flex; justify-content: center; gap: 8px; }
+.th-countdown span { display: grid; justify-items: center; min-width: 58px; padding: 8px 6px; border-radius: 12px; background: color-mix(in srgb, var(--coral, #f43f5e) 10%, var(--surface)); border: 1px solid var(--line); }
+.th-countdown b { font: 800 22px/1.1 var(--font-display, var(--font)); font-variant-numeric: tabular-nums; }
+.th-countdown small { font-size: 10.5px; color: var(--muted); font-weight: 700; }
+.th-blocked { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, #f59e0b 13%, transparent); font-size: 13px; }
+.th-blocked .icon { flex: none; margin-top: 1px; }
+.th-unregister { justify-self: center; font-size: 13px; }
+
 .th-safety { margin: 0; text-align: center; line-height: 1.5; }
 .th-map-card { position: relative; overflow: hidden; display: grid; gap: 10px; padding: 18px; border: 1px solid rgba(160,124,255,.3); border-radius: var(--r-lg); color: #fff; background: radial-gradient(120% 100% at 80% 10%, #252a66 0%, #10173d 55%, #0a102b 100%); box-shadow: 0 14px 30px -24px #6c4fe7; }
 .th-map-card.complete { background: radial-gradient(110% 95% at 50% 10%, #563094 0%, #211441 55%, #0a102b 100%); text-align: center; }

@@ -241,6 +241,27 @@ const mockHuntStateKey = (player) => `mock-hunt-state-${player}`;
 const mockHuntState = (player) => JSON.parse(sessionStorage.getItem(mockHuntStateKey(player)) || '{"found":0,"total_coins":0,"done":false,"claims":[],"route":null}');
 const mockHuntSave = (player, state) => sessionStorage.setItem(mockHuntStateKey(player), JSON.stringify(state));
 const mockHuntOrder = (player) => player === 2 ? [0, 2, 3, 1, 4] : [0, 1, 2, 3, 4];
+// Sign-up preview: the mock member is in Lagos. One Lagos hunt is live, one starts tomorrow
+// (register → countdown), and a Port Harcourt hunt shows why a Lagos member can't register.
+function mockHuntListings() {
+  const reg = (id) => sessionStorage.getItem(`mock-hunt-reg-${id}`) === '1';
+  const base = { description: 'Follow the clues and collect a Treehouse Coin at every stop.', coin_avatar: '🪙', treasure_avatar: '🧰', needs_registration: true };
+  const prizes = [{ place: 1, title: 'Grand prize: a new phone', media_type: 'image', media_url: '/icon-512.png' }, { place: null, title: 'treehouse goodies for every finisher', media_type: 'image', media_url: '/icon-192.png' }];
+  const rows = [
+    { ...base, id: mockHuntId, title: 'Treasure Hunt', region: 'Lagos · preview', state: 'Lagos', starts_at: new Date(Date.now() - 3600000).toISOString(),
+      ends_at: new Date(Date.now() + 86400000).toISOString(), checkpoint_count: mockHuntCheckpoints.length, live: true, prizes,
+      joined: sessionStorage.getItem(`mock-hunt-joined-${mockHuntPlayer()}`) === '1', count: 27 },
+    { ...base, id: 'd0000000-0000-4000-8000-000000000002', title: 'Lagos Island Night Hunt', region: 'Lagos Island, Lagos', state: 'Lagos',
+      starts_at: new Date(Date.now() + 26 * 3600e3 + 125e3).toISOString(), ends_at: new Date(Date.now() + 30 * 3600e3).toISOString(), checkpoint_count: 6, live: false, prizes: prizes.slice(0, 1), joined: false, count: 142 },
+    { ...base, id: 'd0000000-0000-4000-8000-000000000003', title: 'Garden City Hunt', region: 'Port Harcourt, Rivers', state: 'Rivers',
+      starts_at: new Date(Date.now() + 3 * 86400e3).toISOString(), ends_at: new Date(Date.now() + 3 * 86400e3 + 6 * 3600e3).toISOString(), checkpoint_count: 5, live: false, prizes: [], joined: false, count: 60 },
+  ];
+  return rows.map(({ count, ...h }) => {
+    const mine = reg(h.id) || (h.id === mockHuntId && h.joined);
+    const block = mine ? null : h.state !== profile.state ? `This hunt is only for members in ${h.state}. Your profile says ${profile.state}.` : null;
+    return { ...h, registered: mine, register_block: block, registered_count: mine ? count + 1 : null };
+  });
+}
 function mockHuntProgress() {
   const player = mockHuntPlayer(); const state = mockHuntState(player); const order = state.route || mockHuntOrder(player);
   const found = state.found || 0;
@@ -383,6 +404,10 @@ const RPC = {
       description: 'Follow the clues and collect a Treehouse Coin at every stop.', starts_at: new Date(Date.now() - 3600000).toISOString(),
       ends_at: new Date(Date.now() + 86400000).toISOString(), checkpoint_count: mockHuntCheckpoints.length, participants: 27,
       joined: sessionStorage.getItem(`mock-hunt-joined-${mockHuntPlayer()}`) === '1' }],
+    treasure_hunts_list: () => empty ? [] : mockHuntListings(),
+    treasure_hunt_register: ({ p_hunt }) => { const h = mockHuntListings().find((x) => x.id === p_hunt); if (!h) throw new Error('This hunt could not be found.');
+      if (h.register_block) throw new Error(h.register_block); sessionStorage.setItem(`mock-hunt-reg-${p_hunt}`, '1'); return { registered: true, registered_count: mockHuntListings().find((x) => x.id === p_hunt).registered_count }; },
+    treasure_hunt_unregister: ({ p_hunt }) => { if (p_hunt === mockHuntId && sessionStorage.getItem(`mock-hunt-joined-${mockHuntPlayer()}`) === '1') throw new Error('You have already started this hunt.'); sessionStorage.removeItem(`mock-hunt-reg-${p_hunt}`); return null; },
     treasure_hunt_join: () => { sessionStorage.setItem(`mock-hunt-joined-${mockHuntPlayer()}`, '1'); return mockHuntProgress(); },
     treasure_hunt_join_with_routes: () => { sessionStorage.setItem(`mock-hunt-joined-${mockHuntPlayer()}`, '1'); return mockHuntProgress(); },
     treasure_hunt_progress: () => { if (sessionStorage.getItem(`mock-hunt-joined-${mockHuntPlayer()}`) !== '1') throw new Error('Join this hunt first.'); return mockHuntProgress(); },

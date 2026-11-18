@@ -639,6 +639,17 @@ export const treasureHuntsActive = async (force = false): Promise<TreasureHuntSu
   treasureHuntCache = { at: Date.now(), hunts };
   return hunts;
 };
+// Sign-up (18 Nov 2026): every upcoming or running hunt, what this member may do, and (once registered)
+// how many people registered. Never names.
+export type TreasureHuntPrize = { place: number | null; title: string; media_type: 'image' | 'video'; media_url: string };
+export type TreasureHuntListing = { id: string; title: string; region: string; state: string | null; description: string; starts_at: string; ends_at: string;
+  coin_avatar?: string; treasure_avatar?: string; checkpoint_count: number; live: boolean; needs_registration: boolean; registered: boolean; joined: boolean;
+  register_block: string | null; registered_count: number | null; prizes: TreasureHuntPrize[] };
+export const treasureHuntsList = async (): Promise<TreasureHuntListing[]> => (await rpc('treasure_hunts_list')) || [];
+export const treasureHuntRegister = async (hunt: string): Promise<{ registered: boolean; registered_count: number }> => {
+  const r = await rpc('treasure_hunt_register', { p_hunt: hunt }); treasureHuntCache = null; return r;
+};
+export const treasureHuntUnregister = async (hunt: string): Promise<void> => { await rpc('treasure_hunt_unregister', { p_hunt: hunt }); treasureHuntCache = null; };
 export const treasureHuntJoin = async (hunt: string, location: { latitude: number; longitude: number; accuracy: number }): Promise<TreasureHuntProgress> => {
   const data = await rpc('treasure_hunt_join_with_routes', { p_hunt: hunt, p_latitude: location.latitude, p_longitude: location.longitude, p_accuracy_m: location.accuracy });
   treasureHuntCache = null;

@@ -594,3 +594,20 @@ input.num { width: 110px; margin-right: 8px; }
   .set-row { flex-wrap: wrap; }
   .who { padding: 0; }
 }
+
+/* Treasure Hunt live view, results and prizes (18 Nov 2026) */
+.err { color: var(--red); font-weight: 600; font-size: 13.5px; }
+.inline-row { display: flex; align-items: center; gap: 10px; }
+.hunt-board-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.hunt-board-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hunt-progress { width: 100%; max-width: 120px; height: 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; margin-bottom: 4px; }
+.hunt-progress i { display: block; height: 100%; background: var(--green, #16a34a); border-radius: 999px; }
+.hunt-place { font-size: 18px; }
+.th-admin-prize { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 14px; align-items: start; }
+.th-admin-prize img, .th-admin-prize video { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+@media (max-width: 640px) {
+  .th-admin-prize { grid-template-columns: minmax(0, 1fr); }
+  .hunt-board-actions { width: 100%; }
+}
+@media (max-width: 640px) { .kpis.hunt-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+.hunt-tbl td { overflow-wrap: anywhere; }

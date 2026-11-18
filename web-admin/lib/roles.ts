@@ -37,6 +37,8 @@ export const SECTIONS: Section[] = [
   { id: 'ads', label: 'Ads', icon: 'ad', need: 'view', group: 'grow' },
   { id: 'referrals', label: 'Referrals', icon: 'gift', need: 'view', group: 'grow' },
   { id: 'treasure-hunts', label: 'Treasure Hunts', icon: 'gift', need: 'manage', group: 'grow' },
+  { id: 'hunt-live', label: 'Hunt live', icon: 'pulse', need: 'manage', group: 'grow' },
+  { id: 'hunt-results', label: 'Hunt results', icon: 'flag', need: 'manage', group: 'grow' },
   { id: 'settings', label: 'Settings', icon: 'gear', need: 'view', group: 'admin' },
   { id: 'staff', label: 'Staff', icon: 'shield', need: 'view', group: 'admin' },
   { id: 'audit', label: 'Audit log', icon: 'list', need: 'manage', group: 'admin' },

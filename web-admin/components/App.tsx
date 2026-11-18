@@ -14,6 +14,7 @@ import { AdsList, AdEdit } from './Ads';
 import Referrals from './Referrals';
 import Calls from './Calls';
 import TreasureHunts from './TreasureHunts';
+import HuntBoard from './HuntBoard';
 import { SettingsPage, StaffPage, AuditPage } from './Admin';
 
 function Route() {
@@ -34,6 +35,8 @@ function Route() {
     case 'referrals': return <Referrals />;
     case 'calls': return <Calls />;
     case 'treasure-hunts': return <TreasureHunts />;
+    case 'hunt-live': return <HuntBoard key="live" mode="live" />;
+    case 'hunt-results': return <HuntBoard key="results" mode="results" />;
     case 'settings': return <SettingsPage />;
     case 'staff': return <StaffPage />;
     case 'audit': return <AuditPage />;
