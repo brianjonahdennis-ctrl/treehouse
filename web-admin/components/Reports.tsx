@@ -1,11 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { rpc } from '@/lib/sb';
 import { ago, date, words } from '@/lib/fmt';
 import { ChatView, type ChatMsg, type Unsent } from './ChatView';
 import { useGo } from './Shell';
-import { Ask, Avatar, Btn, Card, Empty, ErrorBox, PageHead, Pill, Spinner, Tabs, toast, useAsync } from './ui';
+import { Ask, Avatar, Btn, Card, Empty, ErrorBox, PageHead, Pill, Spinner, Tabs, toast, useAsync, useNarrow, useScrollLock } from './ui';
 import { Icon } from './Icon';
 
 type Kind = 'chat' | 'room' | 'link';
@@ -26,26 +26,57 @@ export default function Reports() {
   const counts = useAsync(() => rpc<{ chat: number; room: number; link: number }>('staff_report_counts'), []);
   const list = useAsync(() => rpc<Any[]>('staff_reports', { p_kind: kind, p_status: status, p_limit: 100 }), [kind, status]);
 
+  const autoOpened = useRef(false);
   useEffect(() => {
-    if (!first || !list.data) return;
+    if (!list.data || autoOpened.current) return;
+    autoOpened.current = true; // only the link we arrived with, not again after every list reload
+    if (!first) return;
     const id = Number(first.split('-')[1]);
     const hit = list.data.find((r) => r.id === id);
     if (hit) setSel(hit);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list.data]);
 
-  const done = () => { setSel(null); list.reload(); counts.reload(); };
+  // On phones the report opens as a full-screen panel. It adds a step to the browser history,
+  // so the phone's back button closes the report instead of leaving the Reports page.
+  const narrow = useNarrow();
+  useScrollLock(narrow && !!sel);
+  const pushed = useRef(false);
+  useEffect(() => {
+    const back = () => { if (pushed.current) { pushed.current = false; setSel(null); } };
+    window.addEventListener('popstate', back);
+    return () => window.removeEventListener('popstate', back);
+  }, []);
+  const openRep = (r: Any) => {
+    setSel(r);
+    const url = `${location.pathname}?open=${kind}-${r.id}`;
+    if (pushed.current) history.replaceState(history.state, '', url);
+    else if (narrow) { history.pushState(history.state, '', url); pushed.current = true; }
+  };
+  const closeRep = () => {
+    if (pushed.current) { pushed.current = false; history.back(); }
+    else if (location.search.includes('open=')) history.replaceState(history.state, '', location.pathname);
+    setSel(null);
+  };
+  useEffect(() => {
+    if (!narrow || !sel) return;
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.modal-bg')) closeRep(); };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  });
+
+  const done = () => { closeRep(); list.reload(); counts.reload(); };
   const c = counts.data;
   return (
     <>
       <PageHead title="Reports" sub="What members flagged. Open one to see the messages around it and act." />
       <div className="toolbar">
-        <Tabs value={kind} onChange={(v) => { setKind(v as Kind); setSel(null); }} items={[
+        <Tabs value={kind} onChange={(v) => { setKind(v as Kind); closeRep(); }} items={[
           ['chat', <>Chats & profiles{c?.chat ? <em className="badge">{c.chat}</em> : null}</>],
           ['room', <>Chatroom messages{c?.room ? <em className="badge">{c.room}</em> : null}</>],
           ['link', <>Anonymous links{c?.link ? <em className="badge">{c.link}</em> : null}</>],
         ]} />
-        <Tabs value={status} onChange={(v) => { setStatus(v); setSel(null); }} items={[['open', 'Open'], ['reviewed', 'Reviewed'], ['actioned', 'Actioned']]} />
+        <Tabs value={status} onChange={(v) => { setStatus(v); closeRep(); }} items={[['open', 'Open'], ['reviewed', 'Reviewed'], ['actioned', 'Actioned']]} />
       </div>
       <div className={`split ${sel ? 'has' : ''}`}>
         <Card pad={false}>
@@ -61,7 +92,7 @@ export default function Reports() {
               </thead>
               <tbody>
                 {list.data.map((r) => (
-                  <tr key={r.id} className={`click ${sel?.id === r.id ? 'sel' : ''}`} onClick={() => setSel(r)}>
+                  <tr key={r.id} className={`click ${sel?.id === r.id ? 'sel' : ''}`} onClick={() => openRep(r)}>
                     {kind === 'chat' && (() => { const x = r as ChatRep; return <>
                       <td><div className="who-cell"><Avatar name={x.reported || '?'} /><div><b>{x.reported || 'deleted account'}</b><small>{x.speed ? 'Speed Dating' : x.has_chat ? 'From a chat' : 'From a profile'}{x.reported_suspended ? ' · suspended' : ''}</small></div></div></td>
                       <td><Pill tone={tone(x.reason)}>{words(x.reason)}</Pill></td>
@@ -85,7 +116,7 @@ export default function Reports() {
             </table>
           )}
         </Card>
-        {sel && <Detail key={`${kind}-${sel.id}`} kind={kind} r={sel} onClose={() => setSel(null)} onDone={done} />}
+        {sel && <Detail key={`${kind}-${sel.id}`} kind={kind} r={sel} onClose={closeRep} onDone={done} />}
       </div>
     </>
   );
@@ -107,7 +138,7 @@ function Detail({ kind, r, onClose, onDone }: { kind: Kind; r: Any; onClose: () 
   return (
     <Card className="detail" title={kind === 'chat' ? `Report on ${(r as ChatRep).reported || 'a deleted account'}` : kind === 'room' ? `Message in ${(r as RoomRep).room}` : `Message on /u/${(r as LinkRep).username}`}
       sub={kind === 'chat' ? `${words((r as ChatRep).reason)} · ${date((r as ChatRep).created_at)}` : kind === 'room' ? `${(r as RoomRep).reports} report(s) · ${(r as RoomRep).reasons.map(words).join(', ')}` : `${words((r as LinkRep).reason)} · ${date((r as LinkRep).created_at)}`}
-      action={<button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="x" /></button>}>
+      action={<button className="icon-btn" onClick={onClose} aria-label="Close report"><Icon name="x" /></button>}>
       {kind === 'chat' && (r as ChatRep).details && <blockquote className="quote">“{(r as ChatRep).details}”<span>— {(r as ChatRep).reporter || 'reporter'}</span></blockquote>}
       {kind === 'link' && <blockquote className="quote">{(r as LinkRep).body}</blockquote>}
 

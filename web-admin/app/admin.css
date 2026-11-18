@@ -91,6 +91,8 @@ code { font: 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; background: 
 .content { padding: 26px 28px 60px; max-width: 1440px; }
 .only-m { display: none; }
 .scrim { display: none; }
+.bnav { display: none; }
+html.locked, html.locked body { overflow: hidden; }
 
 /* ---- Page parts -------------------------------------------------------------------------------- */
 .page-h { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
@@ -198,7 +200,7 @@ input.num { width: 110px; margin-right: 8px; }
 .switch:disabled { opacity: .5; cursor: not-allowed; }
 
 .modal-bg { position: fixed; inset: 0; background: rgba(9, 13, 43, .45); display: grid; place-items: center; z-index: 100; padding: 20px; backdrop-filter: blur(3px); }
-.modal { background: var(--surface); border-radius: 20px; width: min(480px, 100%); max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 30px 80px rgba(9, 13, 43, .3); }
+.modal { background: var(--surface); border-radius: 20px; width: min(480px, 100%); max-height: 90vh; max-height: 90dvh; display: flex; flex-direction: column; box-shadow: 0 30px 80px rgba(9, 13, 43, .3); }
 .modal.wide { width: min(820px, 100%); }
 .modal header { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px 6px; }
 .modal header h3 { font-size: 19px; }
@@ -479,3 +481,116 @@ input.num { width: 110px; margin-right: 8px; }
 .th-admin-remove { border: 0; padding: 4px 8px; background: transparent; color: var(--red); cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; }
 .th-admin-actions { justify-content: flex-end; padding-top: 10px; border-top: 1px solid var(--line); }
 @media (max-width: 560px) { .th-admin-row { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+
+/* ---- Phones ---------------------------------------------------------------------------------------
+   The console was built for a computer. Below are the phone versions of each part. */
+
+/* Touch screens: no hover, so actions that only appeared on hover are always shown. */
+@media (hover: none) {
+  .rl-a { opacity: 1; }
+  .btn:hover:not(:disabled) { transform: none; box-shadow: none; }
+}
+
+/* Report review: a full-screen panel on phones and small tablets, instead of a panel that lands
+   underneath the whole list of reports (where nobody could see it). */
+@keyframes sheet-in { from { opacity: 0; transform: translateY(24px); } }
+@media (max-width: 1000px) {
+  .split.has > .detail {
+    position: fixed; inset: 0; z-index: 70; margin: 0; max-height: none; border: 0; border-radius: 0; box-shadow: none;
+    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; animation: sheet-in .2s ease;
+  }
+  .split.has > .detail > .card-h {
+    position: sticky; top: 0; z-index: 2; background: var(--surface); padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top));
+    border-bottom: 1px solid var(--line); align-items: center;
+  }
+  .split.has > .detail > .card-h h3 { font-size: 17px; }
+  .split.has > .detail > .card-b { padding: 14px 16px calc(28px + env(safe-area-inset-bottom)); }
+  .split.has > .detail .chat { max-height: none; }
+  .split.has > .detail .actions .btn { flex: 1 1 auto; }
+}
+
+@media (max-width: 860px) {
+  /* Bottom bar with the main pages; the full menu slides in from "More". */
+  .bnav {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: var(--surface);
+    border-top: 1px solid var(--line); padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); box-shadow: 0 -6px 20px rgba(9, 13, 43, .06);
+  }
+  .bnav a, .bnav button {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; border: 0; background: none;
+    color: var(--muted); font-size: 11px; font-weight: 700; text-decoration: none; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .bnav .on { color: var(--primary); }
+  .bnav-i { position: relative; display: grid; place-items: center; width: 52px; height: 28px; border-radius: 999px; }
+  .bnav .on .bnav-i { background: var(--primary-soft); }
+  .bnav .badge { position: absolute; top: -4px; right: 2px; margin: 0; font-size: 10px; padding: 0 5px; line-height: 16px; }
+  .side { z-index: 60; padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
+  .nav-open .scrim { z-index: 55; }
+  .only-m, .bell { display: none; }
+  .content { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .toasts { bottom: calc(80px + env(safe-area-inset-bottom)); width: calc(100% - 32px); }
+  .toast { max-width: 100%; }
+  .top { gap: 10px; padding-top: max(12px, env(safe-area-inset-top)); }
+  .search { width: auto; flex: 1; min-width: 0; padding: 9px 12px; }
+  .top-r { gap: 8px; }
+
+  /* Phone browsers zoom in on any box with text under 16px; this stops that. */
+  input:not([type=checkbox]):not([type=file]), select, textarea, .search input { font-size: 16px; }
+
+  /* Tab rows scroll sideways instead of breaking onto many lines. */
+  .tabs { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs button { white-space: nowrap; flex: none; }
+  .toolbar { gap: 8px; }
+  .toolbar > .tabs { width: 100%; }
+  .card-h { padding: 16px 16px 0; flex-wrap: wrap; }
+  .card-b { padding: 14px 16px 16px; }
+  .card-stats { text-align: left; }
+  .mt-actions { justify-content: flex-start; max-width: none; }
+  .mt-main { min-width: 0; }
+  .member-top { padding: 16px; }
+  .chat-photo { max-width: 100%; }
+  .bub { max-width: 88%; }
+}
+
+@media (max-width: 640px) {
+  /* Tables become a list of cards: the first column is the headline, the rest sit underneath
+     with their column name above each value. */
+  .tbl, .tbl tbody { display: block; overflow: visible; }
+  .tbl thead { display: none; }
+  .tbl tr { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); align-items: start; gap: 8px 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .tbl tr:last-child { border-bottom: 0; }
+  .tbl td, .tbl th:first-child, .tbl td:first-child { display: block; padding: 0; border: 0; min-width: 0; }
+  .tbl td:first-child { grid-column: 1 / -1; }
+  .tbl td:empty { display: none; }
+  .tbl td[data-label]:not([data-label=""]):not(:first-child)::before {
+    content: attr(data-label); display: block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 1px;
+  }
+  .tbl tr.click:hover td { background: none; }
+  .tbl tr.click:active { background: var(--surface-2); }
+  .tbl tr.sel { background: var(--primary-soft); }
+  .tbl tr.sel td { background: none; }
+  .tbl tr.hl { box-shadow: inset 3px 0 0 var(--pink); }
+  .tbl tr.hl td:first-child { box-shadow: none; }
+  .tbl .clip { max-width: 100%; white-space: normal; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+  .card > .tbl { margin-top: 8px; }
+
+  /* Windows (confirmations, forms) slide up from the bottom and fit the screen. */
+  .modal-bg { place-items: end center; padding: 0; }
+  .modal, .modal.wide { width: 100%; max-height: 92vh; max-height: 92dvh; border-radius: 22px 22px 0 0; animation: sheet-in .2s ease; }
+  .modal header { padding: 16px 16px 4px; }
+  .modal-b { padding: 8px 16px; }
+  .modal footer { padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); }
+  .modal footer .btn { flex: 1; padding: 12px; }
+
+  .page-h { margin-bottom: 16px; }
+  .page-h p { font-size: 14px; }
+  .page-a { width: 100%; }
+  .kpi-v b { font-size: 26px; }
+  .row-2 { gap: 14px; }
+  .facts { grid-template-columns: 1fr; gap: 2px; }
+  .facts dd { margin-bottom: 8px; }
+  .inline-form, .note-form { flex-wrap: wrap; }
+  .img-pick { flex-wrap: wrap; }
+  .set-row { flex-wrap: wrap; }
+  .who { padding: 0; }
+}
