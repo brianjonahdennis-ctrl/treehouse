@@ -37,8 +37,7 @@ insert into treasure_hunt_checkpoints (id, hunt_id, sequence, name, hint, latitu
  ('00000000-0000-4000-8000-0000000000f3', '00000000-0000-4000-8000-0000000000e1', 3, 'Third stop', 'Look to the river.', 4.8156, 7.0500, 80, 100),
  ('00000000-0000-4000-8000-0000000000f4', '00000000-0000-4000-8000-0000000000e1', 4, 'Fourth stop', 'The garden is close.', 4.8159, 7.0501, 80, 100);
 insert into treasure_hunt_route_points(hunt_id,point_kind,sequence,name,latitude,longitude,radius_m,reward_coins) values
- ('00000000-0000-4000-8000-0000000000e1','finish',1,'Grand prize near park',4.8160,7.0502,80,25),
- ('00000000-0000-4000-8000-0000000000e1','finish',2,'Grand prize near market',4.8154,7.0496,80,25);
+ ('00000000-0000-4000-8000-0000000000e1','finish',1,'Grand prize near park',4.8160,7.0502,80,25);
 select set_config('test.hunt', '00000000-0000-4000-8000-0000000000e1', true);
 select set_config('test.cp1', '00000000-0000-4000-8000-0000000000f1', true);
 select set_config('test.cp2', '00000000-0000-4000-8000-0000000000f2', true);
@@ -73,9 +72,9 @@ select is((treasure_hunt_claim_checkpoint(current_setting('test.hunt')::uuid,(tr
 select is((treasure_hunt_progress_with_routes(current_setting('test.hunt')::uuid)->>'found_count'),'4','all four required checkpoints must be collected');
 select is((treasure_hunt_progress_with_routes(current_setting('test.hunt')::uuid)->'current_target'->>'kind'),'finish','the final treasure appears only after every checkpoint');
 select pg_temp.admin();
-select set_config('test.expected_finish',(select r.id::text from treasure_hunt_route_points r join treasure_hunt_checkpoints c on c.id=(select checkpoint_id from treasure_hunt_routes where participant_id=(select id from treasure_hunt_participants where user_id='00000000-0000-0000-0000-0000000000e1') and position=4) where r.hunt_id=current_setting('test.hunt')::uuid and r.point_kind='finish' order by dating_private.treasure_hunt_distance_m(c.latitude,c.longitude,r.latitude,r.longitude),r.sequence,r.id limit 1),true);
+select set_config('test.expected_finish',(select r.id::text from treasure_hunt_route_points r where r.hunt_id=current_setting('test.hunt')::uuid and r.point_kind='finish'),true);
 select pg_temp.login('00000000-0000-0000-0000-0000000000e1');
-select is((treasure_hunt_progress_with_routes(current_setting('test.hunt')::uuid)->'current_target'->>'id'),current_setting('test.expected_finish'),'the assigned final treasure is nearest to the last checkpoint');
+select is((treasure_hunt_progress_with_routes(current_setting('test.hunt')::uuid)->'current_target'->>'id'),current_setting('test.expected_finish'),'every player is sent to the hunt''s one grand prize location');
 select is((treasure_hunt_finish(current_setting('test.hunt')::uuid,0,0,8,'20000000-0000-4000-8000-000000000002'::uuid)->>'ok'),'false','claiming the final treasure from far away is rejected');
 select is((treasure_hunt_finish(current_setting('test.hunt')::uuid,(treasure_hunt_progress_with_routes(current_setting('test.hunt')::uuid)->'current_target'->>'latitude')::double precision,(treasure_hunt_progress_with_routes(current_setting('test.hunt')::uuid)->'current_target'->>'longitude')::double precision,8,'20000000-0000-4000-8000-000000000003'::uuid)->>'total_coins'),'525','the database awards checkpoint, prize and completion coins');
 select is((treasure_hunt_finish(current_setting('test.hunt')::uuid,4.8160,7.0502,8,'20000000-0000-4000-8000-000000000004'::uuid)->>'idempotent'),'true','repeating the final claim cannot award coins again');

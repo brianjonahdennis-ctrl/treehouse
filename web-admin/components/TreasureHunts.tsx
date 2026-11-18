@@ -39,7 +39,7 @@ export default function TreasureHunts() {
       participant_count: h.participant_count, checkpoints: h.checkpoints.length ? h.checkpoints.map((c) => ({ sequence: c.sequence, name: c.name, hint: c.hint,
         latitude: String(c.latitude), longitude: String(c.longitude), radius_m: c.radius_m, reward_coins: c.reward_coins, map_ref: '' }))
         : [emptyStop(1)],
-      finish_points: (h.finish_points || []).map((p, i) => ({ sequence: i + 1, name: p.name, latitude: String(p.latitude), longitude: String(p.longitude), radius_m: p.radius_m, reward_coins: p.reward_coins, map_ref: '' })) } : blank());
+      finish_points: (h.finish_points || []).slice(0, 1).map((p, i) => ({ sequence: i + 1, name: p.name, latitude: String(p.latitude), longitude: String(p.longitude), radius_m: p.radius_m, reward_coins: p.reward_coins, map_ref: '' })) } : blank());
   };
   const frozen = !!draft?.id && draft.participant_count > 0;
   // A link without numbers in it (e.g. a maps.app.goo.gl share link) is read on our server.
@@ -90,7 +90,7 @@ export default function TreasureHunts() {
     }
     const routePoints = draft.finish_points;
     if (!draft.finish_points.length || draft.finish_points.some((p) => !p.name.trim() || p.latitude === '' || p.longitude === '' || !Number.isFinite(Number(p.latitude)) || !Number.isFinite(Number(p.longitude)))) {
-      setError('Add at least one named grand-prize location with valid coordinates.'); return;
+      setError('Add the grand prize location with a name and valid coordinates.'); return;
     }
     if (routePoints.some((p) => Number(p.latitude) < -90 || Number(p.latitude) > 90 || Number(p.longitude) < -180 || Number(p.longitude) > 180)) { setError('Check that each map location has a valid latitude and longitude.'); return; }
     if (Date.parse(draft.ends_at) <= Date.parse(draft.starts_at)) { setError('The end time must come after the start time.'); return; }
@@ -116,7 +116,7 @@ export default function TreasureHunts() {
   return (
     <>
       <PageHead title="Treasure Hunts" sub="Create a route, set its time, then make it available in Games." actions={<Btn kind="primary" onClick={() => edit()}>New hunt</Btn>} />
-      <Card title="Keep routes safe" sub="Use public places, check every coordinate and avoid roads or private property. Each player starts at the nearest checkpoint and gets a personal route.">
+      <Card title="Keep routes safe" sub="Use public places, check every coordinate and avoid roads or private property. Each player starts at the checkpoint nearest them and goes through every checkpoint, then everyone goes to the same grand prize location.">
         <p className="muted small">Coins are in-game points, not cash. A route with players already joined is locked so checkpoint locations and rewards cannot change mid-hunt. You can still cancel it.</p>
       </Card>
       <div className="th-admin-list">
@@ -156,11 +156,11 @@ export default function TreasureHunts() {
               <Field label="Coin design"><select disabled={frozen} value={draft.coin_avatar} onChange={(e) => change('coin_avatar', e.target.value)}>{['🪙','💰','⭐','💎','🟡','🟠'].map((emoji) => <option key={emoji} value={emoji}>{emoji}</option>)}</select></Field>
               <Field label="Treasure design"><select disabled={frozen} value={draft.treasure_avatar} onChange={(e) => change('treasure_avatar', e.target.value)}>{['🧰','🎁','🏆','💎','👑','🪙'].map((emoji) => <option key={emoji} value={emoji}>{emoji}</option>)}</select></Field>
             </div>
-            <p className="muted small">The starting checkpoint is chosen from the player’s location when they join. After all checkpoints are collected, the closest grand-prize location to the last one is assigned.</p>
+            <p className="muted small">The starting checkpoint is chosen from the player’s location when they start. The grand prize location unlocks only after a player has found every checkpoint, and it is the same place for everyone.</p>
             <div className="th-admin-stops">
-              <div className="th-admin-stops-head"><b>Grand prize locations</b>{!frozen && draft.finish_points.length < 10 ? <Btn kind="soft" onClick={() => change('finish_points', [...draft.finish_points, emptyRoutePoint(draft.finish_points.length + 1)])}>Add location</Btn> : null}</div>
+              <div className="th-admin-stops-head"><b>Grand prize location</b>{!frozen && draft.finish_points.length < 1 ? <Btn kind="soft" onClick={() => change('finish_points', [...draft.finish_points, emptyRoutePoint(draft.finish_points.length + 1)])}>Add location</Btn> : null}</div>
               {draft.finish_points.map((p, i) => <section className="th-admin-stop" key={i}>
-                <div className="th-admin-stop-head"><b>Treasure {i + 1}</b>{!frozen && draft.finish_points.length > 1 ? <button className="th-admin-remove" onClick={() => change('finish_points', draft.finish_points.filter((_, at) => at !== i).map((x, at) => ({ ...x, sequence: at + 1 })))}>Remove</button> : null}</div>
+                <div className="th-admin-stop-head"><b>Same for every player · unlocks after all checkpoints</b>{!frozen && draft.finish_points.length > 1 ? <button className="th-admin-remove" onClick={() => change('finish_points', draft.finish_points.filter((_, at) => at !== i).map((x, at) => ({ ...x, sequence: at + 1 })))}>Remove</button> : null}</div>
                 <Field label="Location name"><input disabled={frozen} value={p.name} maxLength={80} onChange={(e) => changeRoutePoint(i, 'name', e.target.value)} placeholder="Isaac Boro Park treasure" /></Field>
                 <Field label="Google Maps link or coordinates" hint={linkHint(`finish_points-${i}`)}><input disabled={frozen} value={p.map_ref} onChange={(e) => { changeRoutePoint(i, 'map_ref', e.target.value); lookup('finish_points', i, e.target.value); }} placeholder="https://maps.google.com/... or 4.8156, 7.0498" /></Field>
                 <a className="btn btn-ghost btn-sm" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${draft.region} ${p.name}`.trim())}`} target="_blank" rel="noopener noreferrer">Open in Google Maps</a>
