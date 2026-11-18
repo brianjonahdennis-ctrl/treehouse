@@ -8,6 +8,7 @@ import { go } from '@/lib/nav';
 import { inviteUrl } from '@/lib/referral';
 import { shareOrCopy } from '@/lib/util';
 import { Icon, Hero, Avatar, EmptyState, SkeletonList } from './ui';
+import { FeatureCard } from './FeatureCard';
 import { toast } from './overlay';
 import { BellButton } from './Home';
 import { chooseUsername } from './Username';
@@ -104,14 +105,7 @@ export function InviteCard() {
   const [b, setB] = useState<Board | null>(null);
   useEffect(() => { loadBoard().then(setB); }, []);
   if (!b || !b.enabled) return null;
-  return (
-    <button className="hm-games hm-invite" onClick={() => go('invite')}>
-      <span className="hg-text">
-        <span className="hg-kicker"><Icon name="sparkles" cls="sm" />Man & Woman of the Week</span>
-        <b>{b.last_winner ? `${b.last_winner.handle} won last week. Your turn?` : 'Invite friends and top the leaderboard.'}</b>
-        <span className="hg-go">{b.me.rank ? `You’re #${b.me.rank} · See the board` : 'See the leaderboard'}<Icon name="chev" cls="sm" /></span>
-      </span>
-      <span className="hg-art" aria-hidden="true"><span>🏆</span><span>🎉</span></span>
-    </button>
-  );
+  return <FeatureCard kind="weekly" iconName="sparkles" title="Of the Week"
+    text={b.last_winner ? `${b.last_winner.handle} won last week. Your turn?` : 'Invite friends and top the leaderboard.'}
+    badge={b.me.rank ? `You’re #${b.me.rank}` : null} actionText="See the board" onClick={() => go('invite')} />;
 }
