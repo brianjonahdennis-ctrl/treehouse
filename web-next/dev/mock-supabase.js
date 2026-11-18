@@ -245,7 +245,7 @@ const mockHuntOrder = (player) => player === 2 ? [0, 2, 3, 1, 4] : [0, 1, 2, 3, 
 // (register → countdown), and a Port Harcourt hunt shows why a Lagos member can't register.
 function mockHuntListings() {
   const reg = (id) => sessionStorage.getItem(`mock-hunt-reg-${id}`) === '1';
-  const base = { description: 'Follow the clues and collect a Treehouse Coin at every stop.', coin_avatar: '🪙', treasure_avatar: '🧰', needs_registration: true };
+  const base = { description: 'Follow the clues and collect a Treehouse Coin at every stop.', coin_avatar: '🪙', treasure_avatar: '🧰', needs_registration: true, max_registrations: 200, full: false };
   const prizes = [{ place: 1, title: 'Grand prize: a new phone', media_type: 'image', media_url: '/icon-512.png' }, { place: null, title: 'treehouse goodies for every finisher', media_type: 'image', media_url: '/icon-192.png' }];
   const rows = [
     { ...base, id: mockHuntId, title: 'Treasure Hunt', region: 'Lagos · preview', state: 'Lagos', starts_at: new Date(Date.now() - 3600000).toISOString(),
@@ -448,8 +448,9 @@ const RPC = {
     staff_treasure_hunts_personal: () => JSON.parse(sessionStorage.getItem('mock-staff-hunts') || JSON.stringify([{ id: mockHuntId, title: 'Treasure Hunt Preview', region: 'Wuse, Abuja', description: 'Sample safe route.', status: 'draft',
       starts_at: new Date(Date.now() + 86400000).toISOString(), ends_at: new Date(Date.now() + 2 * 86400000).toISOString(), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', participant_count: 0,
       finish_points: [{ id: 'mock-finish-1', sequence: 1, name: 'City Park prize', latitude: 9.0775, longitude: 7.4803, radius_m: 60, reward_coins: 0 }], checkpoints: mockHuntCheckpoints.slice(0, 1) }])),
+    staff_treasure_hunt_prizes_save_personal: ({ p_hunt, p_prizes }) => { const current = JSON.parse(sessionStorage.getItem('mock-staff-hunts') || '[]'); const at = current.findIndex((x) => x.id === p_hunt); if (at >= 0) { current[at].prizes = p_prizes; sessionStorage.setItem('mock-staff-hunts', JSON.stringify(current)); } return null; },
     staff_treasure_hunt_save_routes_personal: (a) => { const h = a.p_hunt || {}; const current = JSON.parse(sessionStorage.getItem('mock-staff-hunts') || '[]'); const id = h.id || `mock-hunt-${Date.now()}`;
-      const value = { ...h, id, participant_count: 0, checkpoints: (a.p_checkpoints || []).map((p, i) => ({ ...p, id: `mock-stop-${i + 1}` })),
+      const value = { ...(current.find((x) => x.id === id) || {}), ...h, id, participant_count: 0, checkpoints: (a.p_checkpoints || []).map((p, i) => ({ ...p, id: `mock-stop-${i + 1}` })),
         start_points: [], finish_points: (a.p_finish_points || []).map((p, i) => ({ ...p, id: `mock-finish-${i + 1}` })) };
       const at = current.findIndex((x) => x.id === id); if (at < 0) current.unshift(value); else current[at] = value; sessionStorage.setItem('mock-staff-hunts', JSON.stringify(current)); return id; },
     // Matches → friends: in Golden Kite's chat (c3) they've asked you; elsewhere nobody has yet.

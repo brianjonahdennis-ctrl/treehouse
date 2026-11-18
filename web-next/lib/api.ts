@@ -644,7 +644,7 @@ export const treasureHuntsActive = async (force = false): Promise<TreasureHuntSu
 export type TreasureHuntPrize = { place: number | null; title: string; media_type: 'image' | 'video'; media_url: string };
 export type TreasureHuntListing = { id: string; title: string; region: string; state: string | null; description: string; starts_at: string; ends_at: string;
   coin_avatar?: string; treasure_avatar?: string; checkpoint_count: number; live: boolean; needs_registration: boolean; registered: boolean; joined: boolean;
-  register_block: string | null; registered_count: number | null; prizes: TreasureHuntPrize[] };
+  register_block: string | null; registered_count: number | null; prizes: TreasureHuntPrize[]; max_registrations?: number; full?: boolean };
 export const treasureHuntsList = async (): Promise<TreasureHuntListing[]> => (await rpc('treasure_hunts_list')) || [];
 export const treasureHuntRegister = async (hunt: string): Promise<{ registered: boolean; registered_count: number }> => {
   const r = await rpc('treasure_hunt_register', { p_hunt: hunt }); treasureHuntCache = null; return r;
@@ -718,6 +718,31 @@ export const treasureHuntsAdmin = async () => (await rpc('staff_treasure_hunts_p
 export const treasureHuntAdminSave = (hunt: unknown, checkpoints: unknown, finishes: unknown) => rpc('staff_treasure_hunt_save_routes_personal', {
   p_hunt: hunt, p_checkpoints: checkpoints, p_start_points: [], p_finish_points: finishes,
 });
+/** Latitude/longitude from any Google Maps link, including short maps.app.goo.gl links (read on our server). */
+export async function mapLinkCoords(link: string): Promise<{ latitude: number; longitude: number }> {
+  if (process.env.NEXT_PUBLIC_TH_MOCK === '1') { await new Promise((r) => setTimeout(r, 400)); return { latitude: 6.4281, longitude: 3.4219 }; }
+  const { data } = await sb.auth.getSession();
+  const res = await fetch('/api/maps-link', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session?.access_token || ''}` }, body: JSON.stringify({ url: link }) });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.message || 'Couldn’t read that link.');
+  return out;
+}
+export const treasureHuntAdminSavePrizes = (hunt: string, prizes: TreasureHuntPrize[]) => rpc('staff_treasure_hunt_prizes_save_personal', { p_hunt: hunt, p_prizes: prizes });
+export const HUNT_PRIZE_VIDEO_MAX = 20 * 1024 * 1024;
+/** Upload one prize picture (shrunk) or video (under 20 MB) to the hunt-prizes bucket. */
+export async function uploadHuntPrize(picked: File): Promise<{ url: string; type: 'image' | 'video' }> {
+  const video = /^video\/(mp4|webm|quicktime)$/.test(picked.type);
+  if (!video && !/^image\/(jpeg|png|webp)$/.test(picked.type)) throw new Error('Use a JPG, PNG or WebP picture, or an MP4, WebM or MOV video.');
+  if (video && picked.size > HUNT_PRIZE_VIDEO_MAX) throw new Error(`Videos must be under 20 MB (this one is ${(picked.size / 1048576).toFixed(1)} MB). Trim it or lower the quality.`);
+  const f = video ? picked : await shrinkImage(picked);
+  if (!video && f.size > 1_500_000) throw new Error('Pictures must be under 1.5 MB.');
+  if (process.env.NEXT_PUBLIC_TH_MOCK === '1') return { url: URL.createObjectURL(f), type: video ? 'video' : 'image' };
+  const ext = video ? ({ 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' } as Record<string, string>)[f.type] : f.type.split('/')[1].replace('jpeg', 'jpg');
+  const name = `prizes/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const up = await sb.storage.from('hunt-prizes').upload(name, f, { contentType: f.type, upsert: false, cacheControl: '31536000' });
+  if (up.error) throw up.error;
+  return { url: `${process.env.NEXT_PUBLIC_SUPABASE_URL || ''}/storage/v1/object/public/hunt-prizes/${name}`, type: video ? 'video' : 'image' };
+}
 export const treasureHuntLeaderboard = async (hunt: string, cursor?: TreasureHuntCursor): Promise<TreasureHuntLeaderboard> => {
   // Visibility depends on the current hunt state, so don't retain names in a
   // client cache after staff changes the schedule or marks the hunt complete.
