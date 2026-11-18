@@ -32,6 +32,7 @@ export default function AnnTreasureHunts() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const reload = () => { setHunts(null); api.treasureHuntsAdmin().then(setHunts).catch((e) => { setError(api.friendly(e)); setHunts([]); }); };
+  // One grand prize location per hunt: older hunts with extra spots show only the first.
   useEffect(() => { void api.treasureHuntsAdmin().then(setHunts).catch((e) => { setError(api.friendly(e)); setHunts([]); }); }, []);
   const edit = (h?: Hunt) => {
     setError('');
@@ -39,7 +40,7 @@ export default function AnnTreasureHunts() {
       starts_at: localValue(h.starts_at), ends_at: localValue(h.ends_at), completion_bonus_coins: (h as any).completion_bonus_coins || 100,
       coin_avatar: h.coin_avatar || '🪙', treasure_avatar: h.treasure_avatar || '🧰', participant_count: h.participant_count,
       checkpoints: h.checkpoints?.length ? h.checkpoints.map((c) => ({ name: c.name, hint: c.hint, latitude: String(c.latitude), longitude: String(c.longitude), radius_m: c.radius_m, reward_coins: c.reward_coins, map_ref: '' })) : [emptyStop()],
-      finish_points: (h.finish_points || []).map((p) => ({ name: p.name, latitude: String(p.latitude), longitude: String(p.longitude), radius_m: p.radius_m, reward_coins: p.reward_coins, map_ref: '' })) } : blank());
+      finish_points: (h.finish_points || []).slice(0, 1).map((p) => ({ name: p.name, latitude: String(p.latitude), longitude: String(p.longitude), radius_m: p.radius_m, reward_coins: p.reward_coins, map_ref: '' })) } : blank());
   };
   // A link without numbers in it (e.g. a maps.app.goo.gl share link) is read on our server.
   const [lookups, setLookups] = useState<Record<string, string>>({});
@@ -91,6 +92,7 @@ export default function AnnTreasureHunts() {
     if (draft.prizes.some((p) => p.title.trim().length < 2)) { setError('Give every prize a short name.'); return; }
     if (!draft.checkpoints.length || draft.checkpoints.some((p) => !p.name.trim() || p.latitude === '' || p.longitude === '' || !Number.isFinite(Number(p.latitude)) || !Number.isFinite(Number(p.longitude)))) { setError('Keep at least one named checkpoint and add its map coordinates.'); return; }
     const points = draft.finish_points;
+    if (points.length !== 1) { setError('Add one grand prize location. Every player finishes there.'); return; }
     if (!points.length || points.some((p) => !p.name.trim() || p.latitude === '' || p.longitude === '' || !Number.isFinite(Number(p.latitude)) || !Number.isFinite(Number(p.longitude)) || Number(p.latitude) < -90 || Number(p.latitude) > 90 || Number(p.longitude) < -180 || Number(p.longitude) > 180)) { setError('Add at least one grand-prize location with valid coordinates.'); return; }
     if (Date.parse(draft.ends_at) <= Date.parse(draft.starts_at)) { setError('The end time must come after the start time.'); return; }
     setBusy(true);
@@ -109,7 +111,7 @@ export default function AnnTreasureHunts() {
   if (!hunts) return <div className="adm"><SkeletonList n={3} /></div>;
   return <div className="adm">
     <div className="adm-head"><div className="row" style={{ gap: 8, alignItems: 'center' }}><button className="btn btn-ghost btn-icon" aria-label="Back to announcements" onClick={() => go('admin/announcements')}><Icon name="back" /></button><h1>Treasure Hunt setup</h1></div><div className="adm-actions"><button className="btn btn-coral" onClick={() => edit()}>New hunt</button></div></div>
-    <p className="small muted">Build and manage hunts here alongside announcements. Each player starts at the nearest checkpoint and gets a personal route. The grand prize is chosen after their last checkpoint. Camera and movement stay on their phone.</p>
+    <p className="small muted">Build and manage hunts here alongside announcements. Each player starts at the checkpoint nearest them and goes through every checkpoint. Then everyone goes to the same grand prize location. Camera and movement stay on their phone.</p>
     {error && !draft ? <div className="adm-note">{error}</div> : null}
     <div className="th-admin-list">{hunts.length ? hunts.map((h) => <article className="card" key={h.id} style={{ padding: 16, marginBottom: 12 }}><h2>{h.title}</h2><p className="small muted">{h.region} · {h.state ? `${stateLabel(h.state)} only` : 'any state'} · {h.registration_count || 0} of {h.max_registrations || 1000} places taken · {(h.prizes || []).length} prizes · {h.checkpoints.length} checkpoints · nearest-checkpoint start · {(h.finish_points || []).length} prizes · {h.participant_count} players</p><p className="small">{h.status} · {h.coin_avatar || '🪙'} {h.treasure_avatar || '🧰'}</p><button className="btn btn-soft btn-sm" onClick={() => edit(h)}>{h.participant_count ? 'View or cancel' : 'Edit hunt'}</button></article>) : <div className="card" style={{ padding: 18 }}>No hunts yet. Create a safe route in a public area.</div>}</div>
     {draft ? <section className="adm-editor card" style={{ padding: 18, marginTop: 18 }}>
@@ -130,7 +132,7 @@ export default function AnnTreasureHunts() {
         <div className="th-member-grid"><label className="adm-field"><span>Starts (Lagos time)</span><input disabled={!!draft.participant_count} type="datetime-local" value={draft.starts_at} onChange={(e) => set('starts_at', e.target.value)} /></label><label className="adm-field"><span>Ends (Lagos time)</span><input disabled={!!draft.participant_count} type="datetime-local" value={draft.ends_at} onChange={(e) => set('ends_at', e.target.value)} /></label></div>
         <div className="th-member-grid"><label className="adm-field"><span>Status</span><select disabled={!!draft.participant_count} value={draft.status} onChange={(e) => set('status', e.target.value)}>{['draft','scheduled','active','completed','cancelled'].map((x) => <option key={x}>{x}</option>)}</select></label><label className="adm-field"><span>Completion coins</span><input disabled={!!draft.participant_count} type="number" min={0} value={draft.completion_bonus_coins} onChange={(e) => set('completion_bonus_coins', Number(e.target.value))} /></label></div>
         <div className="th-member-grid"><label className="adm-field"><span>Coin design</span><select disabled={!!draft.participant_count} value={draft.coin_avatar} onChange={(e) => set('coin_avatar', e.target.value)}>{['🪙','💰','⭐','💎','🟡','🟠'].map((x) => <option key={x}>{x}</option>)}</select></label><label className="adm-field"><span>Treasure design</span><select disabled={!!draft.participant_count} value={draft.treasure_avatar} onChange={(e) => set('treasure_avatar', e.target.value)}>{['🧰','🎁','🏆','💎','👑','🪙'].map((x) => <option key={x}>{x}</option>)}</select></label></div>
-        <p className="adm-note">Setup guide: choose public, safe places and add one or more checkpoints. Players start at their nearest checkpoint. After they find every checkpoint, the grand prize is assigned to the location nearest their last stop.</p>
+        <p className="adm-note">Setup guide: choose public, safe places and add one or more checkpoints. Players start at the checkpoint nearest them and must find every checkpoint. Only then does the grand prize location unlock. It is the same place for every player.</p>
         <RoutePoints region={draft.region} points={draft.finish_points} disabled={!!draft.participant_count} status={(i) => lookups[`finish_points-${i}`]} onLink={pointLink} onChange={pointChange} onAdd={() => set('finish_points', [...draft.finish_points, emptyPoint()])} onRemove={(i) => set('finish_points', draft.finish_points.filter((_, n) => n !== i))} />
         <StopEditor region={draft.region} points={draft.checkpoints} disabled={!!draft.participant_count} status={(i) => lookups[`checkpoints-${i}`]} onLink={stopLink} onChange={stopChange} onAdd={() => set('checkpoints', [...draft.checkpoints, emptyStop()])} onRemove={(i) => set('checkpoints', draft.checkpoints.filter((_, n) => n !== i))} />
         {error ? <p className="error" role="alert">{error}</p> : null}
@@ -141,9 +143,9 @@ export default function AnnTreasureHunts() {
 }
 
 function RoutePoints({ region, points, disabled, status, onLink, onChange, onAdd, onRemove }: { region: string; points: Point[]; disabled: boolean; status: (i: number) => string | undefined; onLink: (i: number, v: string) => void; onChange: (i: number, k: keyof Point, v: string | number) => void; onAdd: () => void; onRemove: (i: number) => void }) {
-  const title = 'Grand prize locations';
-  return <section className="th-member-points"><div className="adm-head"><h3>{title}</h3>{!disabled && points.length < 10 ? <button className="btn btn-ghost btn-sm" onClick={onAdd}>Add location</button> : null}</div>
-    {points.map((p, i) => <div className="th-member-point" key={i}><div className="adm-head"><b>Prize {i + 1}</b>{!disabled && points.length > 1 ? <button className="btn btn-ghost btn-sm" onClick={() => onRemove(i)}>Remove</button> : null}</div>
+  const title = 'Grand prize location';
+  return <section className="th-member-points"><div className="adm-head"><h3>{title}</h3>{!disabled && points.length < 1 ? <button className="btn btn-ghost btn-sm" onClick={onAdd}>Add location</button> : null}</div>
+    {points.map((p, i) => <div className="th-member-point" key={i}><div className="adm-head"><b>Same for every player · unlocks after all checkpoints</b>{!disabled && points.length > 1 ? <button className="btn btn-ghost btn-sm" onClick={() => onRemove(i)}>Remove</button> : null}</div>
       <label className="adm-field"><span>Place name</span><input disabled={disabled} value={p.name} onChange={(e) => onChange(i, 'name', e.target.value)} /></label>
       <label className="adm-field"><span>Google Maps link or coordinates</span><input disabled={disabled} value={p.map_ref} onChange={(e) => onLink(i, e.target.value)} placeholder="Paste a Google Maps link or 4.8156, 7.0498" /></label><small className="muted">{status(i) || 'Paste any Google Maps link (share links too). Latitude and longitude fill in by themselves.'}</small>
       <a className="btn btn-ghost btn-sm" href={mapSearch(region, p.name)} target="_blank" rel="noopener noreferrer">Open this area in Google Maps</a>
