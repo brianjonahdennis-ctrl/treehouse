@@ -5,6 +5,7 @@ import * as api from '@/lib/api';
 import { go } from '@/lib/nav';
 import { Icon, EmptyState, SkeletonList } from './ui';
 import { toast } from './overlay';
+import { HuntChat } from './TreasureHunt';
 
 type Stop = { name: string; hint: string; latitude: string; longitude: string; radius_m: number; reward_coins: number; map_ref: string };
 type Point = { name: string; latitude: string; longitude: string; radius_m: number; reward_coins: number; map_ref: string };
@@ -29,6 +30,7 @@ const mapSearch = (region: string, name: string) => `https://www.google.com/maps
 export default function AnnTreasureHunts() {
   const [hunts, setHunts] = useState<Hunt[] | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [chatFor, setChatFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const reload = () => { setHunts(null); api.treasureHuntsAdmin().then(setHunts).catch((e) => { setError(api.friendly(e)); setHunts([]); }); };
@@ -108,12 +110,13 @@ export default function AnnTreasureHunts() {
     } catch (e) { setError(api.friendly(e)); }
     finally { setBusy(false); }
   };
+  if (chatFor) return <HuntChat hunt={chatFor} onBack={() => setChatFor(null)} />;
   if (!hunts) return <div className="adm"><SkeletonList n={3} /></div>;
   return <div className="adm">
     <div className="adm-head"><div className="row" style={{ gap: 8, alignItems: 'center' }}><button className="btn btn-ghost btn-icon" aria-label="Back to announcements" onClick={() => go('admin/announcements')}><Icon name="back" /></button><h1>Treasure Hunt setup</h1></div><div className="adm-actions"><button className="btn btn-coral" onClick={() => edit()}>New hunt</button></div></div>
     <p className="small muted">Build and manage hunts here alongside announcements. Each player starts at the checkpoint nearest them and goes through every checkpoint. Then everyone goes to the same grand prize location. Camera and movement stay on their phone.</p>
     {error && !draft ? <div className="adm-note">{error}</div> : null}
-    <div className="th-admin-list">{hunts.length ? hunts.map((h) => <article className="card" key={h.id} style={{ padding: 16, marginBottom: 12 }}><h2>{h.title}</h2><p className="small muted">{h.region} · {h.state ? `${stateLabel(h.state)} only` : 'any state'} · {h.registration_count || 0} of {h.max_registrations || 1000} places taken · {(h.prizes || []).length} prizes · {h.checkpoints.length} checkpoints · nearest-checkpoint start · {(h.finish_points || []).length} prizes · {h.participant_count} players</p><p className="small">{h.status} · {h.coin_avatar || '🪙'} {h.treasure_avatar || '🧰'}</p><button className="btn btn-soft btn-sm" onClick={() => edit(h)}>{h.participant_count ? 'View or cancel' : 'Edit hunt'}</button></article>) : <div className="card" style={{ padding: 18 }}>No hunts yet. Create a safe route in a public area.</div>}</div>
+    <div className="th-admin-list">{hunts.length ? hunts.map((h) => <article className="card" key={h.id} style={{ padding: 16, marginBottom: 12 }}><h2>{h.title}</h2><p className="small muted">{h.region} · {h.state ? `${stateLabel(h.state)} only` : 'any state'} · {h.registration_count || 0} of {h.max_registrations || 1000} places taken · {(h.prizes || []).length} prizes · {h.checkpoints.length} checkpoints · nearest-checkpoint start · {(h.finish_points || []).length} prizes · {h.participant_count} players</p><p className="small">{h.status} · {h.coin_avatar || '🪙'} {h.treasure_avatar || '🧰'}</p><div className="row" style={{ gap: 8 }}><button className="btn btn-soft btn-sm" onClick={() => edit(h)}>{h.participant_count ? 'View or cancel' : 'Edit hunt'}</button>{h.status !== 'cancelled' && Date.parse(h.ends_at) > Date.now() ? <button className="btn btn-coral btn-sm" onClick={() => setChatFor(h.id)}>💬 Hunt chat</button> : null}</div></article>) : <div className="card" style={{ padding: 18 }}>No hunts yet. Create a safe route in a public area.</div>}</div>
     {draft ? <section className="adm-editor card" style={{ padding: 18, marginTop: 18 }}>
       <div className="adm-head"><h2>{draft.id ? `Edit ${draft.title}` : 'Create Treasure Hunt'}</h2><span className="small muted">{draft.participant_count ? 'Joined hunt: only cancellation is available.' : 'Coordinates are saved on the hunt server for check-in only.'}</span></div>
       <div className="th-member-form">

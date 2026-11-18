@@ -4,6 +4,7 @@ import { rpc, mapLinkCoords } from '@/lib/sb';
 import { useAsync, PageHead, Spinner, ErrorBox, Card, Field, Btn, Empty, Pill, toast } from './ui';
 import { STATES } from '@/lib/options';
 import { MediaPick } from './Upload';
+import { useGo } from './Shell';
 
 type Stop = { sequence: number; name: string; hint: string; latitude: string; longitude: string; radius_m: number; reward_coins: number; map_ref: string };
 type RoutePoint = { sequence: number; name: string; latitude: string; longitude: string; radius_m: number; reward_coins: number; map_ref: string };
@@ -26,6 +27,7 @@ function coordinatesFrom(value: string): [string, string] | null {
 }
 
 export default function TreasureHunts() {
+  const go = useGo();
   const list = useAsync(() => rpc<Hunt[]>('staff_treasure_hunts'), []);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -123,7 +125,7 @@ export default function TreasureHunts() {
         {list.data.length ? list.data.map((h) => <Card key={h.id} title={h.title} sub={`${h.region} · ${h.checkpoints.length} checkpoints`}>
           <div className="th-admin-meta"><Pill tone={h.status === 'active' ? 'green' : h.status === 'cancelled' ? 'red' : 'grey'}>{h.status}</Pill><span>{h.state ? (h.state === 'FCT' ? 'FCT (Abuja)' : h.state) + ' only' : 'Any state (older hunt)'}</span><span>{(h.registration_count || 0).toLocaleString()} of {(h.max_registrations || 1000).toLocaleString()} places taken</span><span>{h.participant_count.toLocaleString()} players joined</span>{h.prizes?.length ? <span>{h.prizes.length} prizes</span> : null}<span>{h.checkpoints.length} checkpoints</span><span>Nearest-checkpoint start · {(h.finish_points || []).length} treasures</span></div>
           <p className="small muted">{new Date(h.starts_at).toLocaleString()} – {new Date(h.ends_at).toLocaleString()}</p>
-          <Btn kind="soft" disabled={h.participant_count > 0 && h.status === 'cancelled'} onClick={() => edit(h)}>{h.participant_count > 0 ? 'View or cancel' : 'Edit hunt'}</Btn>
+          <div className="inline-row"><Btn kind="soft" disabled={h.participant_count > 0 && h.status === 'cancelled'} onClick={() => edit(h)}>{h.participant_count > 0 ? 'View or cancel' : 'Edit hunt'}</Btn>{h.status !== 'cancelled' && Date.parse(h.ends_at) > Date.now() ? <Btn kind="soft" icon="chat" onClick={() => go(`/hunt-chat?h=${h.id}`)}>Open chat</Btn> : null}</div>
         </Card>) : <Empty icon="gift" text="No hunts yet. Create one with public checkpoints to make it show in Games." />}
       </div>
       {draft ? <div className="th-admin-editor">

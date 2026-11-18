@@ -74,6 +74,7 @@ function BoardView({ id, mode }: { id: string; mode: 'live' | 'results' }) {
           <Pill tone={x.hunt.running ? 'green' : x.hunt.ended ? 'grey' : 'blue'}>{x.hunt.running ? 'Running now' : x.hunt.ended ? 'Finished' : `Starts ${ago(x.hunt.starts_at)}`}</Pill>
           <Btn small icon="refresh" onClick={b.reload}>Refresh</Btn>
           <Btn small kind="primary" icon="megaphone" disabled={!x.registered} onClick={() => setMsg(true)}>Message competitors</Btn>
+          {!x.hunt.ended ? <Btn small icon="chat" onClick={() => go(`/hunt-chat?h=${id}`)}>Hunt chat</Btn> : null}
         </div>
       </div>
       <p className="small muted">{date(x.hunt.starts_at)} – {date(x.hunt.ends_at)} (Lagos time)</p>
@@ -154,7 +155,7 @@ type Chat = { title: string; rules: string; staff: boolean; messages: ChatMsg[] 
 
 // The hunt's temporary chatroom (named after the hunt). Players never see a member list; staff can
 // post, answer, message one player privately and remove messages. It is deleted when the hunt ends.
-function HuntChatCard({ id }: { id: string }) {
+export function HuntChatCard({ id }: { id: string }) {
   const c = useAsync(() => rpc<Chat>('treasure_hunt_chat', { p_hunt: id, p_after: 0 }), [id]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -204,5 +205,27 @@ function PrivateModal({ id, handle, onClose, onSent }: { id: string; handle: str
       <Field label="Message"><textarea className="input" rows={4} maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} /></Field>
       {err ? <p className="err" role="alert">{err}</p> : null}
     </Modal>
+  );
+}
+
+// Hunt chat page (menu: Grow → Hunt chat). Every hunt that hasn't ended has a chat, drafts included,
+// so staff can post the rules before anyone registers.
+export function HuntChatPage() {
+  const list = useAsync(() => rpc<HuntLite[]>('staff_treasure_hunts'), []);
+  const hunts = useMemo(() => (list.data || []).filter((h) => !ended(h) && h.status !== 'cancelled'), [list.data]);
+  const [pick, setPick] = useState(() => (typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('h') || ''));
+  const id = pick && hunts.some((h) => h.id === pick) ? pick : hunts[0]?.id || '';
+  const sub = 'Talk to everyone registered for a hunt. They can’t see who else is in the chat. It’s deleted when the hunt ends.';
+  if (list.error) return <><PageHead title="Hunt chat" sub={sub} /><ErrorBox text={list.error} retry={list.reload} /></>;
+  if (!list.data) return <Spinner />;
+  return (
+    <>
+      <PageHead title="Hunt chat" sub={sub} actions={hunts.length ? (
+        <select className="select" value={id} onChange={(e) => setPick(e.target.value)} aria-label="Choose a hunt">
+          {hunts.map((h) => <option key={h.id} value={h.id}>{h.title}{h.status === 'draft' ? ' (draft)' : ''} · {n(h.registration_count || 0)} registered</option>)}
+        </select>) : null} />
+      {!hunts.length ? <Card><Empty icon="chat" text="No upcoming or running hunts. Create one in Treasure Hunts and its chat appears here." /></Card> : <HuntChatCard key={id} id={id} />}
+      <p className="small muted">To message one player privately, open Hunt live and tap Message next to their name.</p>
+    </>
   );
 }
