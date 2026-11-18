@@ -33,7 +33,7 @@ function mockHunts(): any[] {
   const prize = (place: number | null, title: string) => ({ place, title, media_type: 'image', media_url: '/icon-180.png' });
   const running = { id: 'mock-hunt-live', title: 'Lekki Sunset Hunt', region: 'Lekki, Lagos', state: 'Lagos', join_radius_km: 40, description: 'A running hunt for the preview.',
     status: 'active', starts_at: iso(2 * H), ends_at: new Date(now + 4 * H).toISOString(), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰',
-    participant_count: 9, registration_count: 14, finished_count: 2, prizes: [prize(1, 'Grand prize: a new phone')], start_points: [], finish_points: [],
+    participant_count: 9, registration_count: 14, finished_count: 2, winners_count: 2, prizes: [prize(1, 'Grand prize: a new phone')], start_points: [], finish_points: [],
     checkpoints: [1, 2, 3, 4, 5].map((n) => ({ id: `mock-live-${n}`, sequence: n, name: `Lekki stop ${n}`, hint: 'Sample clue', latitude: 6.44 + n * .001, longitude: 3.47, radius_m: 45, reward_coins: 100 })) };
   const done = { id: 'mock-hunt-done', title: 'Garden City Hunt', region: 'Port Harcourt, Rivers', state: 'Rivers', join_radius_km: 60, description: 'A finished hunt for the preview.',
     status: 'completed', starts_at: iso(2 * D), ends_at: iso(2 * D - 6 * H), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰',
@@ -218,11 +218,28 @@ function rpc(fn: string, a: any): any {
           registered_at: new Date(t0 - (3 + i) * H).toISOString(), started_at: playing ? new Date(t0 + i * 60e3).toISOString() : null,
           checkpoints: finished ? total : playing ? Math.max(0, total - 1 - (i % total)) : 0, coins: finished ? total * 100 + 100 : playing ? (total - 1 - (i % total)) * 100 : 0,
           last_claim_at: playing ? new Date(Math.min(Date.now(), t0 + (i + 1) * 9 * 60e3)).toISOString() : null,
-          finished_at: finished && took ? new Date(t0 + i * 60e3 + took * 1000).toISOString() : null, took_seconds: took };
+          finished_at: finished && took ? new Date(t0 + i * 60e3 + took * 1000).toISOString() : null, took_seconds: took,
+          winner: finished && i < (h.winners_count || 10), quit_at: !finished && playing && i === started - 1 ? new Date(t0 + 30 * 60e3).toISOString() : null };
       });
       const ended = h.status === 'completed' || Date.parse(h.ends_at) <= Date.now();
       return { hunt: { id: h.id, title: h.title, region: h.region, state: h.state, status: h.status, starts_at: h.starts_at, ends_at: h.ends_at, checkpoint_count: total,
         running: !ended && Date.parse(h.starts_at) <= Date.now(), ended }, registered: reg, started, finished: fin, people };
+    }
+    case 'treasure_hunt_chat': {
+      const saved = JSON.parse(localStorage.getItem('th-admin-mock-hunt-chat') || 'null') || [
+        { id: 1, mine: true, from_staff: true, sender: 'treehouse team', private: false, body: 'Welcome! We start at the Lekki gate at 4pm.', at: iso(2 * H) },
+        { id: 2, mine: false, from_staff: false, sender: members[3].handle, private: false, body: 'Can we use a bike?', at: iso(1 * H) }];
+      const h = mockHunts().find((x) => x.id === a.p_hunt) || {};
+      return { title: h.title || 'Hunt', rules: h.rules || 'Stay on public roads. Be kind to other players.', staff: true, messages: saved };
+    }
+    case 'treasure_hunt_chat_send': {
+      const saved = rpc('treasure_hunt_chat', { p_hunt: a.p_hunt }).messages; const id = Date.now();
+      saved.push({ id, mine: true, from_staff: true, sender: 'treehouse team', private: !!a.p_to_handle, to: a.p_to_handle || null, body: a.p_body, at: new Date().toISOString() });
+      localStorage.setItem('th-admin-mock-hunt-chat', JSON.stringify(saved)); return id;
+    }
+    case 'treasure_hunt_chat_delete': {
+      const saved = JSON.parse(localStorage.getItem('th-admin-mock-hunt-chat') || '[]').filter((m: any) => m.id !== a.p_id);
+      localStorage.setItem('th-admin-mock-hunt-chat', JSON.stringify(saved)); return null;
     }
     case 'staff_treasure_hunt_message': {
       const h = mockHunts().find((x) => x.id === a.p_hunt); return { announcement: 'mock-ann', recipients: a.p_group === 'started' ? h?.participant_count || 0 : h?.registration_count || 0 };

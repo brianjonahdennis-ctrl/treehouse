@@ -8,15 +8,15 @@ import { MediaPick } from './Upload';
 type Stop = { sequence: number; name: string; hint: string; latitude: string; longitude: string; radius_m: number; reward_coins: number; map_ref: string };
 type RoutePoint = { sequence: number; name: string; latitude: string; longitude: string; radius_m: number; reward_coins: number; map_ref: string };
 type Prize = { place: number | null; title: string; media_type: 'image' | 'video'; media_url: string };
-type Hunt = { id: string; title: string; region: string; state: string | null; max_registrations: number; join_radius_km: number; registration_count: number; prizes: Prize[]; description: string; status: string; starts_at: string; ends_at: string; completion_bonus_coins: number; coin_avatar: string; treasure_avatar: string; participant_count: number;
+type Hunt = { id: string; title: string; region: string; state: string | null; max_registrations: number; winners_count: number; rules: string; join_radius_km: number; registration_count: number; prizes: Prize[]; description: string; status: string; starts_at: string; ends_at: string; completion_bonus_coins: number; coin_avatar: string; treasure_avatar: string; participant_count: number;
   checkpoints: { id: string; sequence: number; name: string; hint: string; latitude: number; longitude: number; radius_m: number; reward_coins: number }[];
   start_points: { id: string; sequence: number; name: string; latitude: number; longitude: number; radius_m: number; reward_coins: number }[];
   finish_points: { id: string; sequence: number; name: string; latitude: number; longitude: number; radius_m: number; reward_coins: number }[] };
-type Draft = { id?: string; title: string; region: string; state: string; max_registrations: number; join_radius_km: number; registration_count: number; prizes: Prize[]; prizesChanged: boolean; description: string; status: 'draft' | 'scheduled' | 'active' | 'completed' | 'cancelled'; starts_at: string; ends_at: string; completion_bonus_coins: number; coin_avatar: string; treasure_avatar: string; checkpoints: Stop[]; finish_points: RoutePoint[]; participant_count: number };
+type Draft = { id?: string; title: string; region: string; state: string; max_registrations: number; winners_count: number; rules: string; join_radius_km: number; registration_count: number; prizes: Prize[]; prizesChanged: boolean; description: string; status: 'draft' | 'scheduled' | 'active' | 'completed' | 'cancelled'; starts_at: string; ends_at: string; completion_bonus_coins: number; coin_avatar: string; treasure_avatar: string; checkpoints: Stop[]; finish_points: RoutePoint[]; participant_count: number };
 const localValue = (v?: string) => { const d = v ? new Date(v) : new Date(Date.now() + 86400000); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 const emptyStop = (sequence: number): Stop => ({ sequence, name: '', hint: '', latitude: '', longitude: '', radius_m: 45, reward_coins: 100, map_ref: '' });
 const emptyRoutePoint = (sequence: number): RoutePoint => ({ sequence, name: '', latitude: '', longitude: '', radius_m: 60, reward_coins: 0, map_ref: '' });
-const blank = (): Draft => ({ title: '', region: '', state: '', max_registrations: 1000, join_radius_km: 60, registration_count: 0, prizes: [], prizesChanged: false, description: '', status: 'draft', starts_at: localValue(), ends_at: localValue(new Date(Date.now() + 2 * 86400000).toISOString()), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', checkpoints: [emptyStop(1)], finish_points: [emptyRoutePoint(1)], participant_count: 0 });
+const blank = (): Draft => ({ title: '', region: '', state: '', max_registrations: 1000, winners_count: 10, rules: '', join_radius_km: 60, registration_count: 0, prizes: [], prizesChanged: false, description: '', status: 'draft', starts_at: localValue(), ends_at: localValue(new Date(Date.now() + 2 * 86400000).toISOString()), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', checkpoints: [emptyStop(1)], finish_points: [emptyRoutePoint(1)], participant_count: 0 });
 function coordinatesFrom(value: string): [string, string] | null {
   let text = value.trim();
   try { if (/^https?:\/\//i.test(text)) { const url = new URL(text); const q = url.searchParams.get('q') || url.searchParams.get('query'); if (q) text = q; else text = decodeURIComponent(text); } } catch { text = value.trim(); }
@@ -32,7 +32,7 @@ export default function TreasureHunts() {
   const [error, setError] = useState('');
   const edit = (h?: Hunt) => {
     setError('');
-    setDraft(h ? { id: h.id, title: h.title, region: h.region, state: h.state || '', max_registrations: h.max_registrations || 1000, join_radius_km: h.join_radius_km || 60, registration_count: h.registration_count || 0,
+    setDraft(h ? { id: h.id, title: h.title, region: h.region, state: h.state || '', max_registrations: h.max_registrations || 1000, winners_count: h.winners_count || 10, rules: h.rules || '', join_radius_km: h.join_radius_km || 60, registration_count: h.registration_count || 0,
       prizes: h.prizes || [], prizesChanged: false, description: h.description, status: h.status as Draft['status'],
       starts_at: localValue(h.starts_at), ends_at: localValue(h.ends_at), completion_bonus_coins: h.completion_bonus_coins,
       coin_avatar: h.coin_avatar || '🪙', treasure_avatar: h.treasure_avatar || '🧰',
@@ -83,6 +83,7 @@ export default function TreasureHunts() {
     if (!draft.state && !frozen) { setError('Choose the state this hunt is in. Only members in that state can register.'); return; }
     if (!(draft.max_registrations >= 10 && draft.max_registrations <= 1000)) { setError('Set the participant limit between 10 and 1,000.'); return; }
     if (draft.max_registrations < draft.registration_count) { setError(`${draft.registration_count} people have already registered, so the limit can’t be lower than that.`); return; }
+    if (!(draft.winners_count >= 1 && draft.winners_count <= 100) || draft.winners_count > draft.max_registrations) { setError('Choose between 1 and 100 winners (no more than the participant limit).'); return; }
     if (draft.prizes.some((p) => p.title.trim().length < 2)) { setError('Give every prize a short name.'); return; }
     if (!draft.checkpoints.length || draft.checkpoints.some((c) => !c.name.trim() || !Number.isFinite(Number(c.latitude)) || !Number.isFinite(Number(c.longitude)) || c.latitude === '' || c.longitude === '')) {
       setError('Keep at least one named checkpoint and add its map coordinates.'); return;
@@ -96,7 +97,7 @@ export default function TreasureHunts() {
     setSaving(true);
     try {
       const hid = await rpc<string>('staff_treasure_hunt_save_routes', {
-        p_hunt: { id: draft.id, title: draft.title.trim(), region: draft.region.trim(), state: draft.state || null, join_radius_km: Number(draft.join_radius_km), max_registrations: Number(draft.max_registrations), description: draft.description.trim(), status: draft.status,
+        p_hunt: { id: draft.id, title: draft.title.trim(), region: draft.region.trim(), state: draft.state || null, join_radius_km: Number(draft.join_radius_km), max_registrations: Number(draft.max_registrations), winners_count: Number(draft.winners_count), rules: draft.rules.trim(), description: draft.description.trim(), status: draft.status,
           starts_at: new Date(draft.starts_at).toISOString(), ends_at: new Date(draft.ends_at).toISOString(), completion_bonus_coins: Number(draft.completion_bonus_coins), coin_avatar: draft.coin_avatar, treasure_avatar: draft.treasure_avatar },
         p_checkpoints: draft.checkpoints.map((c, i) => ({ sequence: i + 1, name: c.name.trim(), hint: c.hint.trim(), latitude: Number(c.latitude), longitude: Number(c.longitude),
           radius_m: Number(c.radius_m), reward_coins: Number(c.reward_coins) })),
@@ -138,6 +139,8 @@ export default function TreasureHunts() {
               <Field label="Participant limit" hint={draft.registration_count > 0 ? `${draft.registration_count} registered; you can raise it but not go below that.` : '10 to 1,000. When it’s full, nobody else can register.'}><input type="number" min={Math.max(10, draft.registration_count)} max={1000} value={draft.max_registrations} onChange={(e) => change('max_registrations', Number(e.target.value))} /></Field>
               <Field label="Start area (km)" hint="Players must be this close to a checkpoint to start."><input disabled={frozen} type="number" min={1} max={1000} value={draft.join_radius_km} onChange={(e) => change('join_radius_km', Number(e.target.value))} /></Field>
             </div>
+            <Field label="Number of winners" hint="1 to 100. When this many players finish, everyone still playing is told the winners are in and can finish or quit."><input type="number" min={1} max={100} value={draft.winners_count} onChange={(e) => change('winners_count', Number(e.target.value))} /></Field>
+            <Field label="Hunt rules" hint="Pinned at the top of the hunt chat. Everyone who registers is added to that chat automatically."><textarea value={draft.rules} maxLength={2000} rows={4} onChange={(e) => change('rules', e.target.value)} placeholder="Stay on public roads. No running across traffic. Be kind to other players." /></Field>
             <Field label="Short introduction"><textarea disabled={frozen} value={draft.description} maxLength={500} rows={3} onChange={(e) => change('description', e.target.value)} placeholder="Follow the clues and find the treasure." /></Field>
             <div className="th-admin-row">
               <Field label="Starts"><input disabled={frozen} type="datetime-local" value={draft.starts_at} onChange={(e) => change('starts_at', e.target.value)} /></Field>

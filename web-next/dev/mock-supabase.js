@@ -245,7 +245,7 @@ const mockHuntOrder = (player) => player === 2 ? [0, 2, 3, 1, 4] : [0, 1, 2, 3, 
 // (register → countdown), and a Port Harcourt hunt shows why a Lagos member can't register.
 function mockHuntListings() {
   const reg = (id) => sessionStorage.getItem(`mock-hunt-reg-${id}`) === '1';
-  const base = { description: 'Follow the clues and collect a Treehouse Coin at every stop.', coin_avatar: '🪙', treasure_avatar: '🧰', needs_registration: true, max_registrations: 200, full: false };
+  const base = { description: 'Follow the clues and collect a Treehouse Coin at every stop.', coin_avatar: '🪙', treasure_avatar: '🧰', needs_registration: true, max_registrations: 200, full: false, winners_count: 2, winners_done: false, chat: true };
   const prizes = [{ place: 1, title: 'Grand prize: a new phone', media_type: 'image', media_url: '/icon-512.png' }, { place: null, title: 'treehouse goodies for every finisher', media_type: 'image', media_url: '/icon-192.png' }];
   const rows = [
     { ...base, id: mockHuntId, title: 'Treasure Hunt', region: 'Lagos · preview', state: 'Lagos', starts_at: new Date(Date.now() - 3600000).toISOString(),
@@ -259,7 +259,7 @@ function mockHuntListings() {
   return rows.map(({ count, ...h }) => {
     const mine = reg(h.id) || (h.id === mockHuntId && h.joined);
     const block = mine ? null : h.state !== profile.state ? `This hunt is only for members in ${h.state}. Your profile says ${profile.state}.` : null;
-    return { ...h, registered: mine, register_block: block, registered_count: mine ? count + 1 : null };
+    return { ...h, registered: mine, chat: mine, register_block: block, registered_count: mine ? count + 1 : null };
   });
 }
 function mockHuntProgress() {
@@ -404,6 +404,22 @@ const RPC = {
       description: 'Follow the clues and collect a Treehouse Coin at every stop.', starts_at: new Date(Date.now() - 3600000).toISOString(),
       ends_at: new Date(Date.now() + 86400000).toISOString(), checkpoint_count: mockHuntCheckpoints.length, participants: 27,
       joined: sessionStorage.getItem(`mock-hunt-joined-${mockHuntPlayer()}`) === '1' }],
+    treasure_hunt_live_board: () => { const me = mockHuntState(mockHuntPlayer()); const names = ['Noble Owl 221', 'Mellow Sparrow 799', 'Hidden Tiger 155', 'Calm Kite 412', 'Bright Finch 301', 'Quiet Ibis 522'];
+      const rows = names.map((handle, i) => ({ handle, checkpoints: i < 2 ? 5 : Math.max(0, 4 - i), finished: i < 2, winner: i < 2, quit: i === 5, started: true, me: false }));
+      rows.push({ handle: profile.handle, checkpoints: me.found || 0, finished: !!me.done, winner: false, quit: sessionStorage.getItem('mock-hunt-quit') === '1', started: true, me: true });
+      rows.sort((a, b) => (b.finished - a.finished) || (a.quit - b.quit) || (b.checkpoints - a.checkpoints)); rows.forEach((r, i) => { r.place = i + 1; });
+      const mine = rows.find((r) => r.me);
+      return { hunt: { id: mockHuntId, title: 'Treasure Hunt', checkpoint_count: 5, winners_count: 2, winners_done: true, ended: false }, me: { ...mine }, items: rows }; },
+    treasure_hunt_quit: () => { sessionStorage.setItem('mock-hunt-quit', '1'); return null; },
+    treasure_hunt_chat: ({ p_after }) => { const all = JSON.parse(sessionStorage.getItem('mock-hunt-chat') || JSON.stringify([
+        { id: 1, mine: false, from_staff: true, sender: 'treehouse team', private: false, body: 'Welcome! The hunt starts at the Lekki gate. Read the rules above.', at: new Date(Date.now() - 3600e3).toISOString() },
+        { id: 2, mine: false, from_staff: false, sender: 'Noble Owl 221', private: false, body: 'Can we use a bike?', at: new Date(Date.now() - 1800e3).toISOString() },
+        { id: 3, mine: false, from_staff: true, sender: 'treehouse team', private: false, body: 'Walking or buses only, please.', at: new Date(Date.now() - 1700e3).toISOString() }]));
+      return { title: 'Treasure Hunt', rules: 'Stay on public roads.\nNo running across traffic.\nBe kind to other players.', staff: false, ends_at: new Date(Date.now() + 86400e3).toISOString(), messages: all.filter((m) => m.id > (p_after || 0)) }; },
+    treasure_hunt_chat_send: ({ p_body }) => { const all = JSON.parse(sessionStorage.getItem('mock-hunt-chat') || '[]'); const base = all.length ? all : RPC.treasure_hunt_chat({ p_after: 0 }).messages;
+      const id = Math.max(...base.map((m) => m.id)) + 1; base.push({ id, mine: true, from_staff: false, sender: profile.handle, private: false, body: p_body, at: new Date().toISOString() });
+      sessionStorage.setItem('mock-hunt-chat', JSON.stringify(base)); return id; },
+    treasure_hunt_chat_delete: () => null,
     treasure_hunts_list: () => empty ? [] : mockHuntListings(),
     treasure_hunt_register: ({ p_hunt }) => { const h = mockHuntListings().find((x) => x.id === p_hunt); if (!h) throw new Error('This hunt could not be found.');
       if (h.register_block) throw new Error(h.register_block); sessionStorage.setItem(`mock-hunt-reg-${p_hunt}`, '1'); return { registered: true, registered_count: mockHuntListings().find((x) => x.id === p_hunt).registered_count }; },

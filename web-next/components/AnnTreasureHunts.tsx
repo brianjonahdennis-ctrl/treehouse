@@ -9,12 +9,12 @@ import { toast } from './overlay';
 type Stop = { name: string; hint: string; latitude: string; longitude: string; radius_m: number; reward_coins: number; map_ref: string };
 type Point = { name: string; latitude: string; longitude: string; radius_m: number; reward_coins: number; map_ref: string };
 type Prize = api.TreasureHuntPrize;
-type Hunt = { id: string; title: string; region: string; state?: string | null; max_registrations?: number; join_radius_km?: number; registration_count?: number; prizes?: Prize[]; description: string; status: string; starts_at: string; ends_at: string; participant_count: number; checkpoints: any[]; start_points: any[]; finish_points: any[]; coin_avatar: string; treasure_avatar: string };
-type Draft = { id?: string; title: string; region: string; state: string; max_registrations: number; join_radius_km: number; registration_count: number; prizes: Prize[]; prizesChanged: boolean; description: string; status: string; starts_at: string; ends_at: string; completion_bonus_coins: number; coin_avatar: string; treasure_avatar: string; checkpoints: Stop[]; finish_points: Point[]; participant_count: number };
+type Hunt = { id: string; title: string; region: string; state?: string | null; max_registrations?: number; winners_count?: number; rules?: string; join_radius_km?: number; registration_count?: number; prizes?: Prize[]; description: string; status: string; starts_at: string; ends_at: string; participant_count: number; checkpoints: any[]; start_points: any[]; finish_points: any[]; coin_avatar: string; treasure_avatar: string };
+type Draft = { id?: string; title: string; region: string; state: string; max_registrations: number; winners_count: number; rules: string; join_radius_km: number; registration_count: number; prizes: Prize[]; prizesChanged: boolean; description: string; status: string; starts_at: string; ends_at: string; completion_bonus_coins: number; coin_avatar: string; treasure_avatar: string; checkpoints: Stop[]; finish_points: Point[]; participant_count: number };
 const dateValue = (date = new Date(Date.now() + 86400000)) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 const emptyStop = (): Stop => ({ name: '', hint: '', latitude: '', longitude: '', radius_m: 45, reward_coins: 100, map_ref: '' });
 const emptyPoint = (): Point => ({ name: '', latitude: '', longitude: '', radius_m: 60, reward_coins: 0, map_ref: '' });
-const blank = (): Draft => ({ title: '', region: '', state: '', max_registrations: 1000, join_radius_km: 60, registration_count: 0, prizes: [], prizesChanged: false, description: '', status: 'draft', starts_at: dateValue(), ends_at: dateValue(new Date(Date.now() + 2 * 86400000)), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', checkpoints: [emptyStop()], finish_points: [emptyPoint()], participant_count: 0 });
+const blank = (): Draft => ({ title: '', region: '', state: '', max_registrations: 1000, winners_count: 10, rules: '', join_radius_km: 60, registration_count: 0, prizes: [], prizesChanged: false, description: '', status: 'draft', starts_at: dateValue(), ends_at: dateValue(new Date(Date.now() + 2 * 86400000)), completion_bonus_coins: 100, coin_avatar: '🪙', treasure_avatar: '🧰', checkpoints: [emptyStop()], finish_points: [emptyPoint()], participant_count: 0 });
 function coordsFrom(raw: string): [string, string] | null {
   let text = raw.trim();
   try { if (/^https?:\/\//i.test(text)) { const u = new URL(text); const q = u.searchParams.get('q') || u.searchParams.get('query'); text = q || decodeURIComponent(text); } } catch { /* use the copied text */ }
@@ -35,7 +35,7 @@ export default function AnnTreasureHunts() {
   useEffect(() => { void api.treasureHuntsAdmin().then(setHunts).catch((e) => { setError(api.friendly(e)); setHunts([]); }); }, []);
   const edit = (h?: Hunt) => {
     setError('');
-    setDraft(h ? { id: h.id, title: h.title, region: h.region, state: h.state || '', max_registrations: h.max_registrations || 1000, join_radius_km: h.join_radius_km || 60, registration_count: h.registration_count || 0, prizes: h.prizes || [], prizesChanged: false, description: h.description, status: h.status,
+    setDraft(h ? { id: h.id, title: h.title, region: h.region, state: h.state || '', max_registrations: h.max_registrations || 1000, winners_count: h.winners_count || 10, rules: h.rules || '', join_radius_km: h.join_radius_km || 60, registration_count: h.registration_count || 0, prizes: h.prizes || [], prizesChanged: false, description: h.description, status: h.status,
       starts_at: localValue(h.starts_at), ends_at: localValue(h.ends_at), completion_bonus_coins: (h as any).completion_bonus_coins || 100,
       coin_avatar: h.coin_avatar || '🪙', treasure_avatar: h.treasure_avatar || '🧰', participant_count: h.participant_count,
       checkpoints: h.checkpoints?.length ? h.checkpoints.map((c) => ({ name: c.name, hint: c.hint, latitude: String(c.latitude), longitude: String(c.longitude), radius_m: c.radius_m, reward_coins: c.reward_coins, map_ref: '' })) : [emptyStop()],
@@ -87,6 +87,7 @@ export default function AnnTreasureHunts() {
     if (!draft.state && !draft.participant_count) { setError('Choose the state this hunt is in. Only members in that state can register.'); return; }
     if (!(draft.max_registrations >= 10 && draft.max_registrations <= 1000)) { setError('Set the participant limit between 10 and 1,000.'); return; }
     if (draft.max_registrations < draft.registration_count) { setError(`${draft.registration_count} people have already registered, so the limit can’t be lower than that.`); return; }
+    if (!(draft.winners_count >= 1 && draft.winners_count <= 100) || draft.winners_count > draft.max_registrations) { setError('Choose between 1 and 100 winners (no more than the participant limit).'); return; }
     if (draft.prizes.some((p) => p.title.trim().length < 2)) { setError('Give every prize a short name.'); return; }
     if (!draft.checkpoints.length || draft.checkpoints.some((p) => !p.name.trim() || p.latitude === '' || p.longitude === '' || !Number.isFinite(Number(p.latitude)) || !Number.isFinite(Number(p.longitude)))) { setError('Keep at least one named checkpoint and add its map coordinates.'); return; }
     const points = draft.finish_points;
@@ -94,7 +95,7 @@ export default function AnnTreasureHunts() {
     if (Date.parse(draft.ends_at) <= Date.parse(draft.starts_at)) { setError('The end time must come after the start time.'); return; }
     setBusy(true);
     try {
-      const hid = await api.treasureHuntAdminSave({ id: draft.id, title: draft.title.trim(), region: draft.region.trim(), state: draft.state || null, join_radius_km: Number(draft.join_radius_km), max_registrations: Number(draft.max_registrations), description: draft.description.trim(), status: draft.status,
+      const hid = await api.treasureHuntAdminSave({ id: draft.id, title: draft.title.trim(), region: draft.region.trim(), state: draft.state || null, join_radius_km: Number(draft.join_radius_km), max_registrations: Number(draft.max_registrations), winners_count: Number(draft.winners_count), rules: draft.rules.trim(), description: draft.description.trim(), status: draft.status,
         starts_at: new Date(draft.starts_at).toISOString(), ends_at: new Date(draft.ends_at).toISOString(), completion_bonus_coins: Number(draft.completion_bonus_coins), coin_avatar: draft.coin_avatar, treasure_avatar: draft.treasure_avatar },
       draft.checkpoints.map((p, i) => ({ sequence: i + 1, ...p, name: p.name.trim(), hint: p.hint.trim(), latitude: Number(p.latitude), longitude: Number(p.longitude), radius_m: Number(p.radius_m), reward_coins: Number(p.reward_coins) })),
       draft.finish_points.map((p, i) => ({ sequence: i + 1, name: p.name.trim(), latitude: Number(p.latitude), longitude: Number(p.longitude), radius_m: Number(p.radius_m), reward_coins: Number(p.reward_coins) })));
@@ -119,6 +120,9 @@ export default function AnnTreasureHunts() {
         <div className="th-member-grid"><label className="adm-field"><span>State</span><select disabled={!!draft.participant_count || draft.registration_count > 0} value={draft.state} onChange={(e) => set('state', e.target.value)}><option value="">Choose a state…</option>{STATES.map((x) => <option key={x} value={x}>{stateLabel(x)}</option>)}</select></label>
           <label className="adm-field"><span>Start area (km)</span><input disabled={!!draft.participant_count} type="number" min={1} max={1000} value={draft.join_radius_km} onChange={(e) => set('join_radius_km', Number(e.target.value))} /></label></div>
         <label className="adm-field"><span>Participant limit (10 to 1,000)</span><input type="number" min={Math.max(10, draft.registration_count)} max={1000} value={draft.max_registrations} onChange={(e) => set('max_registrations', Number(e.target.value))} /></label>
+        <label className="adm-field"><span>Number of winners (1 to 100)</span><input type="number" min={1} max={100} value={draft.winners_count} onChange={(e) => set('winners_count', Number(e.target.value))} /></label>
+        <small className="muted">When this many players finish, everyone still playing is told the winners are in and can finish or quit.</small>
+        <label className="adm-field"><span>Hunt rules (shown at the top of the hunt chat)</span><textarea rows={4} maxLength={2000} value={draft.rules} onChange={(e) => set('rules', e.target.value)} placeholder="Stay on public roads. No running across traffic. Be kind to other players." /></label>
         <small className="muted">When the limit is reached, nobody else can register.{draft.registration_count > 0 ? ` ${draft.registration_count} registered so far; you can raise the limit but not set it below that.` : ''}</small>
         <small className="muted">Only members whose profile is in this state can register.{draft.registration_count > 0 ? ` ${draft.registration_count} registered, so the state is locked.` : ''} To start, players must be within the start area of a checkpoint.</small>
         <PrizeEditor prizes={draft.prizes} disabled={draft.status === 'cancelled' || draft.status === 'completed'} onChange={(prizes) => setDraft((d) => d ? { ...d, prizes, prizesChanged: true } : d)} />

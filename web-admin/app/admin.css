@@ -611,3 +611,12 @@ input.num { width: 110px; margin-right: 8px; }
 }
 @media (max-width: 640px) { .kpis.hunt-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
 .hunt-tbl td { overflow-wrap: anywhere; }
+
+.hunt-chat { display: grid; gap: 10px; max-height: 420px; overflow-y: auto; margin: 12px 0; }
+.hunt-chat-msg { padding: 8px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); overflow-wrap: anywhere; }
+.hunt-chat-msg small { display: block; color: var(--muted); font-weight: 700; font-size: 12px; }
+.hunt-chat-msg p { margin: 2px 0 4px; white-space: pre-wrap; }
+.hunt-chat-msg.staff { background: var(--green-soft, #e9f9ef); }
+.hunt-chat-msg.private { border-style: dashed; border-color: var(--amber, #f59e0b); }
+.hunt-chat-compose { display: flex; gap: 8px; align-items: flex-end; }
+.hunt-chat-compose textarea { flex: 1; min-width: 0; resize: vertical; }
