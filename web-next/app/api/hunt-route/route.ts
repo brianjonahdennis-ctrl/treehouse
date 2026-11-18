@@ -178,3 +178,8 @@ export async function POST(request: Request) {
     return response(502, { error: 'unavailable', message: 'Road directions are unavailable. Follow the direction arrow or Google Maps.' });
   }
 }
+
+// Lets staff check that road directions are switched on (whether the Google key is set). No key, no details.
+export async function GET() {
+  return response(200, { road_directions: !!process.env.GOOGLE_ROUTES_KEY });
+}

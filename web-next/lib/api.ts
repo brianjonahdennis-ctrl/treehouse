@@ -687,12 +687,18 @@ export async function treasureHuntNavigationRoute(hunt: string, origin: Treasure
   if (process.env.NEXT_PUBLIC_TH_MOCK === '1') return mockTreasureHuntRoute(origin, destination);
   const { data } = await sb.auth.getSession();
   const token = data.session?.access_token || '';
-  const response = await fetch('/api/hunt-route', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ hunt, origin, travelMode }),
-    cache: 'no-store',
-  });
+  let response: Response;
+  try {
+    response = await fetch('/api/hunt-route', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      // The server accepts exactly { latitude, longitude }. The phone's position also carries GPS accuracy,
+      // which made every request fail with 400 until 19 Nov 2026, so send only the two numbers.
+      body: JSON.stringify({ hunt, origin: { latitude: origin.latitude, longitude: origin.longitude }, travelMode }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(15000),   // never wait forever on "getting road route…"
+    });
+  } catch { throw new Error('Road directions took too long. Tap Recenter to try again, or open Google Maps.'); }
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result.message || 'Road directions are unavailable right now. Follow the direction arrow or open Google Maps.');
   return result as TreasureHuntRoute;
