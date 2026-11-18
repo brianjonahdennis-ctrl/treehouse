@@ -692,7 +692,9 @@ export async function treasureHuntNavigationRoute(hunt: string, origin: Treasure
     response = await fetch('/api/hunt-route', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ hunt, origin, travelMode }),
+      // The server accepts exactly { latitude, longitude }. The phone's position also carries GPS accuracy,
+      // which made every request fail with 400 until 19 Nov 2026, so send only the two numbers.
+      body: JSON.stringify({ hunt, origin: { latitude: origin.latitude, longitude: origin.longitude }, travelMode }),
       cache: 'no-store',
       signal: AbortSignal.timeout(15000),   // never wait forever on "getting road route…"
     });
