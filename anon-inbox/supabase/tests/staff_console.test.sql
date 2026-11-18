@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(68);
+select plan(69);
 
 create function pg_temp.login(uid text, aal text default 'aal2') returns void language plpgsql as $$
 begin
@@ -71,6 +71,8 @@ select throws_ok($$ select staff_dashboard(7) $$, '42501', 'Enter the code from 
 select pg_temp.login('00000000-0000-0000-0000-0000000c0005');
 select ok(staff_dashboard(7) ? 'profiles', 'analyst with the authenticator step sees the dashboard');
 select ok(staff_dashboard(7) ? 'dating', 'dashboard reuses the existing admin stats');
+select ok(staff_dashboard(7) ?& array['chat_messages_today', 'room_messages_today', 'platforms', 'photos', 'reputation', 'speed', 'deletions']
+          and staff_dashboard(7) -> 'dating' ?& array['daily', 'inRange'], 'dashboard has every part the Overview page shows');
 select pg_temp.admin();
 select is(dating_private.admin_ok(null), false, 'the admin-key bypass ends with the call');
 select pg_temp.login('00000000-0000-0000-0000-0000000c0005');

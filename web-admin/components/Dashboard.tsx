@@ -16,7 +16,7 @@ type Dash = {
   in_rooms_now: number; open_reports: { chat: number; room: number; link: number };
   signups: { day: string; profiles: number }[]; gender: Record<string, number>; top_states: { state: string; people: number }[];
   ads: { active: number; views_today: number; taps_today: number }; referrals: { joined_today: number; joined_period: number };
-  dating?: { daily: Daily[]; inRange: { accounts: number; profiles: number; conversations: number; messages: number }; totals: Record<string, number>; intent: { name: string; count: number }[] };
+  dating?: { daily: Daily[]; inRange: { accounts: number; profiles: number; conversations: number; messages: number } };
   speed?: { now: { onDates: number; waiting: number }; daily: { date: string; dates: number; matches: number }[]; inRange: { pairings: number; matches: number } };
   deletions?: { inRange: number; daily: { date: string; deleted: number }[] };
   photos?: { stored: number; storedMB: number; sentToday: number };
