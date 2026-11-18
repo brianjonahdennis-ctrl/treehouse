@@ -217,7 +217,7 @@ function HuntCard({ hunt, busy, notice, onStart, onChanged }: { hunt: Hunt; busy
     <h2>{hunt.title}</h2>
     <p className="muted">📍 {hunt.region}{hunt.state ? <span className="th-state-pill">{stateName(hunt.state)} only</span> : null}</p>
     {hunt.description ? <p>{hunt.description}</p> : null}
-    <div className="th-facts"><span>⚑ {hunt.checkpoint_count} checkpoints</span>{live ? <span>Ends {relativeTime(hunt.ends_at)}</span> : null}</div>
+    <div className="th-facts"><span>⚑ {hunt.checkpoint_count} checkpoints</span>{hunt.max_registrations ? <span>👥 {hunt.max_registrations.toLocaleString()} places</span> : null}{live ? <span>Ends {relativeTime(hunt.ends_at)}</span> : null}</div>
     <Prizes prizes={hunt.prizes || []} />
     {hunt.registered ? <div className="th-registered">
       <Icon name="check" cls="sm" /><span><b>You’re registered.</b> {others ? `${others.toLocaleString()} other${others === 1 ? '' : 's'} registered too.` : 'You’re the first to register.'}</span>
@@ -226,7 +226,7 @@ function HuntCard({ hunt, busy, notice, onStart, onChanged }: { hunt: Hunt; busy
     {error || (notice && live && mine) ? <p className="error" role="alert">{error || notice}</p> : null}
     {!mine ? hunt.register_block
       ? <><p className="th-blocked" role="note"><Icon name="lock" cls="sm" />{hunt.register_block}</p>
-          <button className="btn btn-soft btn-block" disabled>Registration closed for you</button></>
+          <button className="btn btn-soft btn-block" disabled>{hunt.full ? 'This hunt is full' : 'Registration closed for you'}</button></>
       : <button className="btn btn-primary btn-block" disabled={saving} onClick={() => void register()}>{saving ? 'Registering…' : 'Register for this hunt'} <Icon name="chev" cls="sm" /></button>
     : live
       ? <button className="btn btn-primary btn-block th-start" disabled={busy} onClick={onStart}>{busy ? 'Opening hunt…' : hunt.joined ? 'Continue treasure hunt' : 'Start treasure hunt'} <Icon name="chev" cls="sm" /></button>

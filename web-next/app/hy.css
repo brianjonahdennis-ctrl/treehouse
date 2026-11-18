@@ -2611,3 +2611,5 @@ button.mt-nav:active { transform: scale(.99); }
   .chat-head .chat-calls .icon { width: 20px; height: 20px; }
   .chat-head > .plain-btn { width: 36px; height: 36px; }
 }
+
+.th-member-prize img, .th-member-prize video { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 12px; margin-bottom: 8px; background: color-mix(in srgb, var(--muted) 12%, transparent); }
