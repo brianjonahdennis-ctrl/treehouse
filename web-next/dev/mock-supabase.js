@@ -167,6 +167,8 @@
     ['Bold Falcon 77', 'Count me in. What time does it start?', 9],
     ['Pearl Meadow 128', '9pm. Bring your dancing shoes 💃', 3],
   ].map(([handle, body, min], i) => ({ id: msgId + i, handle, body, created_at: ago(min), mine: handle === profile.handle, reactions: i === 4 ? { '🔥': 3, '❤️': 1 } : i === 0 ? { '😂': 2 } : {}, my_reactions: [] }));
+  const roomReports = new Map();
+  const roomBlockedHandles = new Set();
   roomMsgs[4].reply_to = roomMsgs[3].id; roomMsgs[4].reply_handle = roomMsgs[3].handle; roomMsgs[4].reply_body = roomMsgs[3].body;
   const roomPeople = [profile.handle, 'Velvet Mango 532', 'Bold Falcon 77', 'Pearl Meadow 128', 'Jade Willow 390', 'Cobalt Fox 412', 'Maple Sky 66', 'Tidal Owl 903']
     .map((handle, i) => ({ handle, me: i === 0, dating: i % 3 !== 2, place: ['Lagos', 'Ikeja', 'Lekki', 'Yaba', 'Surulere', 'Ajah', 'Ikorodu', 'Lagos'][i], online: i < 5 }));
@@ -304,8 +306,8 @@ const RPC = {
     room_heartbeat: () => (roomKick ? null : myRoom),
     leave_room: () => { myRoom = null; roomKick = null; },
     room_mark_read: () => null,
-    room_history: () => (myRoom === 'Lagos' ? roomMsgs : []),
-    room_people: () => roomPeople,
+    room_history: () => (myRoom === 'Lagos' ? roomMsgs.filter((m) => !roomBlockedHandles.has(m.handle)) : []),
+    room_people: () => roomPeople.filter((p) => !roomBlockedHandles.has(p.handle)),
     send_room_message: ({ p_body, p_reply_to }) => { const q = roomMsgs.find((x) => x.id === p_reply_to); return [{ id: ++msgId + 50, handle: profile.handle, body: p_body, created_at: new Date().toISOString(), reply_to: q ? q.id : null, reply_handle: q ? q.handle : null, reply_body: q ? q.body.slice(0, 140) : null }]; },
     // Bird Kingdom + ratings (sample data)
     my_bird: () => mockBird,
@@ -330,7 +332,28 @@ const RPC = {
     room_birthdays: () => [{ handle: roomPeople[1].handle }],
     badges_for_handles: ({ p_handles }) => p_handles.map((h, i) => ({ handle: h, badge: { level: (h.length % 8) + 1, rating: i % 2 ? null : 4.4, ratings: i % 2 ? 1 : 23 } })),
     room_profile: ({ p_handle }) => { const p = roomPeople.find((x) => x.handle === p_handle) || roomPeople[1]; return [{ handle: p.handle, room: 'Lagos', online: p.online, age: 25, gender: 'female', bio: 'Lagos babe, Afrobeats on repeat.', interests: ['Music', 'Fashion'], dating: p.dating, me: p.me, place: p.place }]; },
-    toggle_room_reaction: () => [{ reactions: { '❤️': 1 }, added: true }],
+    toggle_room_reaction: ({ p_message, p_emoji }) => {
+      const m = roomMsgs.find((x) => String(x.id) === String(p_message)); if (!m) return [];
+      const mine = new Set(m.my_reactions || []), counts = { ...(m.reactions || {}) };
+      if (mine.has(p_emoji)) { mine.delete(p_emoji); counts[p_emoji] = Math.max(0, Number(counts[p_emoji] || 0) - 1); if (!counts[p_emoji]) delete counts[p_emoji]; }
+      else { mine.add(p_emoji); counts[p_emoji] = Number(counts[p_emoji] || 0) + 1; }
+      m.my_reactions = [...mine]; m.reactions = counts;
+      return [{ reactions: counts, mine: mine.has(p_emoji) }];
+    },
+    report_room_message: ({ p_message, p_reason }) => {
+      const m = roomMsgs.find((x) => String(x.id) === String(p_message));
+      if (!m) throw Object.assign(new Error('Message not found.'), { code: 'P0002' });
+      if (!['harassment', 'inappropriate', 'spam', 'underage', 'other'].includes(p_reason)) throw Object.assign(new Error('Choose a report reason.'), { code: '22023' });
+      if (!roomReports.has(String(p_message))) roomReports.set(String(p_message), p_reason);
+      return null;
+    },
+    block_room_sender: ({ p_message }) => {
+      const m = roomMsgs.find((x) => String(x.id) === String(p_message));
+      if (!m || m.mine) throw Object.assign(new Error('That person is not available.'), { code: 'P0002' });
+      roomBlockedHandles.add(m.handle);
+      return null;
+    },
+    delete_room_message: ({ p_message }) => { const i = roomMsgs.findIndex((x) => String(x.id) === String(p_message) && x.mine); if (i >= 0) roomMsgs.splice(i, 1); return null; },
     chat_partner_profile: ({ p_conversation }) => { const c = convos.find((x) => x.conversation_id === p_conversation); return c ? [{ handle: c.other_handle, age: c.other_age, gender: c.other_gender, location: c.other_location, intent: c.other_intent, bio: 'Love good food, music and deep conversations.', interests: ['Music', 'Food', 'Travel'], online: c.other_online, active_hours: c.other_active_hours, available: !c.blocked }] : []; },
     revealed_details: () => [{ name: 'Tolu', username: 'tolu2025' }],
     // ---- Speed Dating (shared between tabs through localStorage; each tab is one dater) ----
