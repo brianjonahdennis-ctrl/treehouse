@@ -2,20 +2,21 @@
 
 import { Icon } from './ui';
 
-export type FeatureCardKind = 'discover' | 'chatrooms' | 'games' | 'treehouse' | 'weekly' | 'events';
+export type FeatureCardKind = 'discover' | 'chatrooms' | 'games' | 'treehouse' | 'weekly' | 'events' | 'business';
 
 type FeatureCardProps = {
   kind: FeatureCardKind;
   iconName: string;
   title: string;
   text: string;
+  extra?: string | null;
   badge?: string | null;
   actionText: string;
   onClick: () => void;
   ariaLabel?: string;
 };
 
-export function FeatureCard({ kind, iconName, title, text, badge, actionText, onClick, ariaLabel }: FeatureCardProps) {
+export function FeatureCard({ kind, iconName, title, text, extra, badge, actionText, onClick, ariaLabel }: FeatureCardProps) {
   return (
     <button type="button" className={`hm-feature ${kind}`} onClick={onClick} aria-label={ariaLabel}>
       <span className="hf-top">
@@ -23,7 +24,7 @@ export function FeatureCard({ kind, iconName, title, text, badge, actionText, on
         {badge ? <span className="hf-badge">{badge}</span> : null}
       </span>
       <b>{title}</b>
-      <span className="hf-text">{text}</span>
+      <span className="hf-text">{text}{extra ? <span className="hf-extra">{extra}</span> : null}</span>
       <span className="hf-go">{actionText}<Icon name="chev" cls="sm" /></span>
     </button>
   );

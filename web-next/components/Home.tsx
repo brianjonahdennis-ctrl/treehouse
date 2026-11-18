@@ -16,7 +16,6 @@ import { openSheet, toast } from './overlay';
 import { HomeAppCard } from './PushInstall';
 import { GamesCard } from './Games';
 import AdSlot from './AdSlot';
-import { InviteCard } from './InviteBoard';
 import { TreehouseCard } from './MyTreehouse';
 import { FeatureCard } from './FeatureCard';
 
@@ -73,9 +72,10 @@ export default function Home() {
           actionText="Open chatrooms" onClick={() => go(myRoom ? `rooms/${encodeURIComponent(myRoom.state)}` : 'rooms')} />
         <GamesCard />
         <TreehouseCard />
-        <InviteCard />
         <FeatureCard kind="events" iconName="calendar" title="Events" text="treehouse meetups and parties near you." badge="Coming soon" actionText="Coming soon"
           ariaLabel="Events, coming soon" onClick={() => toast('Events are coming soon. Watch this space!')} />
+        <FeatureCard kind="business" iconName="briefcase" title="treehouse Business" text="Grow your business with the treehouse community." badge="Coming soon" actionText="Coming soon"
+          ariaLabel="treehouse Business, coming soon" onClick={() => toast('treehouse Business is coming soon. Watch this space!')} />
       </div>
 
       <AdSlot placement="home" />
