@@ -97,16 +97,17 @@ export async function detectFeatures() { /* kept for callers; nothing to detect 
 
 // ---- Account --------------------------------------------------------------------------------
 export const session = async () => (await sb.auth.getSession()).data.session;
+// Google goes through our own page (app/auth/google), so Google's chooser says "to continue to
+// treehouse.ng" rather than the database's supabase.co address. Same Google client and accounts.
 export async function signInWithGoogle(redirect: string) {
   if (appGoogle()) {
-    const { data, error } = await sb.auth.signInWithOAuth({ provider: 'google',
-      options: { redirectTo: APP_RETURN, skipBrowserRedirect: true, queryParams: { prompt: 'select_account' } } });
-    if (error) throw error;
-    await capPlugins().Browser.open({ url: data.url, toolbarColor: '#05051f' });
+    // Android app: Chrome opens treehouse.ng/auth/google, which hands the session back to the app.
+    await capPlugins().Browser.open({ url: 'https://treehouse.ng/auth/google?app=1', toolbarColor: '#05051f' });
     return;
   }
-  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: redirect, queryParams: { prompt: 'select_account' } } });
-  if (error) throw error;
+  let next = '/home';
+  try { const u = new URL(redirect, location.origin); if (u.origin === location.origin) next = u.pathname + u.search; } catch {}
+  location.assign(`/auth/google?next=${encodeURIComponent(next)}`);
 }
 export async function signUp(email: string, password: string, redirect: string) {
   const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: redirect, data: { terms_accepted_at: new Date().toISOString() } } });
