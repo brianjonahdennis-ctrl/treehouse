@@ -25,10 +25,7 @@ const nextConfig: NextConfig = {
       // instead of asking our server every time a screen opens.
       source: '/:file(icon.svg|icon-180.png|icon-192.png|icon-512.png|notif-badge.png|treehouse-mark.svg|home.webmanifest)',
       headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }],
-    }, {
-      // App Store screenshots, readable by App Store Connect for the upload (temporary).
-      source: '/store-shots/:file*',
-      headers: [{ key: 'Access-Control-Allow-Origin', value: 'https://appstoreconnect.apple.com' }],
+
     }, {
       source: '/:path*',
       headers: [
