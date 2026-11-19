@@ -95,9 +95,9 @@ function SignIn() {
   const google = async () => {
     setBusy(true); setErr('');
     try {
-      const { error } = await (await sb()).auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${location.origin}/`, queryParams: { prompt: 'select_account' } } });
-      if (error) throw error;
-      if (MOCK) location.reload();
+      // Through our own page, so Google names admin.treehouse.ng (app/auth/google).
+      if (MOCK) { location.reload(); return; }
+      location.assign('/auth/google');
     } catch (e) { setErr(errText(e)); setBusy(false); }
   };
   const withEmail = async () => {
