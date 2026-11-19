@@ -14,7 +14,7 @@ at about 217 ms a call, and the database was overloaded.
   (about 21 ms, against about 280 ms for a full rebuild). The full chat-list rebuild now happens
   every 10 minutes instead of every 3.
 
-**Database change to apply:** `anon-inbox/supabase/migrations/20261118200000_inbox_fewer_rebuilds.sql`
+**Database change to apply:** `anon-inbox/supabase/migrations/20261119120000_inbox_fewer_rebuilds.sql`
 (safe to run twice). Apply it before the app goes live. Older apps keep working: they treat the new
 "new chat" signal like the old one.
 
