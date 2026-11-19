@@ -404,6 +404,8 @@ export async function savePushSubscription(sub: PushSubscription) {
   await rpc('save_push_subscription', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth });
 }
 export async function deletePushSubscription(endpoint: string) { await rpc('delete_push_subscription', { p_endpoint: endpoint }); }
+// Android app (1.8+): its Firebase device token, saved as an 'fcm:' device.
+export async function saveNativePush(token: string) { await rpc('save_native_push', { p_token: token }); }
 
 let platformPromise: Promise<string> | null = null;
 export function appPlatform() {

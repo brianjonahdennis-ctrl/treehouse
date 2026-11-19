@@ -2649,3 +2649,7 @@ button.mt-nav:active { transform: scale(.99); }
 .th-no-route small { color: rgba(234, 249, 255, .82); font-size: 12px; line-height: 1.4; }
 .th-off-road { position: absolute; z-index: 4; left: 16px; right: 16px; top: calc(env(safe-area-inset-top) + 172px); padding: 9px 12px; border-radius: 12px; background: rgba(245, 158, 11, .92); color: #1b1300; font-size: 13px; font-weight: 800; text-align: center; }
 @media (prefers-reduced-motion: reduce) { .th-floor-turn { animation: none; } .th-floor-arrow { transition: none; } }
+
+/* "Know when they reply" sheet: the same bell as the notifications card, larger. */
+.push-icon.big { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; margin: 0 auto; color: #fff; background: linear-gradient(135deg, var(--pink), var(--indigo) 55%, var(--blue)); }
+.push-icon.big .icon { width: 30px; height: 30px; }

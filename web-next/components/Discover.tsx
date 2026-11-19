@@ -3,6 +3,7 @@
 // Discover (port of renderDiscover/renderDeck in anon-inbox/public/hy-dating.js): the dark card deck
 // with Pass / Like / message request, undo, the location and preference filters, and the match moment.
 // Speed Dating starts from the banner (components/speed.js). Not yet here: drag-to-swipe (buttons and ← → keys work).
+import { iosApp } from '@/lib/platform';
 import { HandleBadges, ProfileBadges } from './Reputation';
 import { useEffect, useState } from 'react';
 import * as api from '@/lib/api';
@@ -90,7 +91,7 @@ export default function Discover() {
 
   const p = s.profile;
   const head = (
-    <Hero cls="disc-hero" title="Discover" sub="Anonymous profiles. Like, pass, or send a message request."
+    <Hero cls="disc-hero" title={iosApp() ? 'Meet people' : 'Discover'} sub="Anonymous profiles. Like, pass, or send a message request."
       actions={api.features.matching ? <HeroBtn icon="sliders" label="Filters" onClick={() => editPrefs()} /> : null}>
       <div className="disc-tabs" role="tablist" aria-label="Discover sections">
         <button role="tab" aria-selected={false} onClick={() => go('discover/nearby')}><Icon name="pin" cls="sm" />Nearby</button>

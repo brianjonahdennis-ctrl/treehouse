@@ -22,6 +22,7 @@ import ForceUpdate from './ForceUpdate';
 import CallLayer from './Call';
 import { deliverToOpenChat } from './chatBus';
 import { connectWaiting, rememberConnect } from '@/lib/kickrs';
+import { useIosApp } from '@/lib/platform';
 import { loadAnnUnread } from '@/lib/announcements';
 
 // Discover sits in the raised centre, Games next to it. Profile is your avatar at the top right of
@@ -31,6 +32,15 @@ const TABS: { route: string; label: string; icon: string; center?: boolean; badg
   { route: 'rooms', label: 'Chatrooms', icon: 'rooms' },
   { route: 'discover', label: 'Discover', icon: 'flame', center: true },
   { route: 'games', label: 'Games', icon: 'gamepad' },
+  { route: 'matches', label: 'Inbox', icon: 'mail', badge: true },
+  { route: 'profile', label: 'Profile', icon: 'user', sideOnly: true },
+];
+// iPhone app: community first. Chatrooms take the raised centre and Discover becomes "Meet".
+const IOS_TABS: typeof TABS = [
+  { route: 'home', label: 'Home', icon: 'home' },
+  { route: 'games', label: 'Games', icon: 'gamepad' },
+  { route: 'rooms', label: 'Chatrooms', icon: 'rooms', center: true },
+  { route: 'discover', label: 'Meet', icon: 'flame' },
   { route: 'matches', label: 'Inbox', icon: 'mail', badge: true },
   { route: 'profile', label: 'Profile', icon: 'user', sideOnly: true },
 ];
@@ -73,6 +83,7 @@ export default function App({ children }: { children: ReactNode }) {
 
 function Shell({ pathname, children }: { pathname: string; children: ReactNode }) {
   useAppState();
+  const ios = useIosApp();
   const tab = pathname.replace(/^\/home\/?/, '').split('/')[0] || 'home';
   const lastTab = useRef<string | null>(null);
   const badge = inboxBadge();
@@ -81,7 +92,7 @@ function Shell({ pathname, children }: { pathname: string; children: ReactNode }
   useEffect(() => {
     document.body.classList.toggle('dark-screen', tab === 'discover');
     const unread = unreadChats() + state.requests.length + messageRequests().length;
-    document.title = `${unread ? `(${unread}) ` : ''}${TITLES[tab] || 'Home'} · treehouse`;
+    document.title = `${unread ? `(${unread}) ` : ''}${(ios && tab === 'discover' ? 'Meet people' : TITLES[tab]) || 'Home'} · treehouse`;
     const n: any = navigator;
     if ('setAppBadge' in n) (unread ? n.setAppBadge(unread) : n.clearAppBadge()).catch(() => {});
     if (lastTab.current !== tab) { window.scrollTo(0, 0); lastTab.current = tab; }
@@ -89,6 +100,7 @@ function Shell({ pathname, children }: { pathname: string; children: ReactNode }
   useEffect(() => () => document.body.classList.remove('dark-screen'), []);
   useEffect(() => { if (tab !== 'connect' && connectWaiting()) go('connect/kickrs', { replace: true }); }, [tab]);
 
+  const tabs = ios ? IOS_TABS : TABS;
   const item = (t: typeof TABS[number], side: boolean) => {
     const n = t.badge ? badge : 0;
     const cls = side ? `side-item${t.center ? ` side-center side-${t.route}` : ''}` : `nav-item${t.center ? ` nav-center nav-${t.route}` : ''}`;
@@ -104,14 +116,14 @@ function Shell({ pathname, children }: { pathname: string; children: ReactNode }
     <div className="shell">
       <nav className="sidebar" aria-label="Main">
         <Logo />
-        {TABS.map((t) => item(t, true))}
+        {tabs.map((t) => item(t, true))}
         <div className="side-foot">
           <Link prefetch={false} className="side-item" href="/home/notifications"><Icon name="bell" /><span>Notifications</span><span className="badge" data-n={String(bell)}>{bell || ''}</span></Link>
           <p className="tiny" style={{ padding: '0 14px' }}>Anonymous users. Real connections. Identities stay hidden until both people agree.</p>
         </div>
       </nav>
       <div className="shell-body"><main className="main" id="main" tabIndex={-1}><div className="screen" key={tab}>{children}</div></main></div>
-      <nav className="bottom-nav" aria-label="Main">{TABS.filter((t) => !t.sideOnly).map((t) => item(t, false))}</nav>
+      <nav className="bottom-nav" aria-label="Main">{tabs.filter((t) => !t.sideOnly).map((t) => item(t, false))}</nav>
     </div>
   );
 }
@@ -123,6 +135,7 @@ async function boot() {
   booting = true;
   applyTheme();
   push.registerWorker();
+  push.watchApp(openFromNotification);
   inst.watchInstall();
   inst.onChange(() => emit('push'));   // the browser's install offer can arrive any time
   watchServiceWorker();
@@ -275,12 +288,17 @@ function startLive() {
 function watchServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.addEventListener('message', (e) => {
-    if (!e.data || e.data.type !== 'treehouse-open' || !state.user) return;
-    const path = new URL(e.data.url, location.origin).pathname.replace(/^\/home\/?/, '');
-    const chat = path.match(/^matches\/([0-9a-f-]{36})$/);
-    if (chat) openChat(chat[1]); else go(path || 'home');
-    if (path.startsWith('matches/announcements')) loadAnnUnread({ force: true });
+    if (!e.data || e.data.type !== 'treehouse-open') return;
+    openFromNotification(e.data.url);
   });
+}
+// Also used by the Android app when a notification is tapped (it may arrive before sign-in finishes).
+function openFromNotification(url: string, tries = 0) {
+  if (!state.user) { if (tries < 40) setTimeout(() => openFromNotification(url, tries + 1), 500); return; }
+  const path = new URL(url, location.origin).pathname.replace(/^\/home\/?/, '');
+  const chat = path.match(/^matches\/([0-9a-f-]{36})$/);
+  if (chat) openChat(chat[1]); else go(path || 'home');
+  if (path.startsWith('matches/announcements')) loadAnnUnread({ force: true });
 }
 
 // New version? Reload by itself. Phones keep the page open for days; when treehouse comes back to the
