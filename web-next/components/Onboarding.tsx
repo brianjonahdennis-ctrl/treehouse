@@ -2,6 +2,7 @@
 // The short onboarding after sign-up (port of the second half of anon-inbox/public/hy-onboard.js):
 // dating card (18+, date of birth checked twice) → a bit more about you → done.
 // The 18+ rule is enforced by the database (create_my_profile + table check); this is the friendly side.
+import { iosApp } from '@/lib/platform';
 import { useState } from 'react';
 import * as api from '@/lib/api';
 import { state, emit } from '@/lib/state';
@@ -77,7 +78,7 @@ function Frame({ step, title, sub, back, children }: { step: Step; title: string
           <div className="field"><span>Looking for</span><Chips options={INTENTS} value={intent} onChange={(v) => setIntent(v)} /></div>
           <label className="check"><input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} /><span>I confirm I’m 18 or older. Accounts found to be under 18 are removed.</span></label>
           <p className="error" role="alert">{err}</p>
-          <button className="btn btn-primary btn-block" disabled={busy} onClick={next}>{api.features.matching ? 'Continue' : 'Create dating profile'}</button>
+          <button className="btn btn-primary btn-block" disabled={busy} onClick={next}>{api.features.matching ? 'Continue' : iosApp() ? 'Create profile' : 'Create dating profile'}</button>
         </div>
       </Frame>
     );
@@ -102,7 +103,7 @@ function Frame({ step, title, sub, back, children }: { step: Step; title: string
             if (!draft.interested.length) return setErr('Pick at least one.');
             setBusy(true);
             try { await saveDating(); setStep('done'); } catch (e) { setErr(api.friendly(e)); setBusy(false); }
-          }}>Create dating profile</button>
+          }}>{iosApp() ? 'Create profile' : 'Create dating profile'}</button>
         </div>
       </Frame>
     );
@@ -126,7 +127,7 @@ function Done() {
   const finish = (where: string) => { state.onboarding = false; go(where, { replace: true }); emit('all'); };
   return (
     <div className="auth center">
-      <EmptyState emoji="🎉" title="You’re all set!" text={<>You’re <b>{state.profile ? state.profile.handle : 'in'}</b> on treehouse. Start meeting people.</>} />
+      <EmptyState emoji="🎉" title="You’re all set!" text={<>You’re <b>{state.profile ? state.profile.handle : 'in'}</b> on treehouse. {iosApp() ? 'Join your state’s chatroom, play games and meet people.' : 'Start meeting people.'}</>} />
       <button className="btn btn-white btn-block" onClick={() => finish('discover')}>🔥 Start discovering</button>
       <button className="btn btn-glass btn-block" onClick={() => finish(state.profile && state.profile.state ? `rooms/${encodeURIComponent(state.profile.state)}` : 'rooms')}>💬 Join your state’s chatroom</button>
       <button className="btn btn-soft btn-block" onClick={() => finish('home')}>Go home</button>

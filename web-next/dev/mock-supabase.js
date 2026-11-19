@@ -248,7 +248,7 @@ function mockHuntListings() {
   const base = { description: 'Follow the clues and collect a Treehouse Coin at every stop.', coin_avatar: '🪙', treasure_avatar: '🧰', needs_registration: true, max_registrations: 200, full: false, winners_count: 2, winners_done: false, chat: true };
   const prizes = [{ place: 1, title: 'Grand prize: a new phone', media_type: 'image', media_url: '/icon-512.png' }, { place: null, title: 'treehouse goodies for every finisher', media_type: 'image', media_url: '/icon-192.png' }];
   const rows = [
-    { ...base, id: mockHuntId, title: 'Treasure Hunt', region: 'Lagos · preview', state: 'Lagos', starts_at: new Date(Date.now() - 3600000).toISOString(),
+    { ...base, id: mockHuntId, title: 'Treasure Hunt', region: 'Lekki, Lagos', state: 'Lagos', starts_at: new Date(Date.now() - 3600000).toISOString(),
       ends_at: new Date(Date.now() + 86400000).toISOString(), checkpoint_count: mockHuntCheckpoints.length, live: true, prizes,
       joined: sessionStorage.getItem(`mock-hunt-joined-${mockHuntPlayer()}`) === '1', count: 27 },
     { ...base, id: 'd0000000-0000-4000-8000-000000000002', title: 'Lagos Island Night Hunt', region: 'Lagos Island, Lagos', state: 'Lagos',

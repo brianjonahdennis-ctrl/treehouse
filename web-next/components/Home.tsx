@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Home: the hub (port of anon-inbox/public/hy-home.js). Who you are, the two ways in (Discover,
 // Chatrooms), your connections at a glance and recent activity. Pink = dating, blue = talking.
+import { useIosApp } from '@/lib/platform';
 import { previewOf } from './Birthday';
 import { MyHomeBadges } from './Reputation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -34,6 +35,7 @@ let myRoomCache: any = null, roomAt = 0;
 let peopleCache: any[] | null = null, peopleAt = 0;
 
 export default function Home() {
+  const ios = useIosApp();
   const s = useAppState();
   const profile = s.profile;
   const [myRoom, setMyRoom] = useState<any>(myRoomCache);
@@ -48,6 +50,16 @@ export default function Home() {
   const matches = live.filter((c) => statusOf(c) === 'chat' && isMatch(c));
   const likes = s.requests.length;
 
+  // iPhone app: community first, with meeting people as one feature among many (App Store rule 4.3).
+  const discoverCard = ios
+    ? <FeatureCard kind="discover" iconName="flame" title="Meet people" text="Find people to chat with across Nigeria." badge={likes ? `${likes} like${likes === 1 ? '' : 's'}` : null} actionText="Meet people" onClick={() => go('discover')} />
+    : <FeatureCard kind="discover" iconName="flame" title="Discover" text="Meet new people and find meaningful connections." badge={likes ? `${likes} like${likes === 1 ? '' : 's'}` : null} actionText="Start discovering" onClick={() => go('discover')} />;
+  const chatroomsCard = (
+    <FeatureCard kind="chatrooms" iconName="rooms" title="Chatrooms"
+      text={myRoom ? `You’re in ${roomTitle(myRoom.state)} · ${myRoom.online ?? myRoom.people} online` : 'Join your state community, meet people and start conversations.'}
+      badge={myRoom && myRoom.unread ? `${myRoom.unread > 99 ? '99+' : myRoom.unread} new` : null}
+      actionText="Open chatrooms" onClick={() => go(myRoom ? `rooms/${encodeURIComponent(myRoom.state)}` : 'rooms')} />
+  );
   return (
     <div className="stack-lg home">
       <Hero cls="home-hero" top={<Logo />} actions={<BellButton />}>
@@ -65,13 +77,11 @@ export default function Home() {
       <FriendsStrip />
 
       <div className="hm-features">
-        <FeatureCard kind="discover" iconName="flame" title="Discover" text="Meet new people and find meaningful connections." badge={likes ? `${likes} like${likes === 1 ? '' : 's'}` : null} actionText="Start discovering" onClick={() => go('discover')} />
-        <FeatureCard kind="chatrooms" iconName="rooms" title="Chatrooms"
-          text={myRoom ? `You’re in ${roomTitle(myRoom.state)} · ${myRoom.online ?? myRoom.people} online` : 'Join your state community, meet people and start conversations.'}
-          badge={myRoom && myRoom.unread ? `${myRoom.unread > 99 ? '99+' : myRoom.unread} new` : null}
-          actionText="Open chatrooms" onClick={() => go(myRoom ? `rooms/${encodeURIComponent(myRoom.state)}` : 'rooms')} />
+        {ios ? null : discoverCard}
+        {chatroomsCard}
         <GamesCard />
         <TreehouseCard />
+        {ios ? discoverCard : null}
         <FeatureCard kind="events" iconName="calendar" title="Events" text="treehouse meetups and parties near you." badge="Coming soon" actionText="Coming soon"
           ariaLabel="Events, coming soon" onClick={() => toast('Events are coming soon. Watch this space!')} />
         <FeatureCard kind="business" iconName="briefcase" title="treehouse Business" text="Grow your business with the treehouse community." badge="Coming soon" actionText="Coming soon"
