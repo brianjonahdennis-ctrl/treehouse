@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const webPush = require('./push.js');
+const fcm = require('./fcm.js');   // Android app notifications (Firebase)
 
 const PORT = Number(process.env.PORT) || 4000;
 // Anonymous dating (Supabase). The /date page needs the project URL and its publishable key
@@ -89,7 +90,7 @@ function pushConfig() {
   } catch (e) { console.error('Push notifications are off: invalid VAPID keys'); }
   return vapid;
 }
-const pushReady = () => Boolean(DATING_READY && pushConfig() && datingAdminToken());
+const pushReady = () => Boolean(DATING_READY && datingAdminToken() && (pushConfig() || fcm.ready(DATA_DIR)));
 
 let draining = false, drainAgain = false;
 async function drainPush() {
@@ -105,9 +106,15 @@ async function drainPush() {
       const worker = async () => {
         for (let r; (r = queue.shift());) {
           try {
-            const status = await webPush.sendPush(r, { kind: r.kind, url: r.url },
-              { authHeader: vapid.authHeader, topic: `treehouse-${r.kind}` });
-            if (status === 404 || status === 410) {
+            // Android app devices are saved as "fcm:<token>"; the rest are web push subscriptions.
+            let gone = false;
+            if (fcm.isFcm(r.endpoint)) gone = fcm.ready(DATA_DIR) && (await fcm.send(r.endpoint, { kind: r.kind, url: r.url })) === 'gone';
+            else if (vapid) {
+              const status = await webPush.sendPush(r, { kind: r.kind, url: r.url },
+                { authHeader: vapid.authHeader, topic: `treehouse-${r.kind}` });
+              gone = status === 404 || status === 410;
+            }
+            if (gone) {
               await datingRpc('admin_drop_push_subscription', { p_key: datingAdminToken(), p_endpoint: r.endpoint }).catch(() => {});
             }
           } catch {}
@@ -145,6 +152,28 @@ async function cleanChatPhotos() {
 }
 setTimeout(cleanChatPhotos, 5 * 60 * 1000).unref();
 setInterval(cleanChatPhotos, 60 * 60 * 1000).unref();
+
+// ---- Voice notes: remove played, unsent, never-sent and 7-day-old files every 10 minutes ---------------
+// (The recipient's app deletes a note right after playing it; this is the backup.)
+async function cleanVoiceNotes() {
+  if (!DATING_READY || !datingAdminToken()) return;
+  try {
+    for (let round = 0; round < 5; round++) {
+      const names = await datingRpc('admin_expired_voice', { p_key: datingAdminToken(), p_limit: 500 }, 20000);
+      if (!Array.isArray(names) || !names.length) break;
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/chat-voice`, {
+        method: 'DELETE',
+        headers: { apikey: SUPABASE_PUBLISHABLE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefixes: names }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!res.ok) { console.log(`voice note cleanup: ${res.status}`); break; }
+      if (names.length < 500) break;
+    }
+  } catch (e) { if (!/admin_expired_voice|PGRST202/.test(e.message || '')) console.log(`voice note cleanup failed: ${e.message}`); }
+}
+setTimeout(cleanVoiceNotes, 6 * 60 * 1000).unref();
+setInterval(cleanVoiceNotes, 10 * 60 * 1000).unref();
 
 // ---- Birthdays: ages come from date of birth; refresh them every hour so age rooms stay right -------
 async function refreshAges() {
@@ -633,7 +662,7 @@ const OLD_HOSTS = new Set(['tell.brianjonahdennis.com', 'www.treehouse.ng']);
 const REDIRECT_CODE = process.env.DOMAIN_REDIRECT === '301' ? 301 : 302;
 // The owner's anonymous link lives on its own address, away from treehouse: people who search for
 // treehouse land on the app, not on "send me anonymous messages". treehouse.ng/ opens the app instead.
-const ANDROID_APK = 'treehouse-1.5.apk';
+const ANDROID_APK = 'treehouse-1.7.apk';
 const LINK_HOST = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(process.env.ANON_LINK_HOST || '') ? process.env.ANON_LINK_HOST : 'tell.brianjonahdennis.com';
 const TREEHOUSE_HOSTS = new Set(['treehouse.ng', 'www.treehouse.ng', CANONICAL_HOST].filter(Boolean));
 // The member app's own address. treehouse.ng stays the landing page; app.treehouse.ng opens the app.
@@ -890,6 +919,11 @@ async function handle(req, res) {
       // Speed Dating (counts only).
       try { if (report.dating) report.dating.speed = await datingRpc('admin_speed_stats', { p_key: datingAdminToken(), p_days: range }, 6000); }
       catch { /* older database: no Speed Dating stats yet */ }
+      // Games (Kickrs) and chatroom bans (counts only).
+      try { if (report.dating) report.dating.games = await datingRpc('admin_game_stats', { p_key: datingAdminToken(), p_days: range }, 8000); }
+      catch { /* older database: no game stats yet */ }
+      try { if (report.dating) report.dating.roomBans = await datingRpc('admin_room_ban_stats', { p_key: datingAdminToken(), p_days: range }, 6000); }
+      catch { /* older database: no room-ban stats yet */ }
     }
     return send(res, 200, report);
   }

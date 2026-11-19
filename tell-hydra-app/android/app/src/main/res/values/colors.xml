@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tint of the small notification icon. -->
+    <color name="notification_pink">#FF4F9A</color>
+</resources>

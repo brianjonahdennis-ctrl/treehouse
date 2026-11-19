@@ -666,6 +666,44 @@ function renderDatingStats(d, body, downloads = []) {
     }
     body.append(head);
   }
+  // Games (Kickrs): connections and challenges sent from chats. Match results live on Kickrs.
+  if (d.games) {
+    const g = d.games;
+    const GAME = { penalties: 'Penalties', trivia: 'Trivia', crosswords: 'Crosswords' };
+    const by = Object.entries(g.byGame || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${GAME[k] || k} ${fmt(v)}`).join(' · ');
+    const gc = card('Games', 'Kickrs games played from treehouse. Counts only.');
+    const gt = el('div', 'tiles');
+    gt.append(
+      tile('Players connected', fmt(g.connected), `${fmt(g.connectedInRange)} connected in this period · ${fmt(g.disconnected)} disconnected`),
+      tile('Challenges sent', fmt(g.challenges), by || 'none yet'),
+      tile('Challengers', fmt(g.challengers), `${fmt(g.challengesAllTime)} challenges all time`));
+    gc.append(gt);
+    if (g.daily && g.daily.length) {
+      const gn = g.daily.length;
+      gc.append(el('div', 'tile-note', 'Challenges sent per day'),
+        columns(g.daily.map((x) => x.challenges), null, (i) => `${shortDate(g.daily[i].date)}: ${fmt(g.daily[i].challenges)} challenges · ${fmt(g.daily[i].connected)} new players`,
+          [[0, shortDate(g.daily[0].date)], [gn - 1, shortDate(g.daily[gn - 1].date)]]));
+    }
+    body.append(gc);
+  }
+  // Chatroom bans: links (24 h) and repeated messages (48 h). Counts only.
+  if (d.roomBans) {
+    const b = d.roomBans;
+    const bc = card('Chatroom bans', `${fmt(b.activeNow)} banned right now · ${fmt(b.suspendedKeptOut)} suspended accounts kept out`);
+    const bt = el('div', 'tiles');
+    bt.append(
+      tile('Bans', fmt(b.inRange), `${fmt(b.peopleInRange)} people · ${fmt(b.allTime)} all time`),
+      tile('For links (24 h)', fmt(b.linkInRange), `${fmt(b.activeLink)} still running`),
+      tile('For repeated messages (48 h)', fmt(b.repeatInRange), `${fmt(b.activeRepeat)} still running`));
+    bc.append(bt);
+    if (b.daily && b.daily.length) {
+      const bn = b.daily.length;
+      bc.append(el('div', 'tile-note', 'Bans per day'),
+        columns(b.daily.map((x) => x.link + x.repeat), null, (i) => `${shortDate(b.daily[i].date)}: ${fmt(b.daily[i].link)} for links · ${fmt(b.daily[i].repeat)} for repeats`,
+          [[0, shortDate(b.daily[0].date)], [bn - 1, shortDate(b.daily[bn - 1].date)]]));
+    }
+    body.append(bc);
+  }
   if (d.deletions && d.deletions.daily) {
     const del = card('Deleted accounts per day', 'People who deleted their own account. Counted since 12 Nov 2026.');
     const dn = d.deletions.daily.length;

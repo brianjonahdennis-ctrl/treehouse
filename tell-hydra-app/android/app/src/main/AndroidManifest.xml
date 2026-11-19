@@ -32,6 +32,11 @@
 
         </activity>
 
+        <!-- Push notifications (Firebase): the small icon, colour and channel used when the server doesn't say. -->
+        <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_treehouse" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_pink" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="treehouse" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -46,6 +51,8 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Notifications for messages, matches and calls (Android 13+ asks only when the person turns them on). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Nearby: approximate location, only when the person turns Nearby on (never in the background). -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />

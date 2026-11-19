@@ -16,7 +16,7 @@
   },
   "android": {
     "backgroundColor": "#05051f",
-    "appendUserAgent": "TreehouseApp/1.7"
+    "appendUserAgent": "TreehouseApp/1.8"
   },
   "ios": {
     "appendUserAgent": "TreehouseApp/1.4",
@@ -25,6 +25,13 @@
   "plugins": {
     "Keyboard": {
       "resize": "native"
+    },
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
     }
   }
 }

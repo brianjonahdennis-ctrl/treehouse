@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "957394058943",
+    "project_id": "treehouse-ng",
+    "storage_bucket": "treehouse-ng.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:957394058943:android:7eb54483124b13170bd00a",
+        "android_client_info": {
+          "package_name": "com.brianjonahdennis.treehouse"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAP7Iz7T13hIMWALOZTBBKcmvyV8KqPUu8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

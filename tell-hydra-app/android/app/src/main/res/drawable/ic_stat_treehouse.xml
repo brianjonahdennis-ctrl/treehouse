@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification icon: the treehouse mark (canopy, ground line, roots) in one colour, as Android requires. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="512" android:viewportHeight="512">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M106,296V216A150,150 0,0 1,406 216V296Z"/>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M113,310H399A7,7 0,0 1,399 324H113A7,7 0,0 1,113 310Z"/>
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="22" android:strokeLineCap="round"
+        android:pathData="M256,338V444M250,352L188,414M262,352L324,414M176,336L142,370M336,336L370,370"/>
+</vector>
