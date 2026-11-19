@@ -281,7 +281,7 @@ export function ChatCallActions({ conversationId, other, refreshKey }: { convers
     if (calls.callsHiddenHere()) return;
     if (callOk.has(conversationId)) { setOk(true); return; }
     const last = callAsked.get(conversationId);
-    if (last && (last.key === refreshKey || Date.now() - last.at < 120000)) return;
+    if (last && (last.key === refreshKey || Date.now() - last.at < 300000)) return;   // at most every 5 min per chat
     callAsked.set(conversationId, { at: Date.now(), key: refreshKey });
     // The answer is kept even if this screen re-rendered meanwhile (only a yes is remembered).
     api.callAvailable(conversationId).then((v) => { if (v) { callOk.add(conversationId); if (mounted.current) setOk(true); } });

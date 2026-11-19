@@ -582,10 +582,19 @@ export function joinChat(conversationId: string, me: string, { onMessage, onUpda
 }
 
 // ---- Chatrooms ---------------------------------------------------------------------------------------
-export const roomList = async () => (await rpc('room_list')) || [];
-export const joinRoom = async (state: string) => ((await rpc('join_room', { p_state: state })) || [])[0] || null;
+// One shared copy for Home and Chatrooms, reused for 20 seconds (the room counts behind it refresh every
+// 20 s anyway), so moving between screens doesn't ask the database again. force: after joining/leaving.
+let roomListCache: { at: number; p: Promise<any[]> } | null = null;
+export function roomList({ force = false } = {}): Promise<any[]> {
+  if (!force && roomListCache && Date.now() - roomListCache.at < 20000) return roomListCache.p;
+  const p = rpc('room_list').then((r: any) => r || []);
+  roomListCache = { at: Date.now(), p };
+  p.catch(() => { if (roomListCache?.p === p) roomListCache = null; });
+  return p;
+}
+export const joinRoom = async (state: string) => { roomListCache = null; return ((await rpc('join_room', { p_state: state })) || [])[0] || null; };
 export const roomHeartbeat = () => rpc('room_heartbeat');
-export const leaveRoom = () => rpc('leave_room');
+export const leaveRoom = () => { roomListCache = null; return rpc('leave_room'); };
 export async function myRoomKick() {
   try { return ((await rpc('my_room_kick')) || [])[0] || null; }
   catch (e) { if (missingFn(e)) return null; throw e; }

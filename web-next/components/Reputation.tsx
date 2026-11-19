@@ -343,17 +343,20 @@ export function startActivity() {
 // Shows once the chat has more than 10 messages (the database decides: rating_prompt). "Not now" hides it
 // until 20 more messages; after a rating it waits for the once-a-week rule. `tick` changes when messages
 // arrive, so the card can appear mid-chat.
+const ratingAsked = new Map<string, number>();   // chat → when the rating prompt was last asked
 export function ChatRatePrompt({ convo, name, tick }: { convo: string; name: string; tick: number }) {
   const [show, setShow] = useState(false);
   const [stars, setStars] = useState(0);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
-  // Ask when the chat opens, then every 5 new messages (not on every message), and not while it's showing.
-  const step = Math.floor((tick || 0) / 5);
+  // Ask when the chat opens (not again if this chat was asked in the last 10 minutes), then every 10 new
+  // messages, and not while it's showing. The database still decides (10+ messages, "Not now" = 20 later).
+  const step = Math.floor((tick || 0) / 10);
   useEffect(() => {
     if (done || show) return;
+    if (!step && Date.now() - (ratingAsked.get(convo) || 0) < 600000) return;
     let alive = true;
-    const t = setTimeout(() => { api.ratingPrompt(convo).then((r: any) => { if (alive) setShow(!!(r && r.show)); }).catch(() => {}); }, step ? 2500 : 600);
+    const t = setTimeout(() => { ratingAsked.set(convo, Date.now()); api.ratingPrompt(convo).then((r: any) => { if (alive) setShow(!!(r && r.show)); }).catch(() => {}); }, step ? 2500 : 600);
     return () => { alive = false; clearTimeout(t); };
   }, [convo, step, done]); // eslint-disable-line react-hooks/exhaustive-deps
   if (done) return <div className="rate-prompt done" role="status"><span aria-hidden="true">⭐</span> Thanks! Your rating was submitted anonymously.</div>;
