@@ -307,6 +307,8 @@ const RPC = {
       window.__mockListBytes = (window.__mockListBytes || 0) + JSON.stringify(out).length;
       return out;
     },
+    // Preview: same as v2 (full answers); the partial path is tested against the real database.
+    dating_summary_changes_v3: (args) => RPC.dating_summary_changes_v2(args),
     __unused_dating_summary: () => ({ convos, requests: likes, pending: likes.length, my_status: myStatus, origins: empty ? {} : { c12: 'nearby', c13: 'nearby', c14: 'nearby', ...mockOrigins },
       friend_statuses: [{ conversation_id: 'c8', body: 'Weekend vibes already! 🎉', updated_at: ago(17) }, { conversation_id: 'c9', body: 'At work, hit me up later 💼', updated_at: ago(180) }] }),
     set_my_status: ({ p_body }) => { myStatus = { body: p_body, updated_at: new Date().toISOString() }; return [myStatus]; },

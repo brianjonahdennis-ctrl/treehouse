@@ -205,6 +205,7 @@ type ListCache = {
 let listCache: ListCache | null = null;
 let changesMissing = false;
 let versionedChangesMissing = false;
+let partialChangesMissing = false;
 export function forgetChatList() { listCache = null; }
 // The liker's own pending count no longer bumps their chat-list version; keep the cache in step.
 export function notePendingLike() { if (listCache) listCache.pending += 1; }
@@ -224,11 +225,21 @@ async function datingSummaryChanges(uid: string): Promise<any> {
   const c = listCache;
   const known: Record<string, string> = {};
   c.rows.forEach((r, id) => { known[id] = r._fp; });
-  // Online dots come from inboxPresence() between rebuilds, so a full rebuild is forced only every
-  // 10 minutes (it also corrects anything patched locally, such as the pending-likes count).
-  const pVersion = c.version != null && Date.now() - c.lastFullAt < 600000 ? c.version : null;
+  // Online dots come from inboxPresence() and changed chats from partial answers, so a full rebuild is
+  // forced only every 30 minutes (it also corrects anything patched locally, such as pending likes).
+  const pVersion = c.version != null && Date.now() - c.lastFullAt < 1800000 ? c.version : null;
   let d: any;
-  if (!versionedChangesMissing) {
+  // v3 answers with only the chats that changed when nothing else did (a few ms instead of a full
+  // rebuild). v2 and the original function stay as fallbacks while the database is being updated.
+  if (!partialChangesMissing) {
+    try {
+      d = await rpc('dating_summary_changes_v3', { p_known: known, p_req: c.reqFp, p_version: pVersion });
+    } catch (e) {
+      if (!missingFn(e)) throw e;
+      partialChangesMissing = true;
+    }
+  }
+  if (partialChangesMissing && !versionedChangesMissing) {
     try {
       d = await rpc('dating_summary_changes_v2', { p_known: known, p_req: c.reqFp, p_version: pVersion });
     } catch (e) {
@@ -250,15 +261,25 @@ async function datingSummaryChanges(uid: string): Promise<any> {
   }
   for (const id of d.removed || []) c.rows.delete(id);
   for (const r of d.changed || []) c.rows.set(r.conversation_id, r);
-  if (d.requests != null) c.requests = d.requests;
-  c.reqFp = d.req_fp || '';
   if (d.version != null) c.version = Number(d.version);
-  c.lastFullAt = Date.now();
-  c.pending = d.pending ?? c.pending;
-  c.myStatus = d.my_status ?? null;
-  c.friendStatuses = d.friend_statuses || [];
-  c.origins = d.origins || {};
-  if (d.friend_asks !== undefined) c.friendAsks = d.friend_asks || [];
+  if (d.partial) {
+    // Only some chats changed: everything else in the cache is still current. The likes/requests part
+    // comes along only when it changed.
+    if (d.req_fp !== undefined) {
+      if (d.requests != null) c.requests = d.requests;
+      c.reqFp = d.req_fp || '';
+      c.pending = d.pending ?? c.pending;
+    }
+  } else {
+    if (d.requests != null) c.requests = d.requests;
+    c.reqFp = d.req_fp || '';
+    c.lastFullAt = Date.now();
+    c.pending = d.pending ?? c.pending;
+    c.myStatus = d.my_status ?? null;
+    c.friendStatuses = d.friend_statuses || [];
+    c.origins = d.origins || {};
+    if (d.friend_asks !== undefined) c.friendAsks = d.friend_asks || [];
+  }
   const convos = [...c.rows.values()].map((r) => { const { _fp, ...row } = r; void _fp; return row; })
     .sort((x, y) => +new Date(y.last_at) - +new Date(x.last_at));
   return {
