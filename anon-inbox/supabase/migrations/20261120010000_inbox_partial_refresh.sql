@@ -33,9 +33,11 @@ revoke all on dating_private.inbox_partial_switch from public, anon, authenticat
 insert into dating_private.inbox_partial_switch values (1, clock_timestamp())
   on conflict (id) do update set switched_at = excluded.switched_at;
 
+-- No foreign keys on purpose: adding them would lock the chats and users tables while this runs.
+-- Rows of deleted chats/accounts are harmless and are swept with the rest (deletions set full_v).
 create table if not exists dating_private.inbox_conv_change (
-  user_id uuid not null references auth.users (id) on delete cascade,
-  conversation_id uuid not null references public.dating_conversations (id) on delete cascade,
+  user_id uuid not null,
+  conversation_id uuid not null,
   v bigint not null,
   primary key (user_id, conversation_id)
 );

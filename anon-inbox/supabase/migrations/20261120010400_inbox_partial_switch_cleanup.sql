@@ -1,4 +1,4 @@
--- Run a minute after 20261120010000. Any chat-list bump that began before the switch used the old
+-- Run a minute after 20261120010000 (numbered 010400 so it applies after 010300). Any chat-list bump that began before the switch used the old
 -- functions and left no change record; marking those rows as a full change makes the next refresh a
 -- full rebuild (never a partial one that could miss something). Rows bumped later than switch+5 s are
 -- left alone. Safe to run twice.
